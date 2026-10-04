@@ -143,11 +143,12 @@ final class NotchEqualizerView: NSView {
             // repeating animation would fight the sound it is following.
             var resting: CGFloat = moving ? low : barWidth
             if let live {
-                // Fork: each bar shows the loudest of the bands it covers, so
-                // three bars still carry the kick, the voice and the cymbals.
+                // Fork: each bar averages the bands it covers, so three bars
+                // still carry the low end, the middle and the top of the mix.
                 let lower = index * live.count / bars.count
-                let upper = max(lower + 1, (index + 1) * live.count / bars.count)
-                let level = live[lower..<min(upper, live.count)].max() ?? 0
+                let upper = min(live.count, max(lower + 1, (index + 1) * live.count / bars.count))
+                let covered = live[lower..<upper]
+                let level = covered.reduce(0, +) / Double(max(1, covered.count))
                 resting = max(barWidth, height * CGFloat(0.1 + 0.9 * min(1, max(0, level))))
             }
             bar.bounds = CGRect(x: 0, y: 0, width: barWidth, height: resting)

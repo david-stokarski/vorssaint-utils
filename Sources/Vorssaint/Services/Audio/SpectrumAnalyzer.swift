@@ -32,6 +32,24 @@ struct SpectrumConfiguration: Equatable {
     /// energy low than high; leveling the slope lets every bar move with
     /// its own part of the mix instead of the bass setting the scale alone.
     var tilt: Float = 0
+    /// How loud a band is judged against. `shared` measures every band from
+    /// one running peak; `perBand` measures each against its own recent
+    /// range, blended with the shared reading by `shared` (0...1), so dense
+    /// music doesn't pin every bar and quiet passages still read quieter.
+    var normalization: Normalization = .shared
+
+    enum Normalization: Equatable {
+        case shared
+        /// Each band's floor rises and its peak falls by these many decibels
+        /// per update toward what it hears; `minimumSpan` keeps a steady band
+        /// from being stretched into noise.
+        case perBand(floorRise: Float, peakFall: Float, minimumSpan: Float, shared: Float)
+        /// Every band against the mix's average loudness, which follows the
+        /// loudest band by `adapt` of the way per update (seconds, not frames,
+        /// of memory): the usual level sits at `below / (below + above)`,
+        /// a hit rises toward the top, a quiet passage drops toward empty.
+        case average(adapt: Float, below: Float, above: Float)
+    }
 
     /// Samples each update reads: the preroll, then the frame.
     var inputLength: Int { preroll + size }
@@ -39,11 +57,14 @@ struct SpectrumConfiguration: Equatable {
     /// The microphone: voice from 100 Hz up, twenty bars, quick to move.
     static let dictation = Self(size: 1024, preroll: 2048, bands: 20, minimumFrequency: 100, maximumFrequency: 6000,
                                 range: 42, gate: -72, peakRelease: 0.35, attack: 0.9, release: 0.4)
-    /// Music: everything from 40 Hz up in the island's seven bands, read
-    /// sixty times a second over a 43 ms window, with the mix's downward
-    /// slope leveled so the highs move as visibly as the kick.
+    /// Music: everything from 40 Hz up in the island's seven bands, sixty
+    /// times a second over a 43 ms window, the slope of the mix leveled.
+    /// Each band is read against the song's average loudness over the last
+    /// few seconds, so the bars sit mid-height at the usual level, rise with
+    /// hits and swells and drop in quiet passages, and move calmly.
     static let media = Self(size: 2048, preroll: 3072, bands: 7, minimumFrequency: 40, maximumFrequency: 12_000,
-                            range: 30, gate: -78, peakRelease: 0.2, attack: 0.9, release: 0.5, tilt: 3)
+                            range: 30, gate: -78, peakRelease: 0.2, attack: 0.3, release: 0.12, tilt: 3,
+                            normalization: .average(adapt: 1.0 / 360, below: 20, above: 10))
     /// How often the music reader analyses.
     static let mediaUpdatesPerSecond = 60.0
 }
@@ -69,6 +90,9 @@ final class SpectrumAnalyzer {
     private let highPass: vDSP.Biquad<Float>?
     private var filtered: [Float]
     private let bandTilt: [Float]
+    private var bandFloors: [Float]
+    private var bandPeaks: [Float]
+    private var average: Float?
 
     init?(configuration: SpectrumConfiguration, sampleRate: Double) {
         let size = configuration.size
@@ -89,6 +113,8 @@ final class SpectrumAnalyzer {
         levels = [Float](repeating: 0, count: configuration.bands)
         peak = configuration.gate + configuration.range
         bandBins = Self.bandBins(configuration, sampleRate: sampleRate)
+        bandFloors = [Float](repeating: 0, count: configuration.bands)
+        bandPeaks = [Float](repeating: configuration.gate, count: configuration.bands)
         let binWidth = Float(sampleRate) / Float(size)
         bandTilt = bandBins.map { bins in
             let centre = Float(bins.lowerBound + bins.upperBound) / 2 * binWidth
@@ -176,13 +202,28 @@ final class SpectrumAnalyzer {
             decibels[band] = 20 * log10(max(amplitude, 1e-9)) + bandTilt[band]
         }
         let loudest = decibels.max() ?? configuration.gate
+        if case let .average(adapt, _, _) = configuration.normalization {
+            // Silence doesn't drag the reference down: it stays at the gate's floor.
+            let heard = max(loudest, configuration.gate + 20)
+            average = average.map { $0 + (heard - $0) * adapt } ?? heard
+        }
         // The scale follows the loudest band down slowly, so quiet speech
         // fills the bars but a pause lets them settle to nothing.
         peak = max(loudest, peak - configuration.peakRelease, configuration.gate + configuration.range * 0.5)
         let floor = max(peak - configuration.range, configuration.gate)
         let span = max(1, peak - floor)
         for band in 0..<configuration.bands {
-            let target = min(1, max(0, (decibels[band] - floor) / span))
+            var target = min(1, max(0, (decibels[band] - floor) / span))
+            if case let .average(_, below, above) = configuration.normalization, let average {
+                target = min(1, max(0, (max(decibels[band], configuration.gate) - (average - below)) / (below + above)))
+            }
+            if case let .perBand(floorRise, peakFall, minimumSpan, sharedWeight) = configuration.normalization {
+                let level = max(decibels[band], configuration.gate)
+                bandFloors[band] = max(configuration.gate, min(level, bandFloors[band] + floorRise))
+                bandPeaks[band] = max(level, bandPeaks[band] - peakFall)
+                let own = min(1, max(0, (level - bandFloors[band]) / max(minimumSpan, bandPeaks[band] - bandFloors[band])))
+                target = own * (1 - sharedWeight) + target * sharedWeight
+            }
             let rate = target > levels[band] ? configuration.attack : configuration.release
             levels[band] += (target - levels[band]) * rate
         }
