@@ -79,6 +79,8 @@ struct NotchView: View {
             } else {
                 NotchCaptureControlsView(options: options, service: service, layout: service.captureControlsLayout)
             }
+        } else if service.dictationPresented, !service.expanded {
+            NotchDictationView(service: service)  // Fork
         } else if service.expanded {
             expanded
         } else if service.dragPlaceholder {

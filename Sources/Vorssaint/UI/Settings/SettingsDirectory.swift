@@ -341,6 +341,10 @@ enum SettingsDirectory {
                                       title: FeatureStrings.portManager(language).title,
                                       icon: "network",
                                       keywords: ["port", "ports", "listening", "socket", "PID", "kill port"]),
+                SettingsDirectoryItem(page: .dictation,
+                                      title: DictationSupport.title,
+                                      icon: "waveform.and.mic",
+                                      keywords: ["dictation", "speech", "voice", "transcribe", "stt", "speech to text"]),
             ]),
             (categories.utilities, [
                 SettingsDirectoryItem(page: .notch,

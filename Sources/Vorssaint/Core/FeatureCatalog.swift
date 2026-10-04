@@ -22,7 +22,7 @@ enum AppFeature: String, CaseIterable {
     case clipboardHistory, pastePlain, finderCutPaste, finderRename, shelf, urlCleaner,
          diskImageInstaller
     // Sound
-    case mixer, soundOutputSwitcher, audioPriority, micMute, musicBlock
+    case mixer, soundOutputSwitcher, audioPriority, micMute, musicBlock, dictation
     // Energy and display
     case keepAwake, brightness, extraBrightness, bluetoothSleep
     // Tools
@@ -107,7 +107,7 @@ extension AppFeature {
         case .clipboardHistory, .pastePlain, .finderCutPaste, .finderRename, .shelf, .urlCleaner,
              .diskImageInstaller:
             return .clipboardFiles
-        case .mixer, .soundOutputSwitcher, .audioPriority, .micMute, .musicBlock:
+        case .mixer, .soundOutputSwitcher, .audioPriority, .micMute, .musicBlock, .dictation:
             return .sound
         case .keepAwake, .brightness, .extraBrightness, .bluetoothSleep:
             return .energyDisplay
@@ -160,6 +160,7 @@ extension AppFeature {
         case .soundOutputSwitcher: return "hifispeaker"
         case .audioPriority: return "list.number"
         case .micMute: return "mic.slash"
+        case .dictation: return "waveform.and.mic"
         case .musicBlock: return "music.note"
         case .keepAwake: return "moon.zzz.fill"
         case .brightness: return "display.2"
@@ -266,6 +267,7 @@ extension AppFeature {
         case .radialMenu: return [DefaultsKey.radialMenuEnabled]
         case .clipboardHistory: return [DefaultsKey.clipboardHistoryEnabled]
         case .pastePlain: return [DefaultsKey.pastePlainEnabled]
+        case .dictation: return [DefaultsKey.dictationShortcutEnabled]
         case .finderCutPaste: return [DefaultsKey.finderCutPasteEnabled,
                                       DefaultsKey.finderPasteImageAsFile]
         case .finderRename: return [DefaultsKey.finderRenameEnabled]
@@ -362,6 +364,8 @@ extension AppFeature {
         // typing timing.
         case .screenRecorder: return [.screenRecording, .accessibility, .audioCapture, .microphone]
         case .cameraPreview: return [.camera]
+        // Records the microphone and pastes at the caret.
+        case .dictation: return [.microphone, .accessibility]
         case .keepAwake: return [.accessibility]
         case .brightness: return [.accessibility]
         case .cleaner: return [.fullDiskAccess, .filesAndFolders, .notifications]
@@ -469,7 +473,7 @@ extension AppFeature {
              .connectedDevices:
             return true
         case .focusFollowsMouse, .scrollHorizontal, .linearScroll, .diskImageInstaller, .audioPriority,
-             .wallpaper, .killProcess, .portManager, .fanControl:
+             .wallpaper, .killProcess, .portManager, .fanControl, .dictation:
             return false
         }
     }

@@ -66,6 +66,7 @@ enum NotchHoverTests {
     /// The strip's track by title; the real snapshot also holds its cover and geometry.
     struct NotchCompactMusicSnapshot: Equatable { let title: String }
     class State {
+        var dictationPresented = false  // Fork
         func schedulePointerFollow() {}
         var hiddenInFullscreen = false
         var fullscreenCompact: Bool { hiddenInFullscreen && !expanded && !peeking }

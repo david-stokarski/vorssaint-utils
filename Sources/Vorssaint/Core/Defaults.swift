@@ -1843,7 +1843,7 @@ enum Defaults {
         DefaultsKey.windowLayoutShortcutBottomCenterSixth: WindowLayoutAction.clearedShortcutStorageValue,
         DefaultsKey.windowLayoutShortcutBottomRightSixth: WindowLayoutAction.clearedShortcutStorageValue,
         DefaultsKey.windowLayoutShortcutFullScreen: WindowLayoutAction.clearedShortcutStorageValue,
-    ]
+    ].merging(DictationSupport.registeredDefaults) { current, _ in current }  // Fork
 
     static func register() {
         let defaults = UserDefaults.standard
