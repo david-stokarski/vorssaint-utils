@@ -7,29 +7,29 @@ import CoreAudio
 import Foundation
 
 /// Fork: records one dictation from a chosen microphone. Each buffer goes to
-/// the recognizer as it arrives; the waveform bars and the end-of-speech
-/// check are computed from the same buffers.
+/// the recognizer as it arrives; the waveform bars and voice activity are
+/// computed from the same buffers. Voice is measured against the room's own
+/// noise floor, so a quiet voice on a noisy microphone still counts.
 final class DictationAudioCapture {
     /// The recognizer's feed, on the audio thread.
     var onBuffer: ((AVAudioPCMBuffer) -> Void)?
     /// Waveform bars, on the main queue.
     var onLevels: (([Float]) -> Void)?
-    /// Speech was heard and has been silent for `silenceDuration`, on the main queue.
-    var onSilence: (() -> Void)?
 
-    var silenceThreshold: Float = 0.012
-    var silenceDuration: Double = 1.6
-    var autoStop = true
+    /// The lowest level that can count as voice, whatever the floor.
+    var minimumVoiceLevel: Float = 0.006
 
     private var engine: AVAudioEngine?
     private let fft = DictationFFT(size: 1024)
     private let lock = NSLock()
     private var ring: [Float] = []
-    private var heardSpeech = false
+    private var noiseFloor: Float = 0
     private var lastVoice: CFTimeInterval = 0
-    private var silenceReported = false
 
     private(set) var format: AVAudioFormat?
+
+    /// When voice was last heard above the floor.
+    var lastVoiceTime: CFTimeInterval { lock.withLock { lastVoice } }
 
     enum Failure: LocalizedError {
         case noInput
@@ -47,11 +47,12 @@ final class DictationAudioCapture {
         }
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else { throw Failure.noInput }
-        lock.lock(); ring.removeAll(keepingCapacity: true); lock.unlock()
-        heardSpeech = false
-        silenceReported = false
-        lastVoice = CACurrentMediaTime()
-        input.installTap(onBus: 0, bufferSize: 2048, format: format) { [weak self] buffer, _ in
+        lock.withLock {
+            ring.removeAll(keepingCapacity: true)
+            noiseFloor = 0
+            lastVoice = CACurrentMediaTime()
+        }
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             self?.process(buffer)
         }
         engine.prepare()
@@ -73,24 +74,18 @@ final class DictationAudioCapture {
         let count = Int(buffer.frameLength)
         var rms: Float = 0
         vDSP_rmsqv(channel, 1, &rms, vDSP_Length(count))
+        let now = CACurrentMediaTime()
         lock.lock()
         ring.append(contentsOf: UnsafeBufferPointer(start: channel, count: count))
         if ring.count > 2048 { ring.removeFirst(ring.count - 2048) }
         let window = ring
+        // The floor drops at once to anything quieter and creeps up slowly,
+        // so a sentence never raises it but a fan that starts does.
+        if noiseFloor == 0 || rms < noiseFloor { noiseFloor = rms } else { noiseFloor += (rms - noiseFloor) * 0.004 }
+        if rms > DictationSupport.voiceThreshold(floor: noiseFloor, minimum: minimumVoiceLevel) { lastVoice = now }
         lock.unlock()
         let bars = fft.magnitudes(from: window, bars: DictationSupport.barCount)
-
-        let now = CACurrentMediaTime()
-        if rms > silenceThreshold {
-            heardSpeech = true
-            lastVoice = now
-        }
-        let stop = autoStop && heardSpeech && !silenceReported && now - lastVoice >= silenceDuration
-        if stop { silenceReported = true }
-        DispatchQueue.main.async { [weak self] in
-            self?.onLevels?(bars)
-            if stop { self?.onSilence?() }
-        }
+        DispatchQueue.main.async { [weak self] in self?.onLevels?(bars) }
     }
 
     static func deviceID(forUID uid: String) -> AudioDeviceID? {
