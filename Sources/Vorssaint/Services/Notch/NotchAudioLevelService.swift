@@ -502,7 +502,8 @@ private final class NotchAudioLevelReader {
     private func startAnalysis() {
         startedAt = ProcessInfo.processInfo.systemUptime
         let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now() + 0.1, repeating: 1 / NotchAudioLevelSupport.updatesPerSecond, leeway: .milliseconds(5))
+        timer.schedule(deadline: .now() + 0.1, repeating: 1 / SpectrumConfiguration.mediaUpdatesPerSecond,  // Fork
+                       leeway: .milliseconds(2))
         timer.setEventHandler { [weak self] in self?.analyse() }
         self.timer = timer
         timer.resume()

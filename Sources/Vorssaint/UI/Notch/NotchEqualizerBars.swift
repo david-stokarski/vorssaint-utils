@@ -138,12 +138,16 @@ final class NotchEqualizerView: NSView {
             let envelope = pow(1 - distance, 1.5)
             let low = max(barWidth, height * (0.12 + envelope * 0.25))
             let high = max(barWidth, height * (0.12 + envelope * 0.88))
-            // The reader already smooths its levels and sends thirty a
+            // The reader already smooths its levels and sends sixty a
             // second, so a live bar is set straight onto the layer: a
             // repeating animation would fight the sound it is following.
             var resting: CGFloat = moving ? low : barWidth
             if let live {
-                let level = live[NotchAudioLevelSupport.barIndex(index, of: bars.count, bands: live.count)]
+                // Fork: each bar shows the loudest of the bands it covers, so
+                // three bars still carry the kick, the voice and the cymbals.
+                let lower = index * live.count / bars.count
+                let upper = max(lower + 1, (index + 1) * live.count / bars.count)
+                let level = live[lower..<min(upper, live.count)].max() ?? 0
                 resting = max(barWidth, height * CGFloat(0.1 + 0.9 * min(1, max(0, level))))
             }
             bar.bounds = CGRect(x: 0, y: 0, width: barWidth, height: resting)

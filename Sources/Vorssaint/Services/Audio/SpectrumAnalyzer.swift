@@ -28,6 +28,10 @@ struct SpectrumConfiguration: Equatable {
     /// per update: a fast rise, a quick but visible fall.
     var attack: Float
     var release: Float
+    /// Decibels added per octave above the cutoff. Music carries far more
+    /// energy low than high; leveling the slope lets every bar move with
+    /// its own part of the mix instead of the bass setting the scale alone.
+    var tilt: Float = 0
 
     /// Samples each update reads: the preroll, then the frame.
     var inputLength: Int { preroll + size }
@@ -35,9 +39,13 @@ struct SpectrumConfiguration: Equatable {
     /// The microphone: voice from 100 Hz up, twenty bars, quick to move.
     static let dictation = Self(size: 1024, preroll: 2048, bands: 20, minimumFrequency: 100, maximumFrequency: 6000,
                                 range: 42, gate: -72, peakRelease: 0.35, attack: 0.9, release: 0.4)
-    /// Music: everything from 40 Hz up, the island's seven bands.
-    static let media = Self(size: 4096, preroll: 3072, bands: 7, minimumFrequency: 40, maximumFrequency: 12_000,
-                            range: 48, gate: -78, peakRelease: 0.25, attack: 0.75, release: 0.3)
+    /// Music: everything from 40 Hz up in the island's seven bands, read
+    /// sixty times a second over a 43 ms window, with the mix's downward
+    /// slope leveled so the highs move as visibly as the kick.
+    static let media = Self(size: 2048, preroll: 3072, bands: 7, minimumFrequency: 40, maximumFrequency: 12_000,
+                            range: 30, gate: -78, peakRelease: 0.2, attack: 0.9, release: 0.5, tilt: 3)
+    /// How often the music reader analyses.
+    static let mediaUpdatesPerSecond = 60.0
 }
 
 /// Not thread-safe: one analyzer per reader, used from one queue.
@@ -60,6 +68,7 @@ final class SpectrumAnalyzer {
     /// the FFT, so what lies below it is removed rather than merely unbinned.
     private let highPass: vDSP.Biquad<Float>?
     private var filtered: [Float]
+    private let bandTilt: [Float]
 
     init?(configuration: SpectrumConfiguration, sampleRate: Double) {
         let size = configuration.size
@@ -80,6 +89,11 @@ final class SpectrumAnalyzer {
         levels = [Float](repeating: 0, count: configuration.bands)
         peak = configuration.gate + configuration.range
         bandBins = Self.bandBins(configuration, sampleRate: sampleRate)
+        let binWidth = Float(sampleRate) / Float(size)
+        bandTilt = bandBins.map { bins in
+            let centre = Float(bins.lowerBound + bins.upperBound) / 2 * binWidth
+            return configuration.tilt * log2(max(1, centre / Float(configuration.minimumFrequency)))
+        }
         filtered = [Float](repeating: 0, count: configuration.inputLength)
         let section = Self.highPassSection(cutoff: configuration.minimumFrequency, sampleRate: sampleRate)
         highPass = vDSP.Biquad(coefficients: Array([[Double]](repeating: section, count: 4).joined()),
@@ -159,7 +173,7 @@ final class SpectrumAnalyzer {
             var sum: Float = 0
             for bin in bins { sum += power[bin] }
             let amplitude = sqrt(sum / Float(bins.count)) * scale
-            decibels[band] = 20 * log10(max(amplitude, 1e-9))
+            decibels[band] = 20 * log10(max(amplitude, 1e-9)) + bandTilt[band]
         }
         let loudest = decibels.max() ?? configuration.gate
         // The scale follows the loudest band down slowly, so quiet speech
