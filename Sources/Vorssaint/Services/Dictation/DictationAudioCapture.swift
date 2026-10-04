@@ -20,7 +20,7 @@ final class DictationAudioCapture {
     var minimumVoiceLevel: Float = 0.006
 
     private var engine: AVAudioEngine?
-    private let fft = DictationFFT(size: 1024)
+    private var spectrum: SpectrumAnalyzer?
     private let lock = NSLock()
     private var ring: [Float] = []
     private var noiseFloor: Float = 0
@@ -47,6 +47,7 @@ final class DictationAudioCapture {
         }
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else { throw Failure.noInput }
+        spectrum = SpectrumAnalyzer(configuration: .dictation, sampleRate: format.sampleRate)
         lock.withLock {
             ring.removeAll(keepingCapacity: true)
             noiseFloor = 0
@@ -77,14 +78,15 @@ final class DictationAudioCapture {
         let now = CACurrentMediaTime()
         lock.lock()
         ring.append(contentsOf: UnsafeBufferPointer(start: channel, count: count))
-        if ring.count > 2048 { ring.removeFirst(ring.count - 2048) }
+        let keep = SpectrumConfiguration.dictation.inputLength
+        if ring.count > keep { ring.removeFirst(ring.count - keep) }
         let window = ring
         // The floor drops at once to anything quieter and creeps up slowly,
         // so a sentence never raises it but a fan that starts does.
         if noiseFloor == 0 || rms < noiseFloor { noiseFloor = rms } else { noiseFloor += (rms - noiseFloor) * 0.004 }
         if rms > DictationSupport.voiceThreshold(floor: noiseFloor, minimum: minimumVoiceLevel) { lastVoice = now }
         lock.unlock()
-        let bars = fft.magnitudes(from: window, bars: DictationSupport.barCount)
+        guard let bars = spectrum?.process(window) else { return }
         DispatchQueue.main.async { [weak self] in self?.onLevels?(bars) }
     }
 

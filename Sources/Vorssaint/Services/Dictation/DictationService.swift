@@ -446,6 +446,13 @@ extension DictationService {
         }
     }
 
+    /// The text alone, nothing presented, for rendering the surface offscreen.
+    func setPreviewTranscript(_ text: String) {
+        phase = .recording
+        transcript = text
+        startedAt = Date()
+    }
+
     func endPreview() {
         session = UUID()
         end()

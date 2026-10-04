@@ -652,7 +652,7 @@ final class NotchService: ObservableObject {
     }
     var contentSize: CGSize { expandedGeometry.contentSize(for: expandedSize) }
     var usesGlassSurface: Bool {
-        expanded || peeking || dragPlaceholder || noticeExpanded || dictationPresented
+        expanded || peeking || dragPlaceholder || noticeExpanded
             || (captureControls != nil && !captureControlsCollapsed)
     }
 

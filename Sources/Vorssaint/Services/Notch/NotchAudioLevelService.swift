@@ -227,7 +227,7 @@ private final class NotchAudioLevelReader {
     private var aggregateID = AudioObjectID(0)
     private var ioProc: AudioDeviceIOProcID?
     private var timer: DispatchSourceTimer?
-    private var analyzer: NotchAudioAnalyzer?
+    private var analyzer: SpectrumAnalyzer?  // Fork: the shared spectrum, tuned for music
     private var smoother = NotchAudioLevelSupport.Smoother()
     private var samples: [Float] = []
     private var hostDeviceUID: String?
@@ -318,7 +318,7 @@ private final class NotchAudioLevelReader {
         guard AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &aggregateID) == noErr,
               aggregateID != 0 else { return false }
         let sampleRate = Self.nominalSampleRate(of: aggregateID)
-        guard let analyzer = NotchAudioAnalyzer(sampleRate: sampleRate) else {
+        guard let analyzer = SpectrumAnalyzer(configuration: .media, sampleRate: sampleRate) else {
             Self.destroy(aggregateID: aggregateID, ioProc: nil, tapID: 0)
             return false
         }
@@ -344,7 +344,7 @@ private final class NotchAudioLevelReader {
         self.analyzer = analyzer
         self.hostDeviceUID = hostUID
         self.sampleRate = sampleRate
-        samples = [Float](repeating: 0, count: analyzer.size)
+        samples = [Float](repeating: 0, count: analyzer.configuration.inputLength)
         watchSampleRate(of: aggregateID)
         return true
     }
@@ -525,9 +525,7 @@ private final class NotchAudioLevelReader {
             return
         }
         guard ring.latest(into: &samples) else { return }
-        let magnitudes = analyzer.magnitudes(of: samples)
-        let raw = NotchAudioLevelSupport.bandLevels(magnitudes: magnitudes, bands: analyzer.bands)
-        onLevels(smoother.next(raw))
+        onLevels(analyzer.process(samples).map(Double.init))
     }
 
     // MARK: - Core Audio
