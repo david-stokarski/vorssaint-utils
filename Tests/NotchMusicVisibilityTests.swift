@@ -48,6 +48,8 @@ enum NotchMusicVisibilityTests {
     enum NSEvent { static let mouseLocation = CGPoint.zero }
 
     class State {
+        var dictationPresented = false  // Fork
+        var dictationSurfaceSize: CGSize { .zero }
         var activitySelection = NotchActivitySelection()
         var timerCompanions: [NotchCompactActivity] = []
         func compactCompanions(of primary: NotchCompactActivity) -> [NotchCompactActivity] {

@@ -75,6 +75,8 @@ final class NotchService: ObservableObject {
     @Published private(set) var showingSections = false
     /// Fork: the tabbed island's Home dashboard is in front of `selected`.
     @Published private(set) var showingHome = false
+    /// Fork: a dictation is on screen; see NotchDictation.swift.
+    @Published private(set) var dictationPresented = false
     @Published private(set) var sectionQuery = ""
     @Published var highlightedSection: NotchModule? { didSet { revealHighlightedSection() } }
     /// The gallery's first visible row; the rows above it have stepped away.
@@ -650,7 +652,7 @@ final class NotchService: ObservableObject {
     }
     var contentSize: CGSize { expandedGeometry.contentSize(for: expandedSize) }
     var usesGlassSurface: Bool {
-        expanded || peeking || dragPlaceholder || noticeExpanded
+        expanded || peeking || dragPlaceholder || noticeExpanded || dictationPresented
             || (captureControls != nil && !captureControlsCollapsed)
     }
 
@@ -663,6 +665,7 @@ final class NotchService: ObservableObject {
     }
 
     var surfaceSize: CGSize {
+        if dictationPresented, !expanded, captureControls == nil { return dictationSurfaceSize }
         if let capsule = capsuleSurfaceSize { return capsule }
         if fullscreenCompact { return geometry.bareCutout }
         if captureControls != nil {
@@ -1130,6 +1133,20 @@ final class NotchService: ObservableObject {
         NotchHomeWidget.current(modules: modules).first?.module ?? (modules.contains(selected) ? selected : modules.first ?? .controls)
     }
 
+    /// Fork: shows or withdraws a dictation in the island. False when the
+    /// island cannot show it, so the caller falls back to its own panel.
+    @discardableResult
+    func presentDictation(_ shown: Bool) -> Bool {
+        if shown {
+            guard running, !suspended, NotchSupport.isEnabled(), windowHost != nil, captureControls == nil else { return false }
+            // An open island holds the keyboard; the text belongs to the app behind it.
+            if expanded { collapse() }
+        }
+        guard dictationPresented != shown else { return true }
+        mutatePresentation(transitionContent: shown ? .reveal : .dismiss) { dictationPresented = shown }
+        return true
+    }
+
     /// Fork: the tabbed island's Home tab.
     func showHome() {
         guard expanded else { open(); return }
@@ -1161,6 +1178,8 @@ final class NotchService: ObservableObject {
 
     func hover(_ entered: Bool) {
         guard running, !suspended, !hiddenAtRestInFullscreen else { removeHoverExitMonitors(); return }
+        // Fork: opening would take focus from the app the dictation pastes into.
+        guard !dictationPresented else { return }
         let point = NSEvent.mouseLocation
         let wasInside = inside
         let showedPicker = showsCompactActivityPicker
