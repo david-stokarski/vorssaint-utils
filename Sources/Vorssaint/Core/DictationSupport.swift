@@ -14,12 +14,12 @@ extension DefaultsKey {
     static let dictationInput = "dictationInput"
     static let dictationLocale = "dictationLocale"
     static let dictationAutoStop = "dictationAutoStop"
+    /// The quietest level that counts as voice; the room's noise floor raises it.
     static let dictationSilenceThreshold = "dictationSilenceThreshold"
     static let dictationSilenceDuration = "dictationSilenceDuration"
     static let dictationPauseMedia = "dictationPauseMedia"
+    /// Polish the text with Apple Intelligence's on-device model.
     static let dictationCleanupEnabled = "dictationCleanupEnabled"
-    static let dictationOllamaHost = "dictationOllamaHost"
-    static let dictationOllamaModel = "dictationOllamaModel"
     static let dictationCleanupStyling = "dictationCleanupStyling"
     static let dictationCleanupStructure = "dictationCleanupStructure"
     static let dictationCleanupContext = "dictationCleanupContext"
@@ -30,9 +30,12 @@ enum DictationSupport {
     static let hubDescription = "Speak and the text appears where you type, transcribed on this Mac."
     static let priorityInput = "priority"
     static let systemInput = "system"
-    static let defaultOllamaHost = "http://127.0.0.1:11434"
-    static let defaultOllamaModel = "hf.co/superwhisper/s1-mini-GGUF:Q4_K_M"
-    static let barCount = 26
+    static let barCount = 20
+    static let defaultSilenceDuration = 3.0
+    static let silenceDurationRange = 1.0...8.0
+    static let defaultMinimumVoiceLevel = 0.006
+    /// A press held this long is hold-to-talk: letting go pastes.
+    static let holdToTalkThreshold: TimeInterval = 0.35
 
     static let registeredDefaults: [String: Any] = [
         DefaultsKey.dictationShortcut: GlobalShortcut.dictationDefault.storageValue,
@@ -40,12 +43,10 @@ enum DictationSupport {
         DefaultsKey.dictationInput: priorityInput,
         DefaultsKey.dictationLocale: "",
         DefaultsKey.dictationAutoStop: true,
-        DefaultsKey.dictationSilenceThreshold: 0.012,
-        DefaultsKey.dictationSilenceDuration: 1.6,
+        DefaultsKey.dictationSilenceThreshold: defaultMinimumVoiceLevel,
+        DefaultsKey.dictationSilenceDuration: defaultSilenceDuration,
         DefaultsKey.dictationPauseMedia: true,
         DefaultsKey.dictationCleanupEnabled: false,
-        DefaultsKey.dictationOllamaHost: defaultOllamaHost,
-        DefaultsKey.dictationOllamaModel: defaultOllamaModel,
         DefaultsKey.dictationCleanupStyling: DictationCleanupStyling.semiFormal.rawValue,
         DefaultsKey.dictationCleanupStructure: DictationCleanupStructure.prose.rawValue,
         DefaultsKey.dictationCleanupContext: DictationCleanupContext.general.rawValue,
@@ -60,6 +61,22 @@ enum DictationSupport {
         case priorityInput: return priority.first(where: available.contains)
         default: return available.contains(choice) ? choice : priority.first(where: available.contains)
         }
+    }
+
+    /// Voice stands clearly above the room: three times its floor, and never
+    /// below the chosen minimum.
+    static func voiceThreshold(floor: Float, minimum: Float) -> Float {
+        max(minimum, floor * 3)
+    }
+
+    /// Auto-stop waits for words first, then for a pause with neither voice
+    /// nor new words for `duration`. The result is how far that pause has
+    /// run, 0...1; 1 stops.
+    static func silenceProgress(heardWords: Bool, now: TimeInterval, lastVoice: TimeInterval,
+                                lastWords: TimeInterval, duration: TimeInterval) -> Double {
+        guard heardWords, duration > 0 else { return 0 }
+        let quiet = now - max(lastVoice, lastWords)
+        return min(1, max(0, quiet / duration))
     }
 
     /// Joins a newly finalized stretch onto what came before it.
