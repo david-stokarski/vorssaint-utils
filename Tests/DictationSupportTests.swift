@@ -51,3 +51,50 @@ enum DictationSupportTests {
         suite.expect(DictationSupport.append("Hi", to: "") == "Hi", "the first stretch starts the transcript")
     }
 }
+
+/// Fork: the shared spectrum. Below the cutoff stays dark, a tone lights its
+/// own band, silence settles to nothing, and the two tunings stay distinct.
+enum SpectrumAnalyzerTests {
+    static func tone(_ frequencies: [(Double, Float)], count: Int, rate: Double, offset: Int) -> [Float] {
+        (0..<count).map { index in
+            let t = Double(index + offset) / rate
+            return frequencies.reduce(Float(0)) { $0 + $1.1 * Float(sin(2 * .pi * $1.0 * t)) }
+        }
+    }
+
+    static func settle(_ configuration: SpectrumConfiguration, _ signal: [(Double, Float)]) -> [Float] {
+        let rate = 48_000.0
+        guard let analyzer = SpectrumAnalyzer(configuration: configuration, sampleRate: rate) else { return [] }
+        var levels: [Float] = []
+        for frame in 0..<40 {
+            levels = analyzer.process(tone(signal, count: configuration.inputLength, rate: rate, offset: frame * 512))
+        }
+        return levels
+    }
+
+    static func run(_ suite: TestSuite) {
+        for configuration in [SpectrumConfiguration.dictation, .media] {
+            let bins = SpectrumAnalyzer.bandBins(configuration, sampleRate: 48_000)
+            let width = 48_000 / Double(configuration.size)
+            suite.expect(bins.count == configuration.bands, "every band has bins")
+            suite.expect(bins.allSatisfy { Double($0.lowerBound) * width >= configuration.minimumFrequency },
+                         "no band reads below \(Int(configuration.minimumFrequency)) Hz")
+            suite.expect(zip(bins, bins.dropFirst()).allSatisfy { $0.lowerBound <= $1.lowerBound },
+                         "bands rise from low to high")
+            suite.expect(settle(configuration, []).allSatisfy { $0 < 0.02 }, "silence leaves the bars empty")
+        }
+        suite.expect(SpectrumConfiguration.dictation.minimumFrequency == 100, "the microphone cuts below 100 Hz")
+        suite.expect(SpectrumConfiguration.media.minimumFrequency == 40, "music cuts below 40 Hz")
+
+        let voice = settle(.dictation, [(50, 0.6), (1_000, 0.05)])
+        let voiceBins = SpectrumAnalyzer.bandBins(.dictation, sampleRate: 48_000)
+        let voiceBand = voiceBins.firstIndex { Double($0.upperBound + 1) * 48_000 / 1024 > 1_000 } ?? 0
+        suite.expect(voice.indices.max { voice[$0] < voice[$1] } == voiceBand,
+                     "a loud hum under the cutoff doesn't outshine quiet speech")
+        suite.expect((voice.first ?? 1) < 0.3, "the lowest microphone bar stays down under hum")
+
+        let music = settle(.media, [(20, 0.6), (2_000, 0.05)])
+        suite.expect((music.first ?? 1) < 0.3, "sub-bass under 40 Hz leaves the bass bar down")
+        suite.expect((music.max() ?? 0) > 0.6, "audible music still fills its band")
+    }
+}

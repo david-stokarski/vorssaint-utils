@@ -30,6 +30,7 @@ enum DictationSupport {
     static let hubDescription = "Speak and the text appears where you type, transcribed on this Mac."
     static let priorityInput = "priority"
     static let systemInput = "system"
+    /// Matches `SpectrumConfiguration.dictation.bands`.
     static let barCount = 20
     static let defaultSilenceDuration = 3.0
     static let silenceDurationRange = 1.0...8.0

@@ -7,26 +7,33 @@ import SwiftUI
 /// Fork: a dictation's surface, in the island or in its fallback panel. One
 /// quiet row (the recording dot, whose ring fills as a pause runs toward
 /// auto-stop; a slim waveform; the elapsed time) over the words heard so
-/// far, newest kept in view. Clicking anywhere stops and pastes.
+/// far. Past twenty lines the oldest scroll off the top, so the newest words
+/// are always in view. Clicking anywhere stops and pastes.
 enum DictationLayout {
     static let width: CGFloat = 380
     static let rowHeight: CGFloat = 22
     static let spacing: CGFloat = 8
     static let horizontalInset: CGFloat = 18
     static let bottomInset: CGFloat = 12
-    static let maxLines = 3
+    static let maxLines = 20
     static let font = NSFont.systemFont(ofSize: 13, weight: .regular)
     static let lineSpacing: CGFloat = 2
 
+    /// The text's height at `width`, at most `maxLines` lines.
     static func textHeight(_ text: String, width: CGFloat) -> CGFloat {
+        min(fullTextHeight(text, width: width), lineHeight * CGFloat(maxLines))
+    }
+
+    static var lineHeight: CGFloat { ceil(font.ascender - font.descender + font.leading) + lineSpacing }
+
+    static func fullTextHeight(_ text: String, width: CGFloat) -> CGFloat {
         guard !text.isEmpty, width > 0 else { return 0 }
         let style = NSMutableParagraphStyle()
         style.lineSpacing = lineSpacing
         let rect = (text as NSString).boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
                                                    options: [.usesLineFragmentOrigin, .usesFontLeading],
                                                    attributes: [.font: font, .paragraphStyle: style])
-        let line = ceil(font.ascender - font.descender + font.leading) + lineSpacing
-        return min(ceil(rect.height), line * CGFloat(maxLines))
+        return ceil(rect.height)
     }
 
     /// `top` keeps the row clear of a camera housing.
@@ -40,9 +47,11 @@ enum DictationLayout {
 extension NotchGeometry {
     var dictationTopInset: CGFloat { floats ? 12 : safeContentTop + 4 }
 
+    var dictationWidth: CGFloat { min(max(DictationLayout.width, cameraWidth + 180), screen.width - 24) }
+
     func dictationSize(text: String) -> CGSize {
-        let width = min(max(DictationLayout.width, cameraWidth + 180), screen.width - 24)
-        return DictationLayout.size(text: text, width: width, top: dictationTopInset)
+        let size = DictationLayout.size(text: text, width: dictationWidth, top: dictationTopInset)
+        return CGSize(width: size.width, height: min(size.height, screen.height - 48))
     }
 }
 
@@ -60,7 +69,7 @@ struct NotchDictationView: View {
     @ObservedObject var service: NotchService
 
     var body: some View {
-        DictationContent()
+        DictationContent(width: service.surfaceSize.width)
             .padding(.horizontal, DictationLayout.horizontalInset)
             .padding(.top, service.geometry.dictationTopInset)
             .padding(.bottom, DictationLayout.bottomInset)
@@ -70,22 +79,15 @@ struct NotchDictationView: View {
 }
 
 struct DictationContent: View {
+    /// The surface's width, which the text wraps to inside its insets.
+    let width: CGFloat
     @ObservedObject private var dictation = DictationService.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: DictationLayout.spacing) {
             row.frame(height: DictationLayout.rowHeight)
-            if !dictation.transcript.isEmpty {
-                Text(dictation.transcript)
-                    .font(Font(DictationLayout.font))
-                    .lineSpacing(DictationLayout.lineSpacing)
-                    .foregroundStyle(.white.opacity(dictation.isRecording ? 0.9 : 0.6))
-                    .lineLimit(DictationLayout.maxLines)
-                    .truncationMode(.head)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: dictation.transcript)
-            }
+            if !dictation.transcript.isEmpty { transcript }
         }
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
@@ -97,6 +99,29 @@ struct DictationContent: View {
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(dictation.isRecording ? "Dictating. Stop and paste" : "Dictation")
+    }
+
+    /// The whole text, bottom-aligned in a window of at most twenty lines:
+    /// older lines leave over the top, fading as they go.
+    private var transcript: some View {
+        let textWidth = width - DictationLayout.horizontalInset * 2
+        let full = DictationLayout.fullTextHeight(dictation.transcript, width: textWidth)
+        let visible = DictationLayout.textHeight(dictation.transcript, width: textWidth)
+        let overflows = full > visible + 1
+        return Text(dictation.transcript)
+            .font(Font(DictationLayout.font))
+            .lineSpacing(DictationLayout.lineSpacing)
+            .foregroundStyle(.white.opacity(dictation.isRecording ? 0.9 : 0.6))
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(width: textWidth, alignment: .leading)
+            .frame(height: visible, alignment: .bottom)
+            .clipped()
+            .mask {
+                LinearGradient(stops: [.init(color: overflows ? .clear : .black, location: 0),
+                                       .init(color: .black, location: overflows ? min(0.25, 28 / max(visible, 1)) : 0)],
+                               startPoint: .top, endPoint: .bottom)
+            }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: dictation.transcript)
     }
 
     @ViewBuilder private var row: some View {
@@ -186,7 +211,6 @@ struct DictationWaveform: View {
             }
         }
         .frame(height: 14)
-        .animation(.easeOut(duration: 0.09), value: levels)
         .accessibilityHidden(true)
     }
 }
@@ -207,7 +231,7 @@ final class DictationHUD {
             panel.hasShadow = true
             panel.hidesOnDeactivate = false
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-            let content = DictationContent()
+            let content = DictationContent(width: DictationLayout.width)
                 .padding(.horizontal, DictationLayout.horizontalInset)
                 .padding(.top, 12)
                 .padding(.bottom, DictationLayout.bottomInset)

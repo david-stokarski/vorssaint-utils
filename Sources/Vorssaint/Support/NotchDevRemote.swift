@@ -21,6 +21,8 @@ enum NotchDevRemote {
             case "dictation": DictationService.shared.startPreview(text: "")
             case "dictation-text":
                 DictationService.shared.startPreview(text: "Okay so the plan for tomorrow is to finish the island redesign, then wire dictation into the settings page and test it with the AirPods.")
+            case "dictation-long":
+                DictationService.shared.startPreview(text: (1...24).map { "Sentence \($0) of a long dictation that keeps going so the oldest lines scroll away." }.joined(separator: " "))
             case "dictation-end": DictationService.shared.endPreview()
             case let raw:
                 if let module = NotchModule(rawValue: raw) { service.open(module, pinned: true) }
@@ -67,6 +69,40 @@ enum DictationFileProbe {
             }
         }
         RunLoop.main.run()
+    }
+}
+#endif
+
+#if VORSSAINT_DEVELOPMENT
+import SwiftUI
+
+/// Developer builds only: `--dictation-render PATH LINES` draws the dictation
+/// surface offscreen with that many sentences, for checking its layout.
+enum DictationRenderProbe {
+    static func runIfRequestedAndExit() {
+        let arguments = CommandLine.arguments
+        guard let flag = arguments.firstIndex(of: "--dictation-render"), arguments.indices.contains(flag + 2),
+              let count = Int(arguments[flag + 2]) else { return }
+        let text = (1...max(1, count)).map { "Sentence \($0) of a long dictation that keeps going." }.joined(separator: " ")
+        DictationService.shared.setPreviewTranscript(text)
+        let size = DictationLayout.size(text: text, width: DictationLayout.width, top: 12)
+        let view = DictationContent(width: DictationLayout.width)
+            .padding(.horizontal, DictationLayout.horizontalInset)
+            .padding(.top, 12)
+            .padding(.bottom, DictationLayout.bottomInset)
+            .frame(width: size.width, height: size.height, alignment: .top)
+            .background(Color.black)
+        MainActor.assumeIsolated {
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            guard let image = renderer.cgImage,
+                  let destination = CGImageDestinationCreateWithURL(URL(fileURLWithPath: arguments[flag + 1]) as CFURL,
+                                                                    "public.png" as CFString, 1, nil) else { exit(1) }
+            CGImageDestinationAddImage(destination, image, nil)
+            CGImageDestinationFinalize(destination)
+            print("rendered \(size)")
+            exit(0)
+        }
     }
 }
 #endif
