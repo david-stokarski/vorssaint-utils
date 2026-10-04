@@ -168,6 +168,7 @@ enum NotchPresentationRefreshContract {
         var pinned = false
         var showingSections = false
         var showingAppPanel = false
+        var showingHome = false  // Fork
         var selectedMetric: Bool?
         var expanded = true
         var peeking = false, dragPlaceholder = false, compactActivityIsVisible = false

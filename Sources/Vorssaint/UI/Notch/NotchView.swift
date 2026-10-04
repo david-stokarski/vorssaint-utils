@@ -212,10 +212,16 @@ struct NotchView: View {
 
     private var expanded: some View {
         VStack(spacing: NotchLayout.spacing) {
-            header.zIndex(1)
+            Group {
+                // Fork: the tabbed island's row of tabs replaces the title.
+                if NotchStyle.isTabbed() { NotchTabbedHeader(service: service) } else { header }
+            }
+            .zIndex(1)
             Group {
                 if service.showingSections {
                     NotchSectionsView(service: service)
+                } else if service.showingHome {
+                    NotchHomeView(service: service, size: service.contentSize)
                 } else if scrollsVertically {
                     ScrollView {
                         content
