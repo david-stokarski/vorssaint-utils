@@ -1416,6 +1416,8 @@ enum Defaults {
         DefaultsKey.notchHiddenModules: "",
         DefaultsKey.notchModuleOrder: "",
         DefaultsKey.notchQuickAccessLayout: Data(),
+        DefaultsKey.notchStyle: NotchStyle.tabbed.rawValue,
+        DefaultsKey.notchHomeWidgets: NotchHomeWidget.defaultValue,
         DefaultsKey.notchVolume: true,
         DefaultsKey.notchMicrophone: true,
         DefaultsKey.notchBrightness: true,

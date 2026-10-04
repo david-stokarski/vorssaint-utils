@@ -72,6 +72,9 @@ enum NotchDestinationContract {
         var expanded = false
         var showingAppPanel = false
         var showingSections = false
+        // Fork: the tabbed island's Home; NotchStyle reads classic here.
+        var showingHome = false
+        var homeAnchor: NotchModule { selected }
         var sectionQuery = ""
         var sectionRow = 0
         var highlightedSection: NotchModule?

@@ -73,6 +73,8 @@ final class NotchService: ObservableObject {
     @Published private(set) var selected: NotchModule = .controls
     @Published private(set) var showingAppPanel = false
     @Published private(set) var showingSections = false
+    /// Fork: the tabbed island's Home dashboard is in front of `selected`.
+    @Published private(set) var showingHome = false
     @Published private(set) var sectionQuery = ""
     @Published var highlightedSection: NotchModule? { didSet { revealHighlightedSection() } }
     /// The gallery's first visible row; the rows above it have stepped away.
@@ -536,6 +538,7 @@ final class NotchService: ObservableObject {
         if showingSections {
             return geometry.sectionPickerSize(count: filteredSections.count)
         }
+        if showingHome { return geometry.homeSize(widgets: NotchHomeWidget.current(modules: modules).count) }
         let musicExtras = NotchLyricsSupport.isEnabled() || NotchQueueSupport.isEnabled()
         let launcher = QuickLauncherService.shared
         return pageSize(in: expandedGeometry, module: showingAppPanel ? .tools : selected,
@@ -628,6 +631,9 @@ final class NotchService: ObservableObject {
     /// takes the room its side leaves.
     private var headerTitleWidth: CGFloat {
         guard !showingSections else { return 0 }
+        if NotchStyle.isTabbed() {
+            return NotchTabbedLayout.tabStripWidth(count: NotchTabbedLayout.tabs(NotchQuickAccessConfiguration.current()).count)
+        }
         let detail = showingAppPanel || selectedMetric != nil
         guard detail || modules.isEmpty else {
             return NotchLayout.headerTitleWidth(selected.title(L10n.shared.language), button: headerShowsSectionsButton)
@@ -965,6 +971,7 @@ final class NotchService: ObservableObject {
         noticeExpanded = false
         showingAppPanel = false
         showingSections = false
+        showingHome = false
         sectionQuery = ""
         highlightedSection = nil
         sectionRow = 0
@@ -1034,8 +1041,13 @@ final class NotchService: ObservableObject {
         else { refreshModules() }
         guard let panel else { return }
         let reopening = reopeningDestination
-        let useReopeningSurface = module == nil && !expanded && !appPanel && !sections && metric == nil
-        let destination = module.flatMap { modules.contains($0) ? $0 : nil } ?? reopening.module
+        // Fork: the tabbed island opens on Home unless a page was asked for or
+        // a mirrored notification is waiting; an open island keeps its place.
+        let home = NotchStyle.isTabbed() && module == nil && !appPanel && !sections && metric == nil
+            && (expanded ? showingHome : notice?.notificationID == nil)
+        let useReopeningSurface = module == nil && !expanded && !appPanel && !sections && metric == nil && !home
+        let destination = home ? homeAnchor
+            : module.flatMap { modules.contains($0) ? $0 : nil } ?? reopening.module
         let appPanel = appPanel || (useReopeningSurface && reopening.appPanel)
         let sections = sections || (useReopeningSurface && reopening.sections)
         if useReopeningSurface && reopening.appPanel { MenuPanelFocus.shared.showNormalPanel() }
@@ -1045,9 +1057,9 @@ final class NotchService: ObservableObject {
             highlightedSection = destination
         }
         let metric = metric.flatMap { metricIsAvailable($0) ? $0 : nil }
-        let changesPresentation = !expanded || selected != destination
+        let changesPresentation = !expanded || selected != destination || showingHome != home
             || showingAppPanel != appPanel || selectedMetric != metric || showingSections != sections
-        if changesPresentation, destination == .tools, !appPanel, !sections, metric == nil {
+        if changesPresentation, !home, destination == .tools, !appPanel, !sections, metric == nil {
             QuickLauncherService.shared.prepareForPresentation()
         }
         (NSApp.delegate as? AppDelegate)?.closePopover(preservingNotch: true)
@@ -1066,6 +1078,7 @@ final class NotchService: ObservableObject {
         mutatePresentation(transitionContent: changesPresentation ? (expanded ? .replace : .reveal) : .none) {
             showingAppPanel = appPanel
             showingSections = sections
+            showingHome = home
             if selected != destination { selected = destination }
             if pinned { self.pinned = true }
             selectedMetric = metric
@@ -1110,6 +1123,28 @@ final class NotchService: ObservableObject {
     }
 
     func toggle() { expanded ? collapse() : open() }
+
+    /// Fork: the page behind Home, so consumers that follow `selected` serve
+    /// what Home shows: its first widget's section.
+    private var homeAnchor: NotchModule {
+        NotchHomeWidget.current(modules: modules).first?.module ?? (modules.contains(selected) ? selected : modules.first ?? .controls)
+    }
+
+    /// Fork: the tabbed island's Home tab.
+    func showHome() {
+        guard expanded else { open(); return }
+        guard !showingHome else { return }
+        let anchor = homeAnchor
+        mutatePresentation(transitionContent: .replace) {
+            showingHome = true
+            showingSections = false
+            showingAppPanel = false
+            selectedMetric = nil
+            if selected != anchor { selected = anchor }
+        }
+        syncVisibleConsumers()
+        provideHapticFeedback()
+    }
 
     func setMusicDetailsVisible(_ visible: Bool) {
         guard visible != musicDetailVisible else { return }
@@ -1583,6 +1618,7 @@ final class NotchService: ObservableObject {
             }
         expanded = false
         showingSections = false
+        showingHome = false
         peeking = false
         notice = nil
         noticeExpanded = false
@@ -2155,7 +2191,8 @@ final class NotchService: ObservableObject {
                                color: compactActivityIsVisible && compactActivity == .timer ? .systemOrange : .white)
         windowHost?.present(size: size, geometry: expanded ? expandedGeometry : geometry, animated: animated,
                             transitionContent: contentTransition,
-                            quickAccess: expanded && captureControls == nil && !access.buttons.isEmpty ? access : nil,
+                            quickAccess: expanded && captureControls == nil && !access.buttons.isEmpty
+                                && !NotchStyle.isTabbed() ? access : nil,
                             revealFromHidden: !hiddenInFullscreen && captureControls == nil
                                 && UserDefaults.standard.bool(forKey: DefaultsKey.notchHideUntilHover)
                                 && UserDefaults.standard.bool(forKey: DefaultsKey.notchOpenOnHover),
@@ -2683,7 +2720,7 @@ final class NotchService: ObservableObject {
         let sameMenuBar = next.hasSameMenuBar(as: geometry)
         if sameMenuBar { next.compactSideRoom = geometry.compactSideRoom }
         let access = NotchQuickAccessConfiguration.current()
-        next.quickAccessBottomInset = access.hasBottom ? NotchQuickAccessLayout.gutter : 0
+        next.quickAccessBottomInset = access.hasBottom && !NotchStyle.isTabbed() ? NotchQuickAccessLayout.gutter : 0
         headerShowsSectionsButton = !access.actions.contains(.explore)
         if next != geometry { menuSpaceGeneration += 1; geometry = next }
         // A new camera or bar, such as a notch fit being adjusted, measures the
