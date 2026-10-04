@@ -5,7 +5,7 @@ import AppKit
 import SwiftUI
 
 /// Fork: the tabbed island's top row. Home and the pinned set as tabs on the
-/// leading side; what is playing, the charge and the island's menu trailing.
+/// leading side; what is playing, the charge and Settings trailing.
 /// A capture being edited, a detail page or the section gallery take the row
 /// over the way the classic header gives them room.
 struct NotchTabbedHeader: View {
@@ -144,19 +144,20 @@ struct NotchTabbedHeader: View {
         if let editingCapture {
             HStack(spacing: 6) {
                 editingCapture.fixedSize()
-                menu
+                settings
             }
         } else if service.showingSections {
             HStack(spacing: 6) {
                 NotchSectionSearch(service: service, maximumFieldWidth: 150)
-                menu
+                settings
             }
         } else {
             HStack(spacing: 10) {
                 NotchUpdateControl(action: service.showUpdate, compact: true)
                 nowPlaying
                 battery
-                menu
+                pageActions
+                settings
             }
         }
     }
@@ -214,39 +215,40 @@ struct NotchTabbedHeader: View {
         }
     }
 
-    private var menu: some View {
-        NotchMenuButton(title: text.title, items: menuItems, cornerRadius: 8) {
-            Image(systemName: service.pinned ? "pin.fill" : "ellipsis")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white.opacity(0.75))
-                .frame(width: 28, height: 28)
-                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    /// A kept-open island can be let go from the row; the gear opens Settings.
+    private var settings: some View {
+        HStack(spacing: 2) {
+            if service.pinned {
+                NotchIconButton(symbol: "pin.fill", title: text.unpin, selected: true) { service.pinned = false }
+            }
+            NotchIconButton(symbol: "gearshape", title: l10n.s.menuSettings, action: service.openSettings)
         }
     }
 
-    private var menuItems: [NotchMenuItem] {
-        var items: [NotchMenuItem] = []
+    /// The tools and history pages keep their own actions in the row.
+    @ViewBuilder private var pageActions: some View {
         let onPage = !service.showingHome && !service.showingSections && !showsDetail
         if onPage, service.selected == .tools, launcher.activeUtility == nil {
-            items.append(NotchMenuItem(title: text.customizeTools, checked: launcher.isEditing,
-                                       symbol: "slider.horizontal.3") { launcher.isEditing.toggle() })
+            NotchIconButton(symbol: launcher.isEditing ? "checkmark" : "slider.horizontal.3",
+                            title: text.customizeTools, selected: launcher.isEditing) {
+                withAnimation(.easeOut(duration: 0.15)) { launcher.isEditing.toggle() }
+            }
         }
         if onPage, service.selected == .captures, service.captureContent == nil {
-            let empty = { RecentCapturesView.visible(RecentCaptureService.shared.entries).isEmpty }
-            items.append(NotchMenuItem(title: FeatureStrings.recentCaptures(l10n.language).clear, symbol: "trash",
-                                       enabled: !empty(), action: {
-                guard !empty() else { return }
-                RecentCapturesView.confirmClearAboveIsland()
-            }))
+            NotchTabbedClearCapturesButton()
         }
-        items.append(NotchMenuItem(title: text.sectionsTitle, checked: service.showingSections,
-                                   symbol: "square.grid.2x2", action: service.toggleSections))
-        items.append(.separator)
-        items.append(NotchMenuItem(title: service.pinned ? text.unpin : text.pin,
-                                   symbol: service.pinned ? "pin.slash" : "pin") { service.pinned.toggle() })
-        items.append(NotchMenuItem(title: l10n.s.menuSettings, symbol: "gearshape", action: service.openSettings))
-        items.append(NotchMenuItem(title: text.collapse, symbol: "chevron.up", action: service.collapse))
-        return items
+    }
+}
+
+/// Observes the history on its own, so a new capture does not redraw the row.
+private struct NotchTabbedClearCapturesButton: View {
+    @ObservedObject private var history = RecentCaptureService.shared
+    @ObservedObject private var l10n = L10n.shared
+
+    var body: some View {
+        NotchIconButton(symbol: "trash", title: FeatureStrings.recentCaptures(l10n.language).clear,
+                        action: RecentCapturesView.confirmClearAboveIsland)
+            .disabled(RecentCapturesView.visible(history.entries).isEmpty)
     }
 }
 
