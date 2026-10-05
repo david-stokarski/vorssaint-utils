@@ -48,6 +48,7 @@ final class MouseNavigationService: ObservableObject {
     }
 
     func syncWithPreferences() {
+        MouseNavigationSupport.reload()  // Fork: the chosen Back and Forward buttons
         let wanted = AppFeature.mouseNavigation.isAvailable
             && UserDefaults.standard.bool(forKey: DefaultsKey.mouseNavigationEnabled)
         if SessionActivitySupport.tapShouldRun(

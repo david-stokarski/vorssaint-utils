@@ -1849,6 +1849,8 @@ enum Defaults {
         .merging(NotchClosedSize.registeredDefaults) { current, _ in current }
         .merging(NotchSurfaceAppearance.registeredDefaults) { current, _ in current }
         .merging(NotchShapeTuning.registeredDefaults) { current, _ in current }
+        .merging([DefaultsKey.mouseNavigationBackButton: Int(MouseNavigationSupport.defaultBackButtonNumber),
+                  DefaultsKey.mouseNavigationForwardButton: Int(MouseNavigationSupport.defaultForwardButtonNumber)]) { current, _ in current }
 
     static func register() {
         let defaults = UserDefaults.standard

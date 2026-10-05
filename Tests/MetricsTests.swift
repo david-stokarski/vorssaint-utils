@@ -98,6 +98,7 @@ struct MetricsTests {
                 SpectrumAnalyzerTests.run(suite)  // Fork
                 NotchAnimationTuningTests.run(suite)  // Fork
                 NotchAppearanceTests.run(suite)  // Fork
+                MouseNavigationButtonTests.run(suite)  // Fork
             }),
             ("settings", {
                 SettingsFeatureTests.run(suite)
