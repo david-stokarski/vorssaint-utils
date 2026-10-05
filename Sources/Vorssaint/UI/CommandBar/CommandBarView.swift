@@ -721,7 +721,16 @@ struct CommandBarView: View {
 
     // MARK: - Empty, argument and confirm states
 
+    @ViewBuilder
     private var emptyState: some View {
+        if service.askAIOffered {
+            CommandBarAskAIRow(query: trimmedQuery) { service.askAI() }  // Fork
+        } else {
+            noResultsState
+        }
+    }
+
+    private var noResultsState: some View {
         VStack(spacing: 9) {
             BrandMark(width: 26, tint: markTint)
                 .opacity(0.3)

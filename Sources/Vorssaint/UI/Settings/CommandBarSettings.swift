@@ -131,6 +131,7 @@ struct CommandBarSettings: View {
             }
 
             CommandBarHyperKeySection { showsAppShortcuts = true }  // Fork
+            CommandBarAskAISection()  // Fork
 
             Section {
                 Button {
