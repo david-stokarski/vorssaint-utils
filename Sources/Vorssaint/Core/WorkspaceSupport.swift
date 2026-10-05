@@ -240,10 +240,13 @@ enum WorkspaceSupport {
     /// The screen whose corner a parked window sits in. Overlap would mislead:
     /// a parked window can cover more of the display beside it than of its own.
     static func parkedScreen(for frame: CGRect, in screens: [CGRect]) -> CGRect? {
+        // macOS keeps a sliver of the title bar on screen, so a window asked
+        // to sit at the very bottom stops a little above it (about 30 points
+        // on macOS 27). Only the edge it hangs off is exact.
         screens.first { screen in
             let right = abs(frame.minX - (screen.maxX - 1)) <= 3
             let left = abs(frame.maxX - (screen.minX + 1)) <= 3
-            return (right || left) && abs(frame.minY - (screen.maxY - 1)) <= 3
+            return (right || left) && frame.minY >= screen.maxY - 80 && frame.minY <= screen.maxY + 2
         }
     }
 

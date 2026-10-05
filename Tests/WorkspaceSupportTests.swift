@@ -99,7 +99,9 @@ enum WorkspaceSupportTests {
         suite.expect(leftward.x == -799, "a display to the right sends the window to the bottom-left")
         suite.expect(WorkspaceSupport.looksParked(CGRect(origin: parked, size: size), screens: [main])
                         && WorkspaceSupport.looksParked(CGRect(origin: leftward, size: size), screens: [main])
-                        && !WorkspaceSupport.looksParked(CGRect(x: 100, y: 100, width: 800, height: 600), screens: [main]),
+                        && !WorkspaceSupport.looksParked(CGRect(x: 100, y: 100, width: 800, height: 600), screens: [main])
+                        && WorkspaceSupport.looksParked(CGRect(x: 1511, y: 950, width: 800, height: 600), screens: [main])
+                        && !WorkspaceSupport.looksParked(CGRect(x: 1511, y: 500, width: 800, height: 600), screens: [main]),
                      "parked windows are recognized")
         let origin = CGPoint(x: 300, y: 200)
         let relative = WorkspaceSupport.relativeOrigin(origin, in: main)

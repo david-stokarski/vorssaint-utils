@@ -51,12 +51,15 @@ final class WorkspaceService: ObservableObject {
                 let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
                 guard app?.bundleIdentifier == Self.aeroSpaceBundleID else { return }
                 self?.syncWithPreferences()
+                // The process list can still carry an app as its quit is
+                // announced; look again once it has caught up.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.syncWithPreferences() }
             })
         }
     }
 
     static var aeroSpaceRunning: Bool {
-        !NSRunningApplication.runningApplications(withBundleIdentifier: aeroSpaceBundleID).isEmpty
+        NSRunningApplication.runningApplications(withBundleIdentifier: aeroSpaceBundleID).contains { !$0.isTerminated }
     }
 
     // MARK: - Lifecycle
@@ -204,9 +207,9 @@ final class WorkspaceService: ObservableObject {
 
     private func reconcile(definitions: [WorkspaceDefinition], context: Context, firstStart: Bool) {
         var state = WorkspaceSupport.reconciled(state ?? WorkspaceSupport.state(), with: definitions)
-        let snapshot = Snapshot.take(context)
+        var snapshot = Snapshot.take(context)
         if firstStart {
-            for window in snapshot.windows where !window.isFullscreen {
+            for (index, window) in snapshot.windows.enumerated() where !window.isFullscreen {
                 let key = String(window.id)
                 let looksParked = WorkspaceSupport.looksParked(window.frame, screens: context.screens)
                 if state.windows[key]?.parkedFrom != nil, !looksParked {
@@ -217,7 +220,9 @@ final class WorkspaceService: ObservableObject {
                           let screen = WorkspaceSupport.screen(for: window.frame, in: context.screens) {
                     // Left in a corner with no record of where it was: a
                     // crash, or another window manager quitting. Center it.
-                    Self.setOrigin(WorkspaceSupport.centered(window.frame.size, in: screen), of: element)
+                    let origin = WorkspaceSupport.centered(window.frame.size, in: screen)
+                    Self.setOrigin(origin, of: element)
+                    snapshot.windows[index].frame.origin = origin
                 }
             }
         }
