@@ -7,6 +7,10 @@ import Foundation
 extension DefaultsKey {
     static let mouseNavigationBackButton = "mouseNavigationBackButton"
     static let mouseNavigationForwardButton = "mouseNavigationForwardButton"
+    /// A swipe's horizontal sign (-1 or 1) that means Back or Forward, or 0.
+    /// Logi Options+ sends its Back and Forward buttons as swipe gestures.
+    static let mouseNavigationBackSwipe = "mouseNavigationBackSwipe"
+    static let mouseNavigationForwardSwipe = "mouseNavigationForwardSwipe"
 }
 
 enum MouseNavigationDirection: Hashable, CaseIterable {
@@ -28,11 +32,31 @@ enum MouseNavigationSupport {
     /// The middle button and above; left and right clicks are never navigation.
     static let assignableButtons: ClosedRange<Int64> = 2...31
 
+    /// Fork: recorded swipe signs; 0 leaves swipes alone.
+    private(set) static var backSwipe = 0
+    private(set) static var forwardSwipe = 0
+    static var watchesSwipes: Bool { backSwipe != 0 || forwardSwipe != 0 }
+
     static func reload(from defaults: UserDefaults = .standard) {
         backButtonNumber = sanitizedButton(defaults.object(forKey: DefaultsKey.mouseNavigationBackButton),
                                            fallback: defaultBackButtonNumber)
         forwardButtonNumber = sanitizedButton(defaults.object(forKey: DefaultsKey.mouseNavigationForwardButton),
                                               fallback: defaultForwardButtonNumber)
+        backSwipe = sanitizedSwipe(defaults.integer(forKey: DefaultsKey.mouseNavigationBackSwipe))
+        forwardSwipe = sanitizedSwipe(defaults.integer(forKey: DefaultsKey.mouseNavigationForwardSwipe))
+        if forwardSwipe == backSwipe { forwardSwipe = 0 }
+    }
+
+    static func sanitizedSwipe(_ value: Int) -> Int { value > 0 ? 1 : value < 0 ? -1 : 0 }
+
+    /// The horizontal sign of a swipe: a swipe event carries ±1 in deltaX.
+    static func swipeSign(deltaX: Double) -> Int { deltaX > 0 ? 1 : deltaX < 0 ? -1 : 0 }
+
+    static func direction(forSwipeSign sign: Int) -> MouseNavigationDirection? {
+        guard sign != 0 else { return nil }
+        if sign == backSwipe { return .back }
+        if sign == forwardSwipe { return .forward }
+        return nil
     }
 
     static func sanitizedButton(_ value: Any?, fallback: Int64) -> Int64 {

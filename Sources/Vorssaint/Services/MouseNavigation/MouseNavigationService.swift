@@ -24,6 +24,10 @@ final class MouseNavigationService: ObservableObject {
 
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    /// Fork: a session-level tap for swipes, alive only while a swipe is
+    /// recorded as Back or Forward (Logi Options+ sends its buttons so).
+    private var swipeTap: CFMachPort?
+    private var swipeSource: CFRunLoopSource?
     /// Buttons whose current press started over a pass-through app. The Up
     /// and Drag of a gesture must follow its Down: splitting the pair would
     /// leave the target app with an unmatched mouse event. Only touched from
@@ -60,9 +64,62 @@ final class MouseNavigationService: ObservableObject {
         } else {
             stop()
         }
+        syncSwipeTap()
     }
 
-    func suspend() { stop() }
+    func suspend() { stop(); syncSwipeTap() }
+
+    // MARK: Fork: swipes as Back and Forward
+
+    private func syncSwipeTap() {
+        let wanted = isRunning && MouseNavigationSupport.watchesSwipes
+        if wanted, swipeTap == nil {
+            guard let created = CGEvent.tapCreate(
+                tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
+                eventsOfInterest: CGEventMask(1) << 31,
+                callback: { _, type, event, userInfo in
+                    guard let userInfo else { return Unmanaged.passUnretained(event) }
+                    let service = Unmanaged<MouseNavigationService>.fromOpaque(userInfo).takeUnretainedValue()
+                    return service.handleSwipe(type: type, event: event)
+                },
+                userInfo: Unmanaged.passUnretained(self).toOpaque()) else { return }
+            swipeTap = created
+            let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, created, 0)
+            swipeSource = source
+            CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+            CGEvent.tapEnable(tap: created, enable: true)
+        } else if !wanted, let swipeTap {
+            CGEvent.tapEnable(tap: swipeTap, enable: false)
+            if let swipeSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), swipeSource, .commonModes) }
+            CFMachPortInvalidate(swipeTap)
+            self.swipeTap = nil
+            swipeSource = nil
+        }
+    }
+
+    private func handleSwipe(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let swipeTap { CGEvent.tapEnable(tap: swipeTap, enable: true) }
+            return Unmanaged.passUnretained(event)
+        }
+        guard type.rawValue == 31, let swipe = NSEvent(cgEvent: event), swipe.type == .swipe,
+              let direction = MouseNavigationSupport.direction(
+                forSwipeSign: MouseNavigationSupport.swipeSign(deltaX: Double(swipe.deltaX))) else {
+            return Unmanaged.passUnretained(event)
+        }
+        // The same apps keep the raw gesture as keep the raw buttons: this
+        // app's Settings, browsers that swipe between pages themselves, and
+        // the exceptions the person chose.
+        if NSWorkspace.shared.frontmostApplication?.processIdentifier == ProcessInfo.processInfo.processIdentifier
+            || MouseNavigationSupport.shouldPassThrough(
+                bundleIdentifier: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+                webURLHandlers: webURLHandlers)
+            || MouseAppExceptions.shared.excludesActionTarget(.navigation, at: event.location) {
+            return Unmanaged.passUnretained(event)
+        }
+        DispatchQueue.main.async { [weak self] in self?.perform(direction) }
+        return nil
+    }
 
     private func start() {
         guard tap == nil else {
