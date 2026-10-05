@@ -255,6 +255,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/QuitProtectionStrings.swift
         Sources/Vorssaint/Core/Defaults.swift
         Sources/Vorssaint/Core/DictationSupport.swift
+        Sources/Vorssaint/Core/AIChatSupport.swift
         Sources/Vorssaint/Services/Notch/NotchAppearance.swift
         Sources/Vorssaint/Services/Audio/SpectrumAnalyzer.swift
         Sources/Vorssaint/Core/NotchStrings.swift

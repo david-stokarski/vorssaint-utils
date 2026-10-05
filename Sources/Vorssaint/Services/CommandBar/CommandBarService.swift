@@ -2293,6 +2293,7 @@ final class CommandBarService: ObservableObject {
             finish(entry, value: value)
         case .search:
             guard let entry = selectedEntry else {
+                if askAIOffered { askAI(); return }  // Fork
                 // The no-results state promises a way out; Return takes it.
                 if !query.isEmpty { query = "" }
                 return

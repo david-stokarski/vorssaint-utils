@@ -1851,6 +1851,7 @@ enum Defaults {
         .merging(NotchShapeTuning.registeredDefaults) { current, _ in current }
         .merging([DefaultsKey.mouseNavigationBackButton: Int(MouseNavigationSupport.defaultBackButtonNumber),
                   DefaultsKey.mouseNavigationForwardButton: Int(MouseNavigationSupport.defaultForwardButtonNumber)]) { current, _ in current }
+        .merging(AIChatSupport.registeredDefaults) { current, _ in current }
 
     static func register() {
         let defaults = UserDefaults.standard

@@ -25,6 +25,10 @@ enum NotchDevRemote {
                 DictationService.shared.startPreview(text: (1...24).map { "Sentence \($0) of a long dictation that keeps going so the oldest lines scroll away." }.joined(separator: " "))
             case "dictation-end": DictationService.shared.endPreview()
             case "commandbar": CommandBarService.shared.show()
+            case "aichat": AIChatService.shared.show()
+            case "aichat-settings": AIChatService.shared.show(); AIChatService.shared.showsSettings = true
+            case let raw where raw.hasPrefix("aichat:"):
+                AIChatService.shared.ask(String(raw.dropFirst("aichat:".count)))
             case let raw where raw.hasPrefix("commandbar:"):
                 CommandBarService.shared.show()
                 CommandBarService.shared.query = String(raw.dropFirst("commandbar:".count))
