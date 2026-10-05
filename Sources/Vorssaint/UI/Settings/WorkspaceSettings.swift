@@ -109,6 +109,9 @@ struct WorkspaceSettings: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Follow a window you send to another workspace", isOn: $moveFollows)
                 Toggle("Show the workspace name when switching", isOn: $showHUD)
+                Toggle("Show workspaces in the menu bar", isOn: Binding(
+                    get: { UserDefaults.standard.bool(forKey: DefaultsKey.menuBarWorkspaces) },
+                    set: { UserDefaults.standard.set($0, forKey: DefaultsKey.menuBarWorkspaces); WorkspaceMenuBarItem.shared.sync() }))
             }
 
             Section {
@@ -226,5 +229,22 @@ struct WorkspaceSettings: View {
 
     private func apply() {
         service.syncWithPreferences()
+    }
+}
+
+/// Fork: the Monitor page's switch for the workspaces menu bar item.
+struct WorkspaceMenuBarSetting: View {
+    @AppStorage(DefaultsKey.menuBarWorkspaces) private var shown = false
+    @ObservedObject private var service = WorkspaceService.shared
+
+    var body: some View {
+        SettingsRow(symbol: "square.stack.3d.up", title: "Workspaces",
+                    caption: service.isRunning
+                        ? "A square for each workspace with windows: filled for the one you're on. Click one to go there."
+                        : "Turn on Workspaces to show them here.") {
+            Toggle("Workspaces", isOn: $shown)
+                .labelsHidden()
+                .onChange(of: shown) { _, _ in WorkspaceMenuBarItem.shared.sync() }
+        }
     }
 }

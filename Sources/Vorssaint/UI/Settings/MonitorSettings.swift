@@ -95,6 +95,10 @@ struct MonitorSettings: View {
             Text(FeatureStrings.notchEditor(l10n.language).reorderHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            if AppFeature.workspaces.isAvailable {  // Fork
+                Divider()
+                WorkspaceMenuBarSetting()
+            }
         }
     }
 

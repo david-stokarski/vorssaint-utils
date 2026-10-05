@@ -19,6 +19,8 @@ final class WorkspaceService: ObservableObject {
 
     @Published private(set) var isRunning = false
     @Published private(set) var activeWorkspaceID: String?
+    /// Workspaces with at least one window, for the menu bar item.
+    @Published private(set) var occupiedWorkspaceIDs: Set<String> = []
     /// Storage keys of shortcuts another app already holds.
     @Published private(set) var refusedShortcuts: Set<String> = []
     /// Two window managers parking windows would fight over them, so nothing
@@ -72,6 +74,7 @@ final class WorkspaceService: ObservableObject {
         let blocked = wanted && Self.aeroSpaceRunning
         if waitsForAeroSpace != blocked { waitsForAeroSpace = blocked }
         if wanted, !blocked { start() } else { stop() }
+        WorkspaceMenuBarItem.shared.sync()
     }
 
     private func start() {
@@ -99,6 +102,7 @@ final class WorkspaceService: ObservableObject {
         guard isRunning else { return }
         isRunning = false
         activeWorkspaceID = nil
+        occupiedWorkspaceIDs = []
         // Turned off: every window comes back and nothing is remembered, so
         // turning it on later does not make windows vanish.
         let context = Context.current()
@@ -355,8 +359,27 @@ final class WorkspaceService: ObservableObject {
         self.state = state
         UserDefaults.standard.set(WorkspaceSupport.encode(state), forKey: DefaultsKey.workspacesState)
         let active = state.active
+        let occupied = WorkspaceSupport.occupied(state)
         DispatchQueue.main.async { [weak self] in
-            if self?.activeWorkspaceID != active { self?.activeWorkspaceID = active }
+            guard let self else { return }
+            if self.activeWorkspaceID != active { self.activeWorkspaceID = active }
+            if self.occupiedWorkspaceIDs != occupied { self.occupiedWorkspaceIDs = occupied }
+        }
+    }
+
+    /// Forgets windows that have closed, without Accessibility: the window
+    /// server's list is cheap enough for the menu bar item to ask every few
+    /// seconds, so a workspace whose last window closed drops out of the bar.
+    func refreshOccupancy() {
+        guard isRunning else { return }
+        queue.async { [weak self] in
+            guard let self, var state = self.state else { return }
+            let all = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] ?? []
+            let existing = Set(all.compactMap { ($0[kCGWindowNumber as String] as? NSNumber)?.uint32Value })
+            let kept = state.windows.filter { key, _ in UInt32(key).map(existing.contains) ?? false }
+            guard kept.count != state.windows.count else { return }
+            state.windows = kept
+            self.commit(state)
         }
     }
 
