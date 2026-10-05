@@ -554,7 +554,7 @@ final class DockPreviewService: ObservableObject {
                 }
             case .otherIcon(let hit):
                 cancelPendingHide()
-                scheduleHover(hit, delay: DockPreviewSupport.switchDelay)
+                scheduleHover(hit, delay: DockPreviewSupport.switchDelay(openDelay: openDelay))
             case .outside:
                 // Don't cancel a half-armed switch here: a brief skip over dead
                 // space on the way to another icon shouldn't starve it — it
@@ -668,7 +668,7 @@ final class DockPreviewService: ObservableObject {
                 // panel keeps resting on its opener icon.
                 if self.hasEnteredPanel { self.endSession() }
             case .otherIcon(let hit):
-                self.scheduleHover(hit, delay: DockPreviewSupport.switchDelay)
+                self.scheduleHover(hit, delay: DockPreviewSupport.switchDelay(openDelay: openDelay))
             case .outside:
                 self.endSession()
             }

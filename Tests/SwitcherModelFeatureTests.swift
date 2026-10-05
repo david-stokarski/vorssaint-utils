@@ -1760,7 +1760,7 @@ enum SwitcherModelFeatureTests {
                     "the stored milliseconds drive the timer in seconds")
         let openDelays = DockPreviewSupport.openDelayMillisecondsRange
             .map { DockPreviewSupport.openDelay(milliseconds: $0) }
-        suite.expect(openDelays.allSatisfy { DockPreviewSupport.switchDelay <= $0 },
+        suite.expect(openDelays.allSatisfy { DockPreviewSupport.switchDelay(openDelay: $0) <= $0 },
                "no chosen delay makes switching slower than opening")
         suite.expect(openDelays.allSatisfy { DockPreviewSupport.prefetchDelay(openDelay: $0) <= $0 },
                "the window list is never read after the panel it is read for has opened")
@@ -1780,7 +1780,8 @@ enum SwitcherModelFeatureTests {
                    DockPreviewSupport.prefetchDelay(openDelay: $0) >= min(DockPreviewSupport.prefetchLead, $0 / 2)
                },
                "no setting reads the window list before the cursor has held still")
-        suite.expect(DockPreviewSupport.switchDelay
+        suite.expect(DockPreviewSupport.switchDelay(openDelay: DockPreviewSupport.openDelay(
+                   milliseconds: DockPreviewSupport.openDelayMillisecondsRange.lowerBound))
                <= DockPreviewSupport.openDelay(
                    milliseconds: DockPreviewSupport.openDelayMillisecondsRange.lowerBound),
                "a switch is never slower than the shortest fresh open")
