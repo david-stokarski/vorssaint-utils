@@ -26,6 +26,9 @@ enum NotchDevRemote {
             case "dictation-end": DictationService.shared.endPreview()
             case "commandbar": CommandBarService.shared.show()
             case "aichat": AIChatService.shared.show()
+            case "settings-workspaces":
+                SettingsRouter.shared.request(FeatureSettingsDestination(.workspaces), targetFeature: nil, sidebarFeature: nil)
+                (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
             case "settings-aichat":
                 SettingsRouter.shared.request(FeatureSettingsDestination(.aiChat), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()

@@ -554,6 +554,7 @@ struct SettingsView: View {
         case .portManager: PortManagerView()
         case .dictation: DictationSettings()
         case .aiChat: AIChatSettingsPage()
+        case .workspaces: WorkspaceSettings()
         case .urlCleaner: URLCleanerSettings()
         case .cleaner: CleanerSettings()
         case .homebrew: HomebrewSettings()

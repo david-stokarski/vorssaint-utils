@@ -101,6 +101,7 @@ struct MetricsTests {
                 MouseNavigationButtonTests.run(suite)  // Fork
                 NotchTabsTests.run(suite)  // Fork
                 AIChatSupportTests.run(suite)  // Fork
+                WorkspaceSupportTests.run(suite)  // Fork
             }),
             ("settings", {
                 SettingsFeatureTests.run(suite)

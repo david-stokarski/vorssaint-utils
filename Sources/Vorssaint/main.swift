@@ -14,6 +14,7 @@ if CommandLine.arguments.contains("--notch-presentation-test") {
 }
 DictationFileProbe.runIfRequestedAndExit()  // Fork
 DictationRenderProbe.runIfRequestedAndExit()  // Fork
+WorkspaceProbe.runIfRequestedAndExit()  // Fork
 #endif
 
 if CommandLine.arguments.contains("--selftest") {
