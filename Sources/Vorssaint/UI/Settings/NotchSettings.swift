@@ -171,6 +171,7 @@ struct NotchSettings: View {
     private var layoutPage: some View {
         VStack(alignment: .leading, spacing: 20) {
             NotchStyleSettingsCard()  // Fork
+            NotchAnimationSettingsCard()  // Fork
             NotchLayoutEditor(configuration: access, size: $size, width: $customWidth, height: $customHeight) {
                 selectedModule = .controls; tab = .content
             }

@@ -96,6 +96,7 @@ struct MetricsTests {
                 PortManagerRefreshTests.run(suite)
                 DictationSupportTests.run(suite)  // Fork
                 SpectrumAnalyzerTests.run(suite)  // Fork
+                NotchAnimationTuningTests.run(suite)  // Fork
             }),
             ("settings", {
                 SettingsFeatureTests.run(suite)

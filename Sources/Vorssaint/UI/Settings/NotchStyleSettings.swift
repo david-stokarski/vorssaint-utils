@@ -90,3 +90,92 @@ struct NotchStyleSettingsCard: View {
         widgets = NotchHomeWidget.encode(next)
     }
 }
+
+/// Fork: how the island opens and closes. A preset fills every slider;
+/// moving a slider makes the motion custom.
+struct NotchAnimationSettingsCard: View {
+    @AppStorage(DefaultsKey.notchAnimationPreset) private var preset = NotchAnimationTuning.Preset.liquid.rawValue
+    @AppStorage(DefaultsKey.notchAnimationOpenDuration) private var openDuration = 0.52
+    @AppStorage(DefaultsKey.notchAnimationOpenBounce) private var openBounce = 0.3
+    @AppStorage(DefaultsKey.notchAnimationCloseDuration) private var closeDuration = 0.38
+    @AppStorage(DefaultsKey.notchAnimationCloseBounce) private var closeBounce = 0.1
+    @AppStorage(DefaultsKey.notchAnimationStretch) private var stretch = 0.05
+    @AppStorage(DefaultsKey.notchAnimationContentBlur) private var contentBlur = 14.0
+    @AppStorage(DefaultsKey.notchAnimationContentScale) private var contentScale = 0.84
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var previewing = false
+
+    private typealias Tuning = NotchAnimationTuning
+
+    var body: some View {
+        SettingsCard(title: "Animation") {
+            Picker("Style", selection: Binding(get: { preset }, set: choose)) {
+                ForEach(Tuning.Preset.allCases) { Text($0.title).tag($0.rawValue) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+                slider("Opening", value: $openDuration, range: Tuning.durationRange, step: 0.02) { seconds($0) }
+                slider("Opening bounce", value: $openBounce, range: Tuning.bounceRange, step: 0.02) { percent($0 * 2) }
+                slider("Closing", value: $closeDuration, range: Tuning.durationRange, step: 0.02) { seconds($0) }
+                slider("Closing squish", value: $closeBounce, range: Tuning.closeBounceRange, step: 0.02) { percent($0 / 0.3) }
+                slider("Liquid stretch", value: $stretch, range: Tuning.stretchRange, step: 0.005) { "\(Int(($0 * 1000).rounded())) ms" }
+                slider("Content blur", value: $contentBlur, range: Tuning.blurRange, step: 1) { "\(Int($0.rounded())) pt" }
+                slider("Content zoom", value: $contentScale, range: Tuning.scaleRange, step: 0.01) { percent($0) }
+            }
+            HStack {
+                Text(reduceMotion
+                     ? "Reduce Motion is on in System Settings, so the island moves without these springs."
+                     : "Liquid stretch lets the width lead as the island opens and the height lead as it closes, so it pours open and draws back like a drop.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 12)
+                Button(previewing ? "Previewing…" : "Preview", action: preview)
+                    .disabled(previewing || !NotchSupport.isEnabled())
+            }
+        }
+    }
+
+    private func slider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double,
+                        label: @escaping (Double) -> String) -> some View {
+        let edited = Binding(get: { value.wrappedValue }, set: { next in
+            value.wrappedValue = next
+            if preset != Tuning.Preset.custom.rawValue { preset = Tuning.Preset.custom.rawValue }
+            Tuning.reload()
+        })
+        return GridRow {
+            Text(title).fixedSize().accessibilityHidden(true)
+            Slider(value: edited, in: range, step: step) { Text(title) }.labelsHidden()
+            Text(label(value.wrappedValue)).monospacedDigit().foregroundStyle(.secondary).frame(width: 52, alignment: .trailing)
+        }
+    }
+
+    private func choose(_ raw: String) {
+        preset = raw
+        if let tuning = Tuning.Preset(rawValue: raw)?.tuning {
+            openDuration = tuning.openDuration
+            openBounce = tuning.openBounce
+            closeDuration = tuning.closeDuration
+            closeBounce = tuning.closeBounce
+            stretch = tuning.stretch
+            contentBlur = tuning.contentBlur
+            contentScale = tuning.contentScale
+        }
+        Tuning.reload()
+    }
+
+    /// Opens the island and closes it again, so a change can be felt.
+    private func preview() {
+        Tuning.reload()
+        previewing = true
+        NotchService.shared.open(pinned: true, takeFocus: false)
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(1.1, openDuration + 0.8)) {
+            NotchService.shared.collapse()
+            DispatchQueue.main.asyncAfter(deadline: .now() + closeDuration + 0.3) { previewing = false }
+        }
+    }
+
+    private func seconds(_ value: Double) -> String { "\(value.formatted(.number.precision(.fractionLength(2)))) s" }
+    private func percent(_ value: Double) -> String { value.formatted(.percent.precision(.fractionLength(0))) }
+}
