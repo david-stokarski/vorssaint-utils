@@ -17,6 +17,7 @@ struct DictationSettings: View {
     @AppStorage(DefaultsKey.dictationSilenceDuration) private var silenceDuration = DictationSupport.defaultSilenceDuration
     @AppStorage(DefaultsKey.dictationSilenceThreshold) private var silenceThreshold = DictationSupport.defaultMinimumVoiceLevel
     @AppStorage(DefaultsKey.dictationPauseMedia) private var pauseMedia = true
+    @AppStorage(DefaultsKey.dictationTranslucent) private var translucent = true
     @AppStorage(DefaultsKey.dictationCleanupEnabled) private var cleanupEnabled = false
     @AppStorage(DefaultsKey.dictationCleanupStyling) private var styling = DictationCleanupStyling.semiFormal.rawValue
     @AppStorage(DefaultsKey.dictationCleanupStructure) private var structure = DictationCleanupStructure.prose.rawValue
@@ -98,6 +99,9 @@ struct DictationSettings: View {
             }
 
             Section("While dictating") {
+                Toggle("See-through background", isOn: $translucent)
+                Text("Blurs what's behind the island instead of filling it with black. Reduce Transparency keeps it black.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Pause music and video", isOn: $pauseMedia)
                 Text("Whatever is playing pauses so the speakers don't reach the microphone, and resumes after the text is pasted.")
                     .font(.caption).foregroundStyle(.secondary)

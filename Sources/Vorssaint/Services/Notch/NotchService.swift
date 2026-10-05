@@ -652,7 +652,7 @@ final class NotchService: ObservableObject {
     }
     var contentSize: CGSize { expandedGeometry.contentSize(for: expandedSize) }
     var usesGlassSurface: Bool {
-        expanded || peeking || dragPlaceholder || noticeExpanded
+        expanded || peeking || dragPlaceholder || noticeExpanded || (dictationPresented && DictationSupport.translucent)
             || (captureControls != nil && !captureControlsCollapsed)
     }
 
@@ -827,6 +827,7 @@ final class NotchService: ObservableObject {
 
     func syncWithPreferences() {
         NotchAnimationTuning.reload()  // Fork
+        NotchClosedSize.reload()
         preferenceSyncWork?.cancel(); preferenceSyncWork = nil
         guard NotchSupport.isEnabled() else { stop(); return }
         if !running {
@@ -1078,7 +1079,7 @@ final class NotchService: ObservableObject {
         // Following the closed island ends the moment it opens, before a page
         // or a capture preview under the pointer can be told the pointer left.
         // An open page is followed again only from an exit report.
-        if !expanded { removeHoverExitMonitors() }
+        if !expanded { removeHoverExitMonitors(); NotchHoverTuning.noteOpened() }  // Fork: minimum open time
         mutatePresentation(transitionContent: changesPresentation ? (expanded ? .replace : .reveal) : .none) {
             showingAppPanel = appPanel
             showingSections = sections
@@ -1257,7 +1258,9 @@ final class NotchService: ObservableObject {
                 self.collapse()
             }
             hoverWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + (expanded || noticeExpanded ? NotchQuickAccessLayout.hoverExitDelay : 0.12), execute: work)
+            // Fork: the open island's close delay and minimum open time come from Settings.
+            DispatchQueue.main.asyncAfter(deadline: .now() + (expanded || noticeExpanded ? NotchHoverTuning.exitDelay() : 0.12),
+                                          execute: work)
         }
     }
 
@@ -2209,6 +2212,7 @@ final class NotchService: ObservableObject {
         if let windowHost, windowHost.targetSize != size { objectWillChange.send() }
         windowHost?.setOutline(enabled: !fullscreenCompact && UserDefaults.standard.bool(forKey: DefaultsKey.notchOutlineEnabled),
                                color: compactActivityIsVisible && compactActivity == .timer ? .systemOrange : .white)
+        windowHost?.setPrefersTranslucent(dictationPresented && !expanded && DictationSupport.translucent)  // Fork
         windowHost?.present(size: size, geometry: expanded ? expandedGeometry : geometry, animated: animated,
                             transitionContent: contentTransition,
                             quickAccess: expanded && captureControls == nil && !access.buttons.isEmpty

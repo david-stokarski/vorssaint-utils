@@ -50,5 +50,32 @@ enum NotchAnimationTuningTests {
                      && custom.closeBounce == NotchAnimationTuning.closeBounceRange.lowerBound,
                      "custom values are kept within their ranges")
         defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-animation")
+
+        // Hover timing: the close delay, stretched while the minimum open time runs.
+        suite.expect(NotchHoverTuning.closeDelay(in: defaults) == NotchHoverTuning.defaultCloseDelay,
+                     "no preference keeps the usual close delay")
+        defaults.set(0.5, forKey: DefaultsKey.notchHoverCloseDelay)
+        defaults.set(2.0, forKey: DefaultsKey.notchHoverMinimumOpen)
+        NotchHoverTuning.noteOpened(at: 100)
+        suite.expect(abs(NotchHoverTuning.exitDelay(now: 100.5, in: defaults) - 1.5) < 0.0001,
+                     "leaving early waits out the minimum open time")
+        suite.expect(NotchHoverTuning.exitDelay(now: 105, in: defaults) == 0.5,
+                     "after the minimum, only the close delay applies")
+        defaults.set(9.0, forKey: DefaultsKey.notchHoverCloseDelay)
+        suite.expect(NotchHoverTuning.closeDelay(in: defaults) == NotchHoverTuning.closeDelayRange.upperBound,
+                     "close delays stay within range")
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-animation")
+
+        // Closed size beside a camera.
+        let savedSize = NotchClosedSize.current
+        defaults.set(33.0, forKey: DefaultsKey.notchClosedExtraWidth)
+        defaults.set(99.0, forKey: DefaultsKey.notchClosedExtraHeight)
+        NotchClosedSize.reload(from: defaults)
+        suite.expect(NotchClosedSize.current.extraWidth.truncatingRemainder(dividingBy: 2) == 0,
+                     "extra width stays even so the island stays centred")
+        suite.expect(NotchClosedSize.current.extraHeight == CGFloat(NotchClosedSize.heightRange.upperBound),
+                     "extra height stays within range")
+        NotchClosedSize.current = savedSize
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-animation")
     }
 }

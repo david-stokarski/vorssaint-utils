@@ -172,6 +172,7 @@ struct NotchSettings: View {
         VStack(alignment: .leading, spacing: 20) {
             NotchStyleSettingsCard()  // Fork
             NotchAnimationSettingsCard()  // Fork
+            NotchClosedSizeCard()  // Fork
             NotchLayoutEditor(configuration: access, size: $size, width: $customWidth, height: $customHeight) {
                 selectedModule = .controls; tab = .content
             }
@@ -572,6 +573,7 @@ struct NotchSettings: View {
                 }
                 switchRow("livephoto", editor.openActivity, caption: editor.openActivityHint, isOn: $opensActivity)
             }
+            if hover { NotchHoverTimingCard() }  // Fork
             SettingsCard(title: text.display) {
                 switchRow("arrow.up.left.and.arrow.down.right", text.hideInFullscreen, isOn: $hideInFullscreen)
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {

@@ -144,3 +144,87 @@ struct NotchAnimationTuning: Equatable {
         growing == width ? 0 : stretch
     }
 }
+
+// MARK: - Hover
+
+extension DefaultsKey {
+    /// How long the pointer must be away before a hover-opened island closes.
+    static let notchHoverCloseDelay = "notchHoverCloseDelay"
+    /// The least time a hover-opened island stays open, however soon the pointer leaves.
+    static let notchHoverMinimumOpen = "notchHoverMinimumOpen"
+}
+
+/// Fork: how the island answers the pointer leaving it.
+enum NotchHoverTuning {
+    static let defaultCloseDelay = 0.18
+    static let closeDelayRange = 0.0...2.0
+    static let minimumOpenRange = 0.0...3.0
+    /// When the island last opened, on the media clock.
+    private(set) static var openedAt: TimeInterval = 0
+
+    static let registeredDefaults: [String: Any] = [
+        DefaultsKey.notchHoverCloseDelay: defaultCloseDelay,
+        DefaultsKey.notchHoverMinimumOpen: 0.0,
+    ]
+
+    static func noteOpened(at time: TimeInterval = ProcessInfo.processInfo.systemUptime) { openedAt = time }
+
+    static func closeDelay(in defaults: UserDefaults = .standard) -> TimeInterval {
+        value(DefaultsKey.notchHoverCloseDelay, closeDelayRange, defaultCloseDelay, defaults)
+    }
+
+    static func minimumOpen(in defaults: UserDefaults = .standard) -> TimeInterval {
+        value(DefaultsKey.notchHoverMinimumOpen, minimumOpenRange, 0, defaults)
+    }
+
+    /// How long to wait before closing an open island the pointer just left:
+    /// the close delay, or longer while the minimum open time is still running.
+    static func exitDelay(now: TimeInterval = ProcessInfo.processInfo.systemUptime,
+                          in defaults: UserDefaults = .standard) -> TimeInterval {
+        max(closeDelay(in: defaults), minimumOpen(in: defaults) - (now - openedAt))
+    }
+
+    private static func value(_ key: String, _ range: ClosedRange<Double>, _ fallback: Double,
+                              _ defaults: UserDefaults) -> Double {
+        guard defaults.object(forKey: key) != nil else { return fallback }
+        let raw = defaults.double(forKey: key)
+        return raw.isFinite ? min(range.upperBound, max(range.lowerBound, raw)) : fallback
+    }
+}
+
+// MARK: - Closed size beside a camera
+
+extension DefaultsKey {
+    /// Points the closed island extends past the camera on each side, in total.
+    static let notchClosedExtraWidth = "notchClosedExtraWidth"
+    /// Points the closed island hangs below the camera.
+    static let notchClosedExtraHeight = "notchClosedExtraHeight"
+}
+
+/// Fork: a closed island larger than the camera it covers, on displays with
+/// one. A floating capsule has its own fit (NotchCapsuleFit).
+struct NotchClosedSize: Equatable {
+    var extraWidth: CGFloat
+    var extraHeight: CGFloat
+
+    static let widthRange = 0.0...80.0
+    static let heightRange = 0.0...12.0
+    static let zero = NotchClosedSize(extraWidth: 0, extraHeight: 0)
+    /// What the geometry reads; reloaded with the island's preferences.
+    static var current = zero
+
+    static let registeredDefaults: [String: Any] = [
+        DefaultsKey.notchClosedExtraWidth: 0.0,
+        DefaultsKey.notchClosedExtraHeight: 0.0,
+    ]
+
+    static func reload(from defaults: UserDefaults = .standard) {
+        func value(_ key: String, _ range: ClosedRange<Double>) -> CGFloat {
+            let raw = defaults.double(forKey: key)
+            return raw.isFinite ? CGFloat(min(range.upperBound, max(range.lowerBound, raw))) : 0
+        }
+        // Even widths keep the island centred on the camera's pixels.
+        current = NotchClosedSize(extraWidth: (value(DefaultsKey.notchClosedExtraWidth, widthRange) / 2).rounded() * 2,
+                                  extraHeight: value(DefaultsKey.notchClosedExtraHeight, heightRange).rounded())
+    }
+}

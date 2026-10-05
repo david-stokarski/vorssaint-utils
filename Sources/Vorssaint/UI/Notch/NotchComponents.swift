@@ -287,6 +287,9 @@ private struct NotchSettingsPreviewKey: EnvironmentKey {
 final class NotchBackdropPresentation: ObservableObject {
     @Published var contour = Path()
     @Published var usesGlass = false
+    /// Fork: a surface that asks for the translucent blur whatever the glass
+    /// preference, as dictation does.
+    @Published var prefersTranslucent = false
     /// The camera strip's height in points, which the translucent background
     /// keeps black at every island height.
     @Published var stripHeight: CGFloat = 0
@@ -334,7 +337,8 @@ struct NotchWindowBackground: View {
     @AppStorage(DefaultsKey.notchTranslucentBackground) private var translucent = false
 
     var body: some View {
-        NotchSurfaceBackground(presentation: presentation, glass: glass, translucent: translucent)
+        NotchSurfaceBackground(presentation: presentation, glass: glass && !presentation.prefersTranslucent,
+                               translucent: translucent || presentation.prefersTranslucent)
     }
 }
 

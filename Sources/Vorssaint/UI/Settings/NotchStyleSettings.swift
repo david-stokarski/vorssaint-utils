@@ -179,3 +179,70 @@ struct NotchAnimationSettingsCard: View {
     private func seconds(_ value: Double) -> String { "\(value.formatted(.number.precision(.fractionLength(2)))) s" }
     private func percent(_ value: Double) -> String { value.formatted(.percent.precision(.fractionLength(0))) }
 }
+
+/// Fork: what the island does once the pointer leaves it. The opening delay
+/// sits with the opening choices above.
+struct NotchHoverTimingCard: View {
+    @AppStorage(DefaultsKey.notchHoverCloseDelay) private var closeDelay = NotchHoverTuning.defaultCloseDelay
+    @AppStorage(DefaultsKey.notchHoverMinimumOpen) private var minimumOpen = 0.0
+
+    var body: some View {
+        SettingsCard(title: "Hover Timing") {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+                row("Close after leaving", value: $closeDelay, range: NotchHoverTuning.closeDelayRange, step: 0.05)
+                row("Stay open at least", value: $minimumOpen, range: NotchHoverTuning.minimumOpenRange, step: 0.1)
+            }
+            Text("Once the pointer leaves, the island waits this long before closing. \"Stay open at least\" keeps a hover-opened island up for a moment even if the pointer only brushed past; 0 turns it off.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func row(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double) -> some View {
+        GridRow {
+            Text(title).fixedSize().accessibilityHidden(true)
+            Slider(value: value, in: range, step: step) { Text(title) }.labelsHidden()
+            Text(value.wrappedValue == 0 ? "Off" : "\(value.wrappedValue.formatted(.number.precision(.fractionLength(2)))) s")
+                .monospacedDigit().foregroundStyle(.secondary).frame(width: 52, alignment: .trailing)
+        }
+    }
+}
+
+/// Fork: the closed island's size on a display with a camera.
+struct NotchClosedSizeCard: View {
+    @AppStorage(DefaultsKey.notchClosedExtraWidth) private var extraWidth = 0.0
+    @AppStorage(DefaultsKey.notchClosedExtraHeight) private var extraHeight = 0.0
+
+    var body: some View {
+        SettingsCard(title: "Closed Size") {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+                row("Extra width", value: $extraWidth, range: NotchClosedSize.widthRange, step: 2)
+                row("Extra height", value: $extraHeight, range: NotchClosedSize.heightRange, step: 1)
+            }
+            Text(NotchSupport.hasNotchedDisplay
+                 ? "How far the closed island reaches past the camera, when nothing is showing beside it. The floating capsule on a display without a camera has its own size under Capsule Fit."
+                 : "Applies on a display with a camera. The floating capsule's size is under Capsule Fit.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onChange(of: extraWidth) { _, _ in apply() }
+        .onChange(of: extraHeight) { _, _ in apply() }
+    }
+
+    private func apply() {
+        NotchClosedSize.reload()
+        NotchService.shared.syncWithPreferences()
+        NotchService.shared.refreshPresentation()
+    }
+
+    private func row(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double) -> some View {
+        GridRow {
+            Text(title).fixedSize().accessibilityHidden(true)
+            Slider(value: value, in: range, step: step) { Text(title) }.labelsHidden()
+            Text("\(Int(value.wrappedValue.rounded())) pt").monospacedDigit().foregroundStyle(.secondary)
+                .frame(width: 52, alignment: .trailing)
+        }
+    }
+}

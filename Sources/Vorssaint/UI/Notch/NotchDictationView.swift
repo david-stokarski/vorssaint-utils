@@ -145,7 +145,7 @@ struct DictationContent: View {
             HStack(spacing: 0) {
                 DictationRecordingDot(progress: dictation.silenceProgress)
                 Spacer(minLength: 12)
-                DictationWaveform(levels: dictation.levels).frame(height: 14)
+                DictationWaveform(levels: dictation.levels)
                 Spacer(minLength: 12)
                 elapsed
             }
@@ -197,20 +197,23 @@ struct DictationRecordingDot: View {
     }
 }
 
-/// Slim spectrum bars, mirrored around the middle.
+/// A few solid bars, mirrored around the middle, drawn like the island's
+/// music bars so the two read as one family.
 struct DictationWaveform: View {
     let levels: [Float]
+    static let barWidth: CGFloat = 3
+    static let height: CGFloat = 14
 
     var body: some View {
-        HStack(alignment: .center, spacing: 2.5) {
+        HStack(alignment: .center, spacing: Self.barWidth * 0.85) {
             ForEach(levels.indices, id: \.self) { index in
-                let level = CGFloat(max(0.08, min(1, levels[index])))
+                let level = CGFloat(max(0, min(1, levels[index])))
                 Capsule(style: .continuous)
-                    .fill(.white.opacity(0.35 + 0.6 * level))
-                    .frame(width: 2.5, height: max(2.5, level * 14))
+                    .fill(.white.opacity(0.92))
+                    .frame(width: Self.barWidth, height: max(Self.barWidth, Self.height * (0.12 + 0.88 * level)))
             }
         }
-        .frame(height: 14)
+        .frame(height: Self.height)
         .accessibilityHidden(true)
     }
 }
@@ -236,7 +239,16 @@ final class DictationHUD {
                 .padding(.top, 12)
                 .padding(.bottom, DictationLayout.bottomInset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.black.opacity(0.9)))
+                .background {
+                    // The same see-through blur the island uses while dictating.
+                    let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    if DictationSupport.translucent {
+                        shape.fill(.ultraThinMaterial).overlay(shape.fill(Color.black.opacity(0.4)))
+                    } else {
+                        shape.fill(Color.black.opacity(0.9))
+                    }
+                }
+                .environment(\.colorScheme, .dark)
             panel.contentView = NSHostingView(rootView: content)
             self.panel = panel
         }

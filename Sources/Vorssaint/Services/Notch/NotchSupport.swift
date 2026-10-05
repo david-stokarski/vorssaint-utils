@@ -1307,7 +1307,7 @@ enum NotchSupport {
 
     static let toolColumns = 5
     static let defaultHoverDelay = 0.25
-    static let hoverDelayRange = 0.10...1.0
+    static let hoverDelayRange = 0.0...2.0  // Fork: was 0.10...1.0
 
     /// Whether a screen point lies in a top-edge click area, whose top edge
     /// belongs to it as in the flipped native view.
@@ -1785,7 +1785,11 @@ struct NotchGeometry: Equatable {
         // Bare, a capsule is shorter than the gap between an activity's
         // wings, closer to the phone's proportions, and on whole points,
         // as the window around it is.
-        guard floats else { return CGSize(width: cameraWidth, height: cameraHeight) }
+        guard floats else {
+            // Fork: Settings can let the closed island reach past the camera.
+            let extra = NotchClosedSize.current
+            return CGSize(width: min(screen.width - 24, cameraWidth + extra.extraWidth), height: cameraHeight + extra.extraHeight)
+        }
         let shoulders = NotchLayout.shoulder(height: stripHeight) * 2
         let capsule = max(NotchLayout.capsuleRestingAspect * stripBodyHeight + capsuleWidthFit, stripBodyHeight * 2)
         return CGSize(width: min(cameraWidth, (capsule + shoulders).rounded()), height: cameraHeight)
