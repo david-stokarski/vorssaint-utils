@@ -125,5 +125,18 @@ enum MouseNavigationButtonTests {
         suite.expect(MouseNavigationSupport.backButtonNumber == MouseNavigationSupport.defaultBackButtonNumber
                      && MouseNavigationSupport.forwardButtonNumber == MouseNavigationSupport.defaultForwardButtonNumber,
                      "a left click or an impossible button falls back to the standard ones")
+
+        suite.expect(!MouseNavigationSupport.watchesSwipes && MouseNavigationSupport.direction(forSwipeSign: 1) == nil,
+                     "without a recorded swipe, swipes are left alone")
+        defaults.set(1, forKey: DefaultsKey.mouseNavigationBackSwipe)
+        defaults.set(-1, forKey: DefaultsKey.mouseNavigationForwardSwipe)
+        MouseNavigationSupport.reload(from: defaults)
+        suite.expect(MouseNavigationSupport.direction(forSwipeSign: MouseNavigationSupport.swipeSign(deltaX: 1)) == .back
+                     && MouseNavigationSupport.direction(forSwipeSign: MouseNavigationSupport.swipeSign(deltaX: -1)) == .forward
+                     && MouseNavigationSupport.direction(forSwipeSign: 0) == nil,
+                     "recorded swipes map to Back and Forward by their sign")
+        defaults.set(1, forKey: DefaultsKey.mouseNavigationForwardSwipe)
+        MouseNavigationSupport.reload(from: defaults)
+        suite.expect(MouseNavigationSupport.forwardSwipe == 0, "one swipe can't mean both directions")
     }
 }

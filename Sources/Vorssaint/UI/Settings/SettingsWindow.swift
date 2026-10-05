@@ -73,6 +73,14 @@ class SettingsWindow: NSWindow {
             case .back: goBack(nil)
             case .forward: goForward(nil)
             }
+        case .swipe where canNavigate:
+            // Fork: a recorded swipe (Logi Options+ sends its Back and Forward
+            // buttons as swipes) navigates Settings as the side buttons do.
+            switch MouseNavigationSupport.direction(forSwipeSign: MouseNavigationSupport.swipeSign(deltaX: Double(event.deltaX))) {
+            case .back: goBack(nil)
+            case .forward: goForward(nil)
+            case nil: super.sendEvent(event)
+            }
         case .otherMouseUp:
             // Keep the entire gesture together, even if navigation changes focus.
             if navigationButtons.remove(event.buttonNumber) != nil { return }

@@ -5,11 +5,15 @@ import AppKit
 import SwiftUI
 
 /// Fork: which mouse buttons mean Back and Forward, recorded by pressing
-/// them, with a live readout of what the mouse actually sends. A mouse whose
-/// own software turns its side buttons into key presses shows that here.
+/// them, with a live readout of what the mouse actually sends. Logi Options+
+/// sends its Back and Forward buttons as swipe gestures; recording one of
+/// those makes the swipe the trigger. A mouse whose own software turns a side
+/// button into a key press says so.
 struct MouseNavigationButtonsConfig: View {
     @AppStorage(DefaultsKey.mouseNavigationBackButton) private var backButton = Int(MouseNavigationSupport.defaultBackButtonNumber)
     @AppStorage(DefaultsKey.mouseNavigationForwardButton) private var forwardButton = Int(MouseNavigationSupport.defaultForwardButtonNumber)
+    @AppStorage(DefaultsKey.mouseNavigationBackSwipe) private var backSwipe = 0
+    @AppStorage(DefaultsKey.mouseNavigationForwardSwipe) private var forwardSwipe = 0
     @ObservedObject private var permissions = Permissions.shared
     @ObservedObject private var service = MouseNavigationService.shared
     @State private var recording: MouseNavigationDirection?
@@ -18,8 +22,8 @@ struct MouseNavigationButtonsConfig: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            row(.back, title: "Back button", number: backButton)
-            row(.forward, title: "Forward button", number: forwardButton)
+            row(.back, title: "Back button", number: backButton, swipe: backSwipe)
+            row(.forward, title: "Forward button", number: forwardButton, swipe: forwardSwipe)
             HStack(spacing: 6) {
                 Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(.secondary)
                 Text(lastSeen.map { "Last press: \($0)" } ?? "Press a side button to see what your mouse sends.")
@@ -45,20 +49,24 @@ struct MouseNavigationButtonsConfig: View {
         .onDisappear(perform: stopMonitoring)
     }
 
-    private func row(_ direction: MouseNavigationDirection, title: String, number: Int) -> some View {
+    private func row(_ direction: MouseNavigationDirection, title: String, number: Int, swipe: Int) -> some View {
         HStack {
             Text(title)
             Spacer()
-            Text(recording == direction ? "Press the button…" : Self.name(Int64(number)))
+            Text(recording == direction ? "Press the button…"
+                 : swipe != 0 ? "\(Self.name(Int64(number))) or \(Self.swipeName(swipe))" : Self.name(Int64(number)))
                 .foregroundStyle(recording == direction ? Color.accentColor : .secondary)
                 .monospacedDigit()
             Button(recording == direction ? "Cancel" : "Record") {
                 recording = recording == direction ? nil : direction
             }
-            let isDefault = Int64(number) == (direction == .back ? MouseNavigationSupport.defaultBackButtonNumber
-                                                                 : MouseNavigationSupport.defaultForwardButtonNumber)
-            Button("Reset") { assign(direction == .back ? MouseNavigationSupport.defaultBackButtonNumber
-                                                        : MouseNavigationSupport.defaultForwardButtonNumber, to: direction) }
+            let isDefault = swipe == 0 && Int64(number) == (direction == .back ? MouseNavigationSupport.defaultBackButtonNumber
+                                                                                 : MouseNavigationSupport.defaultForwardButtonNumber)
+            Button("Reset") {
+                if direction == .back { backSwipe = 0 } else { forwardSwipe = 0 }
+                assign(direction == .back ? MouseNavigationSupport.defaultBackButtonNumber
+                                          : MouseNavigationSupport.defaultForwardButtonNumber, to: direction)
+            }
                 .disabled(isDefault)
         }
     }
@@ -69,6 +77,20 @@ struct MouseNavigationButtonsConfig: View {
         case 2: return "Middle button (3)"
         default: return "Mouse button \(number + 1)"
         }
+    }
+
+    static func swipeName(_ sign: Int) -> String { sign > 0 ? "swipe gesture (←)" : "swipe gesture (→)" }
+
+    /// A swipe sign for one direction; the other direction gives it up.
+    private func assignSwipe(_ sign: Int, to direction: MouseNavigationDirection) {
+        if direction == .back {
+            if forwardSwipe == sign { forwardSwipe = 0 }
+            backSwipe = sign
+        } else {
+            if backSwipe == sign { backSwipe = 0 }
+            forwardSwipe = sign
+        }
+        MouseNavigationService.shared.syncWithPreferences()
     }
 
     private func assign(_ number: Int64, to direction: MouseNavigationDirection) {
@@ -86,7 +108,18 @@ struct MouseNavigationButtonsConfig: View {
     /// without Accessibility, so recording never depends on the event tap.
     private func startMonitoring() {
         guard monitor == nil else { return }
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.otherMouseDown, .keyDown]) { event in
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.otherMouseDown, .keyDown, .swipe]) { event in
+            if event.type == .swipe {
+                let sign = MouseNavigationSupport.swipeSign(deltaX: Double(event.deltaX))
+                guard sign != 0 else { return event }
+                lastSeen = "\(Self.swipeName(sign)), as Logi Options+ sends its Back and Forward buttons"
+                if let direction = recording {
+                    assignSwipe(sign, to: direction)
+                    recording = nil
+                    return nil
+                }
+                return event
+            }
             if event.type == .otherMouseDown {
                 let number = Int64(event.buttonNumber)
                 lastSeen = Self.name(number)
