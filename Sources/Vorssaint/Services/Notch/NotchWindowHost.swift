@@ -183,8 +183,10 @@ final class NotchWindowHost: NSObject, CAAnimationDelegate {
         let changesFrame = revealing || (hideWhenSettled && !canAnimate) || size != targetSize
             || frame != previousFrame || (!isAnimating && panel.frame != appliedFrame)
         targetUsesGlass = usesGlass
-        if canvas.backdropPresentation.stripHeight != geometry.stripHeight {
-            canvas.backdropPresentation.stripHeight = geometry.stripHeight
+        // Fork: without a camera to meet, a see-through surface needs no black strip.
+        let strip = canvas.backdropPresentation.prefersTranslucent && geometry.floats ? 0 : geometry.stripHeight
+        if canvas.backdropPresentation.stripHeight != strip {
+            canvas.backdropPresentation.stripHeight = strip
         }
         if canAnimate && changesFrame && (usesGlass || canvas.usesGlass) {
             // Glass closing into a black strip shuts as its page leaves, so the
@@ -447,6 +449,12 @@ final class NotchWindowHost: NSObject, CAAnimationDelegate {
     func setHoverHandler(_ handler: @escaping (Bool) -> Void) {
         canvas.hoverChanged = handler
         quickAccessContainer?.hoverChanged = handler
+    }
+
+    /// Fork: see `NotchBackdropPresentation.prefersTranslucent`.
+    func setPrefersTranslucent(_ prefers: Bool) {
+        guard canvas.backdropPresentation.prefersTranslucent != prefers else { return }
+        canvas.backdropPresentation.prefersTranslucent = prefers
     }
 
     func containsHover(_ screenPoint: CGPoint) -> Bool {

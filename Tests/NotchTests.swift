@@ -1120,8 +1120,9 @@ enum NotchTests {
         for value in [0.10, 0.25, 0.65, 1.0] {
             suite.expect(NotchSupport.sanitizedHoverDelay(value) == value, "valid hover activation times are preserved")
         }
-        suite.expect(NotchSupport.sanitizedHoverDelay(-1) == 0.10
-               && NotchSupport.sanitizedHoverDelay(9) == 1.0,
+        // Fork: the range widened to 0...2 s.
+        suite.expect(NotchSupport.sanitizedHoverDelay(-1) == 0
+               && NotchSupport.sanitizedHoverDelay(9) == 2.0,
                "hover activation times stay within usable bounds")
         suite.expect([Double.nan, .infinity, -.infinity].allSatisfy { NotchSupport.sanitizedHoverDelay($0) == 0.25 },
                "non-finite hover activation times fall back to the default")

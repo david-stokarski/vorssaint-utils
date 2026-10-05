@@ -54,8 +54,8 @@ struct SpectrumConfiguration: Equatable {
     /// Samples each update reads: the preroll, then the frame.
     var inputLength: Int { preroll + size }
 
-    /// The microphone: voice from 100 Hz up, twenty bars, quick to move.
-    static let dictation = Self(size: 1024, preroll: 2048, bands: 20, minimumFrequency: 100, maximumFrequency: 6000,
+    /// The microphone: voice from 100 Hz up in nine narrow bars, quick to move.
+    static let dictation = Self(size: 1024, preroll: 2048, bands: 9, minimumFrequency: 100, maximumFrequency: 6000,
                                 range: 42, gate: -72, peakRelease: 0.35, attack: 0.9, release: 0.4)
     /// Music: everything from 40 Hz up in the island's seven bands, sixty
     /// times a second over a 43 ms window, the slope of the mix leveled.

@@ -85,6 +85,7 @@ enum NotchPresentationRefreshContract {
     }
     final class Host {
         let panel = Panel()
+        func setPrefersTranslucent(_ prefers: Bool) {}  // Fork
         var departsContent = false
         func finishDeparture() { departsContent = false }
         var concealedForMissionControl = false

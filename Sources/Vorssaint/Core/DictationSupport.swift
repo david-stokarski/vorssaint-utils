@@ -18,6 +18,8 @@ extension DefaultsKey {
     static let dictationSilenceThreshold = "dictationSilenceThreshold"
     static let dictationSilenceDuration = "dictationSilenceDuration"
     static let dictationPauseMedia = "dictationPauseMedia"
+    /// A blurred, see-through surface instead of the island's black.
+    static let dictationTranslucent = "dictationTranslucent"
     /// Polish the text with Apple Intelligence's on-device model.
     static let dictationCleanupEnabled = "dictationCleanupEnabled"
     static let dictationCleanupStyling = "dictationCleanupStyling"
@@ -31,7 +33,7 @@ enum DictationSupport {
     static let priorityInput = "priority"
     static let systemInput = "system"
     /// Matches `SpectrumConfiguration.dictation.bands`.
-    static let barCount = 20
+    static let barCount = 9
     static let defaultSilenceDuration = 3.0
     static let silenceDurationRange = 1.0...8.0
     static let defaultMinimumVoiceLevel = 0.006
@@ -47,6 +49,7 @@ enum DictationSupport {
         DefaultsKey.dictationSilenceThreshold: defaultMinimumVoiceLevel,
         DefaultsKey.dictationSilenceDuration: defaultSilenceDuration,
         DefaultsKey.dictationPauseMedia: true,
+        DefaultsKey.dictationTranslucent: true,
         DefaultsKey.dictationCleanupEnabled: false,
         DefaultsKey.dictationCleanupStyling: DictationCleanupStyling.semiFormal.rawValue,
         DefaultsKey.dictationCleanupStructure: DictationCleanupStructure.prose.rawValue,
@@ -63,6 +66,8 @@ enum DictationSupport {
         default: return available.contains(choice) ? choice : priority.first(where: available.contains)
         }
     }
+
+    static var translucent: Bool { UserDefaults.standard.bool(forKey: DefaultsKey.dictationTranslucent) }
 
     /// Voice stands clearly above the room: three times its floor, and never
     /// below the chosen minimum.
