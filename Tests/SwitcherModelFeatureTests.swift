@@ -1774,14 +1774,16 @@ enum SwitcherModelFeatureTests {
                             milliseconds: DockPreviewSupport.defaultOpenDelayMilliseconds)),
                     0.1,
                     "at the default the window list is read halfway through the wait")
+        // Fork: delays go down to 50 ms, so a short wait reads the list halfway
+        // through rather than a fixed 100 ms ahead, and a switch keeps pace.
         suite.expect(openDelays.allSatisfy {
-                   DockPreviewSupport.prefetchDelay(openDelay: $0) >= DockPreviewSupport.prefetchLead
+                   DockPreviewSupport.prefetchDelay(openDelay: $0) >= min(DockPreviewSupport.prefetchLead, $0 / 2)
                },
                "no setting reads the window list before the cursor has held still")
-        suite.expect(DockPreviewSupport.switchDelay + 0.06
-               < DockPreviewSupport.openDelay(
+        suite.expect(DockPreviewSupport.switchDelay
+               <= DockPreviewSupport.openDelay(
                    milliseconds: DockPreviewSupport.openDelayMillisecondsRange.lowerBound),
-               "a switch, reading its window list inline, still lands before the shortest fresh open")
+               "a switch is never slower than the shortest fresh open")
         suite.expect(registeredDefaults[DefaultsKey.autoCheckUpdates] as? Bool == true,
                "update checks are on for clean installs")
         suite.expect(registeredDefaults[DefaultsKey.updateShowcaseIntroVersion] as? String == "",
@@ -3319,9 +3321,10 @@ enum SwitcherModelFeatureTests {
                     "App Switcher Small keeps the selection outline inside its icon row")
         suite.expectClose(Double(DockPreviewSupport.cardSpacing), 6,
                     "Dock Preview Small previews tighten card spacing")
-        suite.expectClose(Double(DockPreviewSupport.panelPadding),
-                    Double(DockPreviewSupport.cardPadding),
-                    "Dock Preview Small previews tighten panel padding with the card's")
+        // Fork: the panel keeps a thin margin of its own around tighter cards.
+        suite.expect(DockPreviewSupport.panelPadding >= DockPreviewSupport.cardPadding
+                     && DockPreviewSupport.panelPadding <= 6,
+                     "Dock Preview Small previews keep a thin panel margin around tighter cards")
         // The grid card's chrome is two lines of text that do not change with
         // the preview size. The card does, so the thumbnail has to take every
         // point the chrome leaves, at whichever size is stored.
