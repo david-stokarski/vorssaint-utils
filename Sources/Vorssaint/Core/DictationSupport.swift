@@ -18,6 +18,9 @@ extension DefaultsKey {
     static let dictationSilenceThreshold = "dictationSilenceThreshold"
     static let dictationSilenceDuration = "dictationSilenceDuration"
     static let dictationPauseMedia = "dictationPauseMedia"
+    /// The dictation surface's own shape on a display without a camera:
+    /// "notch" (hanging), "capsule" (floating) or empty to follow the island.
+    static let dictationSilhouette = "dictationSilhouette"
     /// Polish the text with Apple Intelligence's on-device model.
     static let dictationCleanupEnabled = "dictationCleanupEnabled"
     static let dictationCleanupStyling = "dictationCleanupStyling"
@@ -47,6 +50,7 @@ enum DictationSupport {
         DefaultsKey.dictationSilenceThreshold: defaultMinimumVoiceLevel,
         DefaultsKey.dictationSilenceDuration: defaultSilenceDuration,
         DefaultsKey.dictationPauseMedia: true,
+        DefaultsKey.dictationSilhouette: "",
         DefaultsKey.dictationCleanupEnabled: false,
         DefaultsKey.dictationCleanupStyling: DictationCleanupStyling.semiFormal.rawValue,
         DefaultsKey.dictationCleanupStructure: DictationCleanupStructure.prose.rawValue,
@@ -62,6 +66,11 @@ enum DictationSupport {
         case priorityInput: return priority.first(where: available.contains)
         default: return available.contains(choice) ? choice : priority.first(where: available.contains)
         }
+    }
+
+    /// Dictation's shape, or nil to follow the island's.
+    static var silhouette: NotchSilhouette? {
+        NotchSilhouette(rawValue: UserDefaults.standard.string(forKey: DefaultsKey.dictationSilhouette) ?? "")
     }
 
     /// The dictation surface lets what is behind it show (NotchAppearance).

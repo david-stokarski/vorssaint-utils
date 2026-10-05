@@ -45,8 +45,14 @@ final class DictationAudioCapture {
             // Ignored by a device that has gone away; the default input records instead.
             try? input.auAudioUnit.setDeviceID(device)
         }
-        let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else { throw Failure.noInput }
+        // After a device switch the node's output format can still describe the
+        // previous device, and a tap whose rate differs from the hardware's
+        // raises an exception that ends the app. Tap mono at the hardware's
+        // own rate, read after the switch.
+        let hardware = input.inputFormat(forBus: 0)
+        guard hardware.sampleRate > 0, hardware.channelCount > 0,
+              let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: hardware.sampleRate,
+                                         channels: 1, interleaved: false) else { throw Failure.noInput }
         spectrum = SpectrumAnalyzer(configuration: .dictation, sampleRate: format.sampleRate)
         lock.withLock {
             ring.removeAll(keepingCapacity: true)
