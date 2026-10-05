@@ -38,7 +38,7 @@ struct CommandBarHyperKeySection: View {
                 }
                 if !permissions.accessibility { PermissionRow(kind: .accessibility) }
             }
-            Text("Holding the hyper key presses ⌃⌥⇧⌘ at once. Give an app a shortcut below by pressing the hyper key with a letter, so Hyper + A can open Chrome.")
+            Text("Holding the hyper key presses ⌃⌥⇧⌘ at once, shown as ✧ in shortcuts. Give an app a shortcut below by pressing the hyper key with a letter, so ✧A can open Chrome.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -101,10 +101,5 @@ struct CommandBarHyperKeySection: View {
         .sorted { $0.shortcut.localizedStandardCompare($1.shortcut) == .orderedAscending }
     }
 
-    static func display(_ shortcut: GlobalShortcut) -> String {
-        let hyper: GlobalShortcutModifiers = [.control, .option, .shift, .command]
-        guard shortcut.modifiers == hyper else { return shortcut.displayString }
-        let key = GlobalShortcut(keyCode: shortcut.keyCode, modifiers: [.command]).displayString
-        return "Hyper " + key.replacingOccurrences(of: "⌘", with: "")
-    }
+    static func display(_ shortcut: GlobalShortcut) -> String { shortcut.displayString }
 }

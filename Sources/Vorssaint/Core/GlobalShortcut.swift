@@ -42,7 +42,18 @@ struct GlobalShortcutModifiers: OptionSet, Hashable {
         return flags
     }
 
+    /// Fork: the hyper key's whole modifier set, shown as one spark.
+    static let hyperSymbol = "✧"
+
+    var isHyperKey: Bool {
+        AppFeature.superKey.isAvailable
+            && UserDefaults.standard.bool(forKey: DefaultsKey.superKeyEnabled)
+            && self == SuperKeySupport.modifiers(
+                from: UserDefaults.standard.string(forKey: DefaultsKey.superKeyModifiers))
+    }
+
     var keyCaps: [String] {
+        if isHyperKey { return [Self.hyperSymbol] }  // Fork
         var caps: [String] = []
         if contains(.control) { caps.append("⌃") }
         if contains(.option) { caps.append("⌥") }
