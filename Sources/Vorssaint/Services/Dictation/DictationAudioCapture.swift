@@ -21,6 +21,12 @@ final class DictationAudioCapture {
 
     private var engine: AVAudioEngine?
     private var spectrum: SpectrumAnalyzer?
+    private var deviceUID: String?
+    private var configurationObserver: NSObjectProtocol?
+    private var buffers = 0
+
+    /// Audio buffers heard this session; none means the microphone never spoke.
+    var buffersReceived: Int { lock.withLock { buffers } }
     private let lock = NSLock()
     private var ring: [Float] = []
     private var noiseFloor: Float = 0
@@ -39,6 +45,17 @@ final class DictationAudioCapture {
     /// `deviceUID` nil records from the system's default input.
     func start(deviceUID: String?) throws {
         stop()
+        self.deviceUID = deviceUID
+        lock.withLock { buffers = 0 }
+        try startEngine()
+    }
+
+    /// Opening a Bluetooth headset's microphone moves it from its music
+    /// profile to its call profile. The audio route changes under the engine,
+    /// which stops it, and the tap goes silent: AirPods never got past the
+    /// first moment. The engine is built again on the new route, at the
+    /// hardware's new rate; the recognizer converts whatever rate arrives.
+    private func startEngine() throws {
         let engine = AVAudioEngine()
         let input = engine.inputNode
         if let deviceUID, let device = Self.deviceID(forUID: deviceUID) {
@@ -66,16 +83,41 @@ final class DictationAudioCapture {
         try engine.start()
         self.engine = engine
         self.format = format
+        configurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+            self?.routeChanged()
+        }
     }
 
-    func stop() {
+    private func routeChanged() {
+        guard engine != nil else { return }
+        tearDownEngine()
+        // A route still settling can refuse a moment; try again once it has.
+        if (try? startEngine()) == nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                guard let self, self.engine == nil, self.deviceUID != nil || self.format != nil else { return }
+                try? self.startEngine()
+            }
+        }
+    }
+
+    private func tearDownEngine() {
+        if let configurationObserver { NotificationCenter.default.removeObserver(configurationObserver) }
+        configurationObserver = nil
         guard let engine else { return }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         self.engine = nil
     }
 
+    func stop() {
+        tearDownEngine()
+        format = nil
+        deviceUID = nil
+    }
+
     private func process(_ buffer: AVAudioPCMBuffer) {
+        lock.withLock { buffers += 1 }
         onBuffer?(buffer)
         guard let channel = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return }
         let count = Int(buffer.frameLength)
