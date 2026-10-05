@@ -26,6 +26,15 @@ extension DefaultsKey {
     static let workspacesShowHUD = "workspacesShowHUD"
     /// The live assignment, so a relaunch keeps every window where it was.
     static let workspacesState = "workspacesState"
+    /// A menu bar item with a square per workspace that has windows.
+    static let menuBarWorkspaces = "menuBarWorkspaces"
+}
+
+/// One square in the menu bar item.
+struct WorkspaceMenuBarSquare: Equatable {
+    var id: String
+    var label: String
+    var isActive: Bool
 }
 
 struct WorkspaceDefinition: Codable, Equatable, Identifiable {
@@ -88,7 +97,25 @@ enum WorkspaceSupport {
         DefaultsKey.workspacesFollowFocus: true,
         DefaultsKey.workspacesMoveFollows: false,
         DefaultsKey.workspacesShowHUD: true,
+        DefaultsKey.menuBarWorkspaces: false,
     ]
+
+    /// The workspaces that hold windows, in their own order, plus the one in
+    /// view even when it is empty, so the bar always says where you are.
+    static func menuBarSquares(_ definitions: [WorkspaceDefinition], active: String?,
+                               occupied: Set<String>) -> [WorkspaceMenuBarSquare] {
+        definitions.filter { occupied.contains($0.id) || $0.id == active }.map { definition in
+            let name = definition.name.trimmingCharacters(in: .whitespaces)
+            return WorkspaceMenuBarSquare(id: definition.id,
+                                          label: name.isEmpty ? "•" : String(name.prefix(1)).uppercased(),
+                                          isActive: definition.id == active)
+        }
+    }
+
+    /// Workspaces with at least one window assigned.
+    static func occupied(_ state: WorkspaceState) -> Set<String> {
+        Set(state.windows.values.map(\.workspace))
+    }
 
     // MARK: - Definitions
 

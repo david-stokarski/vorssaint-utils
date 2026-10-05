@@ -118,3 +118,22 @@ enum WorkspaceSupportTests {
                      "screen frames flip into Accessibility coordinates")
     }
 }
+
+enum WorkspaceMenuBarTests {
+    static func run(_ suite: TestSuite) {
+        let definitions = WorkspaceSupport.defaultDefinitions
+        let ids = definitions.map(\.id)
+        let squares = WorkspaceSupport.menuBarSquares(definitions, active: ids[2], occupied: [ids[3], ids[0]])
+        suite.expect(squares.map(\.label) == ["1", "3", "4"], "squares keep workspace order and skip empty ones")
+        suite.expect(squares.map(\.isActive) == [false, true, false], "only the workspace in view is filled")
+        suite.expect(WorkspaceSupport.menuBarSquares(definitions, active: ids[0], occupied: []).map(\.label) == ["1"],
+                     "the workspace in view shows even when empty")
+        var renamed = definitions
+        renamed[1].name = "mail"
+        suite.expect(WorkspaceSupport.menuBarSquares(renamed, active: ids[1], occupied: []).first?.label == "M",
+                     "a named workspace shows its initial")
+        let state = WorkspaceState(active: ids[0], windows: ["1": WorkspaceWindowState(workspace: ids[1], pid: 1),
+                                                             "2": WorkspaceWindowState(workspace: ids[1], pid: 1)])
+        suite.expect(WorkspaceSupport.occupied(state) == [ids[1]], "occupancy comes from assigned windows")
+    }
+}
