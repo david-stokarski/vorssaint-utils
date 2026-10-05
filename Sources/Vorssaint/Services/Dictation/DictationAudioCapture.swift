@@ -4,14 +4,21 @@
 import Accelerate
 import AVFoundation
 import CoreAudio
+import CoreMedia
 import Foundation
 
 /// Fork: records one dictation from a chosen microphone. Each buffer goes to
 /// the recognizer as it arrives; the waveform bars and voice activity are
 /// computed from the same buffers. Voice is measured against the room's own
 /// noise floor, so a quiet voice on a noisy microphone still counts.
-final class DictationAudioCapture {
-    /// The recognizer's feed, on the audio thread.
+///
+/// Recording goes through a capture session opened on that microphone
+/// alone. AVAudioEngine opened the system's default input first and switched
+/// afterwards: with AirPods as the default, every start woke their call
+/// profile, the route change stopped the engine, and a webcam chosen above
+/// them never delivered a buffer.
+final class DictationAudioCapture: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
+    /// The recognizer's feed, on the capture queue.
     var onBuffer: ((AVAudioPCMBuffer) -> Void)?
     /// Waveform bars, on the main queue.
     var onLevels: (([Float]) -> Void)?
@@ -19,23 +26,25 @@ final class DictationAudioCapture {
     /// The lowest level that can count as voice, whatever the floor.
     var minimumVoiceLevel: Float = 0.006
 
-    private var engine: AVAudioEngine?
-    private var spectrum: SpectrumAnalyzer?
-    private var deviceUID: String?
-    private var configurationObserver: NSObjectProtocol?
-    private var buffers = 0
+    /// Every microphone arrives as mono 32-bit float at this rate.
+    static let sampleRate: Double = 48_000
 
-    /// Audio buffers heard this session; none means the microphone never spoke.
-    var buffersReceived: Int { lock.withLock { buffers } }
+    private var session: AVCaptureSession?
+    private let queue = DispatchQueue(label: "com.vorssaint.dictation.capture", qos: .userInitiated)
+    private var spectrum: SpectrumAnalyzer?
     private let lock = NSLock()
+    private var active = false
     private var ring: [Float] = []
     private var noiseFloor: Float = 0
     private var lastVoice: CFTimeInterval = 0
+    private var buffers = 0
 
     private(set) var format: AVAudioFormat?
 
     /// When voice was last heard above the floor.
     var lastVoiceTime: CFTimeInterval { lock.withLock { lastVoice } }
+    /// Audio buffers heard this session; none means the microphone never spoke.
+    var buffersReceived: Int { lock.withLock { buffers } }
 
     enum Failure: LocalizedError {
         case noInput
@@ -45,75 +54,66 @@ final class DictationAudioCapture {
     /// `deviceUID` nil records from the system's default input.
     func start(deviceUID: String?) throws {
         stop()
-        self.deviceUID = deviceUID
-        lock.withLock { buffers = 0 }
-        try startEngine()
-    }
-
-    /// Opening a Bluetooth headset's microphone moves it from its music
-    /// profile to its call profile. The audio route changes under the engine,
-    /// which stops it, and the tap goes silent: AirPods never got past the
-    /// first moment. The engine is built again on the new route, at the
-    /// hardware's new rate; the recognizer converts whatever rate arrives.
-    private func startEngine() throws {
-        let engine = AVAudioEngine()
-        let input = engine.inputNode
-        if let deviceUID, let device = Self.deviceID(forUID: deviceUID) {
-            // Ignored by a device that has gone away; the default input records instead.
-            try? input.auAudioUnit.setDeviceID(device)
+        guard let device = deviceUID.flatMap(AVCaptureDevice.init(uniqueID:)) ?? AVCaptureDevice.default(for: .audio)
+        else { throw Failure.noInput }
+        let input = try AVCaptureDeviceInput(device: device)
+        let output = AVCaptureAudioDataOutput()
+        output.audioSettings = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: Self.sampleRate,
+            AVNumberOfChannelsKey: 1,
+            AVLinearPCMBitDepthKey: 32,
+            AVLinearPCMIsFloatKey: true,
+            AVLinearPCMIsNonInterleaved: true,
+            AVLinearPCMIsBigEndianKey: false,
+        ]
+        output.setSampleBufferDelegate(self, queue: queue)
+        let session = AVCaptureSession()
+        session.beginConfiguration()
+        guard session.canAddInput(input), session.canAddOutput(output) else {
+            session.commitConfiguration()
+            throw Failure.noInput
         }
-        // After a device switch the node's output format can still describe the
-        // previous device, and a tap whose rate differs from the hardware's
-        // raises an exception that ends the app. Tap mono at the hardware's
-        // own rate, read after the switch.
-        let hardware = input.inputFormat(forBus: 0)
-        guard hardware.sampleRate > 0, hardware.channelCount > 0,
-              let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: hardware.sampleRate,
-                                         channels: 1, interleaved: false) else { throw Failure.noInput }
-        spectrum = SpectrumAnalyzer(configuration: .dictation, sampleRate: format.sampleRate)
+        session.addInput(input)
+        session.addOutput(output)
+        session.commitConfiguration()
+        format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: Self.sampleRate, channels: 1, interleaved: false)
+        spectrum = SpectrumAnalyzer(configuration: .dictation, sampleRate: Self.sampleRate)
         lock.withLock {
             ring.removeAll(keepingCapacity: true)
             noiseFloor = 0
             lastVoice = CACurrentMediaTime()
+            buffers = 0
+            active = true
         }
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            self?.process(buffer)
-        }
-        engine.prepare()
-        try engine.start()
-        self.engine = engine
-        self.format = format
-        configurationObserver = NotificationCenter.default.addObserver(
-            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
-            self?.routeChanged()
-        }
-    }
-
-    private func routeChanged() {
-        guard engine != nil else { return }
-        tearDownEngine()
-        // A route still settling can refuse a moment; try again once it has.
-        if (try? startEngine()) == nil {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                guard let self, self.engine == nil, self.deviceUID != nil || self.format != nil else { return }
-                try? self.startEngine()
-            }
-        }
-    }
-
-    private func tearDownEngine() {
-        if let configurationObserver { NotificationCenter.default.removeObserver(configurationObserver) }
-        configurationObserver = nil
-        guard let engine else { return }
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
-        self.engine = nil
+        self.session = session
+        // Starting a session waits on the device; it never holds up the shortcut.
+        queue.async { session.startRunning() }
     }
 
     func stop() {
-        tearDownEngine()
-        format = nil
-        deviceUID = nil
+        lock.withLock { active = false }
+        guard let session else { return }
+        self.session = nil
+        queue.async { session.stopRunning() }
+    }
+
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
+                       from connection: AVCaptureConnection) {
+        guard lock.withLock({ active }), let buffer = Self.pcmBuffer(from: sampleBuffer) else { return }
+        process(buffer)
+    }
+
+    /// The sample buffer's audio as a PCM buffer in its own format.
+    static func pcmBuffer(from sampleBuffer: CMSampleBuffer) -> AVAudioPCMBuffer? {
+        guard let description = CMSampleBufferGetFormatDescription(sampleBuffer) else { return nil }
+        let format = AVAudioFormat(cmAudioFormatDescription: description)
+        let frames = AVAudioFrameCount(CMSampleBufferGetNumSamples(sampleBuffer))
+        guard frames > 0, let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames) else { return nil }
+        buffer.frameLength = frames
+        let status = CMSampleBufferCopyPCMDataIntoAudioBufferList(sampleBuffer, at: 0, frameCount: Int32(frames),
+                                                                  into: buffer.mutableAudioBufferList)
+        return status == noErr ? buffer : nil
     }
 
     private func process(_ buffer: AVAudioPCMBuffer) {
