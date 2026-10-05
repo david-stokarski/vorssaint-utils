@@ -77,6 +77,8 @@ final class NotchService: ObservableObject {
     @Published private(set) var showingHome = false
     /// Fork: a dictation is on screen; see NotchDictation.swift.
     @Published private(set) var dictationPresented = false
+    /// Fork: the display as dictation draws on it, with its own shape.
+    @Published private(set) var dictationGeometry = NotchGeometry(screen: .zero, safeAreaTop: 0, cameraWidth: 0)
     @Published private(set) var sectionQuery = ""
     @Published var highlightedSection: NotchModule? { didSet { revealHighlightedSection() } }
     /// The gallery's first visible row; the rows above it have stepped away.
@@ -2214,7 +2216,8 @@ final class NotchService: ObservableObject {
         windowHost?.setOutline(enabled: !fullscreenCompact && UserDefaults.standard.bool(forKey: DefaultsKey.notchOutlineEnabled),
                                color: compactActivityIsVisible && compactActivity == .timer ? .systemOrange : .white)
         windowHost?.setPrefersTranslucent(dictationPresented && !expanded && DictationSupport.translucent)  // Fork
-        windowHost?.present(size: size, geometry: expanded ? expandedGeometry : geometry, animated: animated,
+        windowHost?.present(size: size, geometry: expanded ? expandedGeometry : dictationPresented ? dictationGeometry : geometry,
+                            animated: animated,
                             transitionContent: contentTransition,
                             quickAccess: expanded && captureControls == nil && !access.buttons.isEmpty
                                 && !NotchStyle.isTabbed() ? access : nil,
@@ -2748,6 +2751,9 @@ final class NotchService: ObservableObject {
         next.quickAccessBottomInset = access.hasBottom && !NotchStyle.isTabbed() ? NotchQuickAccessLayout.gutter : 0
         headerShowsSectionsButton = !access.actions.contains(.explore)
         if next != geometry { menuSpaceGeneration += 1; geometry = next }
+        // Fork: dictation may hang where the island floats, or float where it hangs.
+        let dictationNext = DictationSupport.silhouette.map { $0 == NotchSilhouette.current() ? next : baseGeometry(for: screen, silhouette: $0) } ?? next
+        if dictationNext != dictationGeometry { dictationGeometry = dictationNext }
         // A new camera or bar, such as a notch fit being adjusted, measures the
         // menus again at once rather than leaving the wings off until the timer.
         if !sameMenuBar { readMenuSpace() }
@@ -2779,7 +2785,7 @@ final class NotchService: ObservableObject {
     }
 
     /// The island's geometry on a display, before its menus are measured.
-    private func baseGeometry(for screen: NSScreen) -> NotchGeometry {
+    private func baseGeometry(for screen: NSScreen, silhouette: NotchSilhouette = NotchSilhouette.current()) -> NotchGeometry {
         let cameraWidth: CGFloat
         if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
             cameraWidth = max(0, right.minX - left.maxX)
@@ -2793,7 +2799,7 @@ final class NotchService: ObservableObject {
                                 statusBarThickness: NSStatusBar.system.thickness),
                              customWidth: UserDefaults.standard.double(forKey: DefaultsKey.notchCustomWidth),
                              customHeight: UserDefaults.standard.double(forKey: DefaultsKey.notchCustomHeight),
-                             cameraFit: NotchCameraFit.current(), silhouette: NotchSilhouette.current(),
+                             cameraFit: NotchCameraFit.current(), silhouette: silhouette,
                              capsuleFit: NotchCapsuleFit.current(),
                              outline: UserDefaults.standard.bool(forKey: DefaultsKey.notchOutlineEnabled))
     }

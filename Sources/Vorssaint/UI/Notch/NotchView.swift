@@ -58,7 +58,9 @@ struct NotchView: View {
     }
 
     private var shape: NotchShape {
-        NotchShape.island(height: service.surfaceSize.height, geometry: service.geometry)
+        // Fork: dictation draws with its own shape.
+        NotchShape.island(height: service.surfaceSize.height,
+                          geometry: service.dictationPresented && !service.expanded ? service.dictationGeometry : service.geometry)
     }
 
     @ViewBuilder private var surface: some View {

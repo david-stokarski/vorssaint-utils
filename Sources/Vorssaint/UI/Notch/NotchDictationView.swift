@@ -58,7 +58,7 @@ extension NotchGeometry {
 }
 
 extension NotchService {
-    var dictationSurfaceSize: CGSize { geometry.dictationSize(text: DictationService.shared.transcript) }
+    var dictationSurfaceSize: CGSize { dictationGeometry.dictationSize(text: DictationService.shared.transcript) }
 
     /// The island follows the transcript's height as it grows.
     func dictationContentChanged() {
@@ -71,10 +71,10 @@ struct NotchDictationView: View {
     @ObservedObject var service: NotchService
 
     var body: some View {
-        let shoulder = service.geometry.dictationShoulder
+        let shoulder = service.dictationGeometry.dictationShoulder
         DictationContent(width: service.surfaceSize.width - shoulder * 2)
             .padding(.horizontal, DictationLayout.horizontalInset + shoulder)
-            .padding(.top, service.geometry.dictationTopInset)
+            .padding(.top, service.dictationGeometry.dictationTopInset)
             .padding(.bottom, DictationLayout.bottomInset)
             .frame(width: service.surfaceSize.width, height: service.surfaceSize.height, alignment: .top)
             .transition(.opacity)
