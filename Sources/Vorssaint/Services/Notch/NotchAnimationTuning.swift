@@ -228,3 +228,42 @@ struct NotchClosedSize: Equatable {
                                   extraHeight: value(DefaultsKey.notchClosedExtraHeight, heightRange).rounded())
     }
 }
+
+// MARK: - Shape
+
+extension DefaultsKey {
+    /// The inverse curve where the island's top meets the screen edge.
+    static let notchShapeShoulder = "notchShapeShoulder"
+    /// The radius of the island's bottom corners.
+    static let notchShapeBottomRadius = "notchShapeBottomRadius"
+}
+
+/// Fork: the hanging island's silhouette. A larger top curve also widens the
+/// page's side margins by as much, so content keeps its room inside it.
+struct NotchShapeTuning: Equatable {
+    var shoulder: CGFloat
+    var bottomRadius: CGFloat
+
+    static let classic = NotchShapeTuning(shoulder: 14, bottomRadius: 28)
+    static let shoulderRange = 0.0...36.0
+    static let bottomRadiusRange = 8.0...44.0
+    static var current = classic
+
+    static let registeredDefaults: [String: Any] = [
+        DefaultsKey.notchShapeShoulder: 22.0,
+        DefaultsKey.notchShapeBottomRadius: 30.0,
+    ]
+
+    static func reload(from defaults: UserDefaults = .standard) {
+        func value(_ key: String, _ range: ClosedRange<Double>, _ fallback: CGFloat) -> CGFloat {
+            guard defaults.object(forKey: key) != nil else { return fallback }
+            let raw = defaults.double(forKey: key)
+            return raw.isFinite ? CGFloat(min(range.upperBound, max(range.lowerBound, raw))).rounded() : fallback
+        }
+        current = NotchShapeTuning(shoulder: value(DefaultsKey.notchShapeShoulder, shoulderRange, classic.shoulder),
+                                   bottomRadius: value(DefaultsKey.notchShapeBottomRadius, bottomRadiusRange, classic.bottomRadius))
+    }
+
+    /// The page's side inset: upstream's 28 points, plus what the top curve adds.
+    var horizontalInset: CGFloat { 28 + max(0, shoulder - Self.classic.shoulder) }
+}

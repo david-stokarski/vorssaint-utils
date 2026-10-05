@@ -188,8 +188,10 @@ struct NotchCapsuleFit: Equatable {
 /// Shared measurements keep the window's content budget and its SwiftUI
 /// layout in agreement, including small screens and custom sizes.
 enum NotchLayout {
-    static let shoulder: CGFloat = 14
-    static let horizontalInset: CGFloat = 28
+    // Fork: the silhouette's curves come from NotchShapeTuning (Settings >
+    // Appearance); without a loaded preference they are upstream's 14 and 28.
+    static var shoulder: CGFloat { NotchShapeTuning.current.shoulder }
+    static var horizontalInset: CGFloat { NotchShapeTuning.current.horizontalInset }
     static let headerHeight: CGFloat = 36
     /// The open header's title, and a detail's beside its back button. The
     /// island is laid out from their widths and the header draws them.
@@ -281,7 +283,7 @@ enum NotchLayout {
     /// keeps the cutout's own corners, so the closed island and the last
     /// frames of a collapse sit inside the notch instead of outlining a
     /// rounder one; the open island reaches the full radius and shoulder.
-    static func surfaceRadius(height: CGFloat) -> CGFloat { min(28, height * 0.34) }
+    static func surfaceRadius(height: CGFloat) -> CGFloat { min(NotchShapeTuning.current.bottomRadius, height * 0.34) }
     static func shoulder(height: CGFloat) -> CGFloat { min(shoulder, height * 0.19) }
     /// The optional outline's stroke. Only its inner half, inside the island, shows.
     static let outlineWidth: CGFloat = 2

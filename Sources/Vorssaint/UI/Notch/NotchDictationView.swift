@@ -46,12 +46,14 @@ enum DictationLayout {
 
 extension NotchGeometry {
     var dictationTopInset: CGFloat { floats ? 12 : safeContentTop + 4 }
+    /// A hanging island narrows below its top curve; the words keep clear of it.
+    var dictationShoulder: CGFloat { floats ? 0 : NotchLayout.shoulder }
 
     var dictationWidth: CGFloat { min(max(DictationLayout.width, cameraWidth + 180), screen.width - 24) }
 
     func dictationSize(text: String) -> CGSize {
-        let size = DictationLayout.size(text: text, width: dictationWidth, top: dictationTopInset)
-        return CGSize(width: size.width, height: min(size.height, screen.height - 48))
+        let inner = DictationLayout.size(text: text, width: dictationWidth - dictationShoulder * 2, top: dictationTopInset)
+        return CGSize(width: dictationWidth, height: min(inner.height, screen.height - 48))
     }
 }
 
@@ -69,8 +71,9 @@ struct NotchDictationView: View {
     @ObservedObject var service: NotchService
 
     var body: some View {
-        DictationContent(width: service.surfaceSize.width)
-            .padding(.horizontal, DictationLayout.horizontalInset)
+        let shoulder = service.geometry.dictationShoulder
+        DictationContent(width: service.surfaceSize.width - shoulder * 2)
+            .padding(.horizontal, DictationLayout.horizontalInset + shoulder)
             .padding(.top, service.geometry.dictationTopInset)
             .padding(.bottom, DictationLayout.bottomInset)
             .frame(width: service.surfaceSize.width, height: service.surfaceSize.height, alignment: .top)

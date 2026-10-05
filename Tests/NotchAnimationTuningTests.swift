@@ -101,5 +101,20 @@ enum NotchAppearanceTests {
         suite.expect(NotchSurfaceAppearance.overlay(atDepth: 0, strip: 0, tint: 0.3) == 0.3,
                      "without a camera the tint reaches the top")
         defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-appearance")
+
+        // The hanging silhouette's curves.
+        let savedShape = NotchShapeTuning.current
+        defer { NotchShapeTuning.current = savedShape }
+        suite.expect(NotchShapeTuning.classic.horizontalInset == 28, "upstream's curves keep upstream's margins")
+        NotchShapeTuning.current = NotchShapeTuning(shoulder: 24, bottomRadius: 32)
+        suite.expect(NotchLayout.horizontalInset == 38, "a larger top curve widens the margins by as much")
+        suite.expect(NotchLayout.shoulder(height: 230) == 24 && NotchLayout.shoulder(height: 32) < 7,
+                     "the top curve shrinks on a short strip")
+        suite.expect(NotchLayout.surfaceRadius(height: 230) == 32, "the bottom corners follow the setting")
+        defaults.set(99.0, forKey: DefaultsKey.notchShapeShoulder)
+        NotchShapeTuning.reload(from: defaults)
+        suite.expect(NotchShapeTuning.current.shoulder == CGFloat(NotchShapeTuning.shoulderRange.upperBound),
+                     "the top curve stays within range")
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-appearance")
     }
 }

@@ -828,6 +828,7 @@ final class NotchService: ObservableObject {
     func syncWithPreferences() {
         NotchAnimationTuning.reload()  // Fork
         NotchClosedSize.reload()
+        NotchShapeTuning.reload()
         preferenceSyncWork?.cancel(); preferenceSyncWork = nil
         guard NotchSupport.isEnabled() else { stop(); return }
         if !running {
