@@ -305,7 +305,7 @@ enum NotchLayout {
     }
 
     /// A closed capsule is round at its ends; an open one keeps the island's corners.
-    static func capsuleRadius(height: CGFloat) -> CGFloat { min(max(0, height) / 2, 28) }
+    static func capsuleRadius(height: CGFloat) -> CGFloat { min(max(0, height) / 2, NotchShapeTuning.current.floatingRadius) }  // Fork
 
     /// The bare capsule at rest is shorter than the gap between an
     /// activity's wings, closer to the phone's proportions.

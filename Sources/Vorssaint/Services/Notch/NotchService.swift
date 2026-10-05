@@ -1148,6 +1148,8 @@ final class NotchService: ObservableObject {
             if expanded { collapse() }
         }
         guard dictationPresented != shown else { return true }
+        // Dictation's own corners while it shows; the island's back as it leaves.
+        NotchShapeTuning.setDictationActive(shown)
         mutatePresentation(transitionContent: shown ? .reveal : .dismiss) { dictationPresented = shown }
         return true
     }

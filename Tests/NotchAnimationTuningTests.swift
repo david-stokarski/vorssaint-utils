@@ -106,7 +106,9 @@ enum NotchAppearanceTests {
         let savedShape = NotchShapeTuning.current
         defer { NotchShapeTuning.current = savedShape }
         suite.expect(NotchShapeTuning.classic.horizontalInset == 28, "upstream's curves keep upstream's margins")
-        NotchShapeTuning.current = NotchShapeTuning(shoulder: 24, bottomRadius: 32)
+        NotchShapeTuning.current = NotchShapeTuning(shoulder: 24, bottomRadius: 32, floatingRadius: 18)
+        suite.expect(NotchLayout.capsuleRadius(height: 200) == 18 && NotchLayout.capsuleRadius(height: 20) == 10,
+                     "the floating corners follow the setting, never past half the height")
         suite.expect(NotchLayout.horizontalInset == 38, "a larger top curve widens the margins by as much")
         suite.expect(NotchLayout.shoulder(height: 230) == 24 && NotchLayout.shoulder(height: 32) < 7,
                      "the top curve shrinks on a short strip")
