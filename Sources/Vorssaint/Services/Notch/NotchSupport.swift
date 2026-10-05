@@ -2199,10 +2199,12 @@ enum NotchMotion {
         }
     }
 
-    static let growingWidth = Spring(duration: 0.44, bounce: 0.25)
-    static let growingHeight = Spring(duration: 0.38, bounce: 0.22)
-    static let shrinkingWidth = Spring(duration: 0.30, bounce: 0)
-    static let shrinkingHeight = Spring(duration: 0.26, bounce: 0)
+    // Fork: the springs come from NotchAnimationTuning (Settings' animation
+    // presets); without a loaded preference they are upstream's.
+    static var growingWidth: Spring { NotchAnimationTuning.current.spring(growing: true, width: true) }
+    static var growingHeight: Spring { NotchAnimationTuning.current.spring(growing: true, width: false) }
+    static var shrinkingWidth: Spring { NotchAnimationTuning.current.spring(growing: false, width: true) }
+    static var shrinkingHeight: Spring { NotchAnimationTuning.current.spring(growing: false, width: false) }
     /// The farthest a side may pass its target. The display always keeps at
     /// least this much free around the island and its floating controls.
     static let overshootLimit: CGFloat = 12
@@ -2211,7 +2213,8 @@ enum NotchMotion {
 
     static func spring(from: CGFloat, to: CGFloat, width: Bool) -> Spring {
         let spring = to > from ? (width ? growingWidth : growingHeight) : (width ? shrinkingWidth : shrinkingHeight)
-        return spring.limited(travel: abs(to - from), limit: overshootLimit)
+        return spring.limited(travel: abs(to - from),
+                              limit: to > from ? overshootLimit : NotchAnimationTuning.closeOvershootLimit)
     }
 
     /// The spring carrying the island's sides, for controls that ride along them.
@@ -2223,15 +2226,25 @@ enum NotchMotion {
     /// The perceptual duration of the slower side that moves.
     static func duration(from: CGSize, to: CGSize) -> TimeInterval {
         var durations: [TimeInterval] = []
-        if from.width != to.width { durations.append(spring(from: from.width, to: to.width, width: true).duration) }
-        if from.height != to.height { durations.append(spring(from: from.height, to: to.height, width: false).duration) }
+        if from.width != to.width {
+            durations.append(spring(from: from.width, to: to.width, width: true).duration + delay(from: from.width, to: to.width, width: true))
+        }
+        if from.height != to.height {
+            durations.append(spring(from: from.height, to: to.height, width: false).duration + delay(from: from.height, to: to.height, width: false))
+        }
         return durations.max() ?? growingWidth.duration
+    }
+
+    /// When a side starts moving; the trailing side waits for the leading one.
+    static func delay(from: CGFloat, to: CGFloat, width: Bool) -> TimeInterval {
+        NotchAnimationTuning.current.delay(growing: to > from, width: width)
     }
 
     static func size(at time: TimeInterval, from: CGSize, to: CGSize) -> CGSize {
         func side(_ start: CGFloat, _ end: CGFloat, width: Bool) -> CGFloat {
             guard start != end else { return end }
-            return max(0, start + (end - start) * CGFloat(spring(from: start, to: end, width: width).progress(at: time)))
+            let local = time - delay(from: start, to: end, width: width)
+            return max(0, start + (end - start) * CGFloat(spring(from: start, to: end, width: width).progress(at: local)))
         }
         return CGSize(width: side(from.width, to.width, width: true), height: side(from.height, to.height, width: false))
     }
@@ -2242,7 +2255,9 @@ enum NotchMotion {
         let sides = [(from.width, to.width, true), (from.height, to.height, false)].filter { $0.0 != $0.1 }
         let step = 1.0 / 240
         var time = step
-        while time < 2, !sides.allSatisfy({ spring(from: $0.0, to: $0.1, width: $0.2).progress(at: time) >= 0.99 }) {
+        while time < 2, !sides.allSatisfy({
+            spring(from: $0.0, to: $0.1, width: $0.2).progress(at: time - delay(from: $0.0, to: $0.1, width: $0.2)) >= 0.99
+        }) {
             time += step
         }
         return sides.isEmpty ? 0 : time

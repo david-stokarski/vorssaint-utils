@@ -1844,6 +1844,7 @@ enum Defaults {
         DefaultsKey.windowLayoutShortcutBottomRightSixth: WindowLayoutAction.clearedShortcutStorageValue,
         DefaultsKey.windowLayoutShortcutFullScreen: WindowLayoutAction.clearedShortcutStorageValue,
     ].merging(DictationSupport.registeredDefaults) { current, _ in current }  // Fork
+        .merging(NotchAnimationTuning.registeredDefaults) { current, _ in current }
 
     static func register() {
         let defaults = UserDefaults.standard

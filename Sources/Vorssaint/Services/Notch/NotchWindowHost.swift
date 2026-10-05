@@ -1394,7 +1394,11 @@ private final class NotchCanvas: NSView {
             // opacity already on screen. A shape that snaps into place only
             // needs its first frames drawn.
             let keyTimes: [NSNumber] = kind == .dismiss ? [0, 0.65, 1] : shapeSnaps ? [0, 0.25, 1] : [0, 0.35, 1]
-            let duration: CFTimeInterval = kind == .dismiss ? 0.40 : shapeSnaps ? 0.2 : 0.45
+            // Fork: the reveal keeps pace with the tuned springs (upstream's
+            // 0.45 s and 0.40 s at the classic preset).
+            let tuning = NotchAnimationTuning.current
+            let duration: CFTimeInterval = kind == .dismiss ? max(0.2, tuning.closeDuration * 1.33)
+                : shapeSnaps ? 0.2 : max(0.2, tuning.openDuration * 1.02)
             animation.values = [start, start, 1]
             animation.keyTimes = keyTimes
             animation.duration = duration
@@ -1493,7 +1497,8 @@ private final class NotchCanvas: NSView {
         arrivalGeneration += 1
         let generation = arrivalGeneration
         let begin = layer.convertTime(CACurrentMediaTime(), from: nil)
-        let radius = resuming?.blur ?? (opening ? 12 : 6)
+        let blur = CGFloat(NotchAnimationTuning.current.contentBlur)  // Fork
+        let radius = resuming?.blur ?? (opening ? blur : blur / 2)
         if radius > 0, let filter = Self.makeArrivalBlur() {
             layer.filters = [filter]
             let blur = CAKeyframeAnimation(keyPath: "filters.\(Self.arrivalBlurName).inputRadius")
@@ -1504,7 +1509,7 @@ private final class NotchCanvas: NSView {
             blur.duration = duration
             layer.add(blur, forKey: Self.arrivalBlurKey)
         }
-        let scale = resuming?.scale ?? (opening ? 0.86 : 1)
+        let scale = resuming?.scale ?? (opening ? CGFloat(NotchAnimationTuning.current.contentScale) : 1)  // Fork
         if scale != 1 {
             arrival = Arrival(begin: begin, duration: duration, scale: scale)
             installArrivalScale()
