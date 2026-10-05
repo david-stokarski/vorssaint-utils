@@ -209,8 +209,9 @@ enum DockPreviewSupport {
     /// here if a real desk proves either end of that wrong.
     static let reattachGraceTravel: CGFloat = 24
     static let edgePadding: CGFloat = 8
-    static let panelGap: CGFloat = 6
-    static let autohidePanelGap: CGFloat = 0
+    // Fork: 5 pt lower than upstream's 6 and 0, tucked against the icons.
+    static let panelGap: CGFloat = 1
+    static let autohidePanelGap: CGFloat = -5
     /// Forgiveness around the icon, panel and bridge so a slightly off-path
     /// cursor still keeps the session, while neighbouring Dock icons (one tile
     /// width away) stay clear of the corridor.
