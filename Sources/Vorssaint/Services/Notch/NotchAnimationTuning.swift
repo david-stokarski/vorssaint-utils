@@ -234,24 +234,40 @@ struct NotchClosedSize: Equatable {
 extension DefaultsKey {
     /// The inverse curve where the island's top meets the screen edge.
     static let notchShapeShoulder = "notchShapeShoulder"
-    /// The radius of the island's bottom corners.
+    /// The radius of the hanging island's bottom corners.
     static let notchShapeBottomRadius = "notchShapeBottomRadius"
+    /// The floating capsule's corner radius.
+    static let notchShapeFloatingRadius = "notchShapeFloatingRadius"
+    static let dictationShapeShoulder = "dictationShapeShoulder"
+    static let dictationShapeBottomRadius = "dictationShapeBottomRadius"
+    static let dictationShapeFloatingRadius = "dictationShapeFloatingRadius"
 }
 
-/// Fork: the hanging island's silhouette. A larger top curve also widens the
-/// page's side margins by as much, so content keeps its room inside it.
+/// Fork: the island's silhouette. A larger top curve also widens the page's
+/// side margins by as much, so content keeps its room inside it. Dictation
+/// has its own curves, in force while it is on screen.
 struct NotchShapeTuning: Equatable {
     var shoulder: CGFloat
     var bottomRadius: CGFloat
+    var floatingRadius: CGFloat
 
-    static let classic = NotchShapeTuning(shoulder: 14, bottomRadius: 28)
+    static let classic = NotchShapeTuning(shoulder: 14, bottomRadius: 28, floatingRadius: 28)
     static let shoulderRange = 0.0...36.0
     static let bottomRadiusRange = 8.0...44.0
+    static let floatingRadiusRange = 6.0...44.0
+    /// What the silhouette reads now: the island's, or dictation's while it shows.
     static var current = classic
+    private(set) static var island = classic
+    private(set) static var dictation = classic
+    private(set) static var dictationActive = false
 
     static let registeredDefaults: [String: Any] = [
         DefaultsKey.notchShapeShoulder: 22.0,
         DefaultsKey.notchShapeBottomRadius: 30.0,
+        DefaultsKey.notchShapeFloatingRadius: 28.0,
+        DefaultsKey.dictationShapeShoulder: 22.0,
+        DefaultsKey.dictationShapeBottomRadius: 30.0,
+        DefaultsKey.dictationShapeFloatingRadius: 28.0,
     ]
 
     static func reload(from defaults: UserDefaults = .standard) {
@@ -260,8 +276,19 @@ struct NotchShapeTuning: Equatable {
             let raw = defaults.double(forKey: key)
             return raw.isFinite ? CGFloat(min(range.upperBound, max(range.lowerBound, raw))).rounded() : fallback
         }
-        current = NotchShapeTuning(shoulder: value(DefaultsKey.notchShapeShoulder, shoulderRange, classic.shoulder),
-                                   bottomRadius: value(DefaultsKey.notchShapeBottomRadius, bottomRadiusRange, classic.bottomRadius))
+        island = NotchShapeTuning(shoulder: value(DefaultsKey.notchShapeShoulder, shoulderRange, classic.shoulder),
+                                  bottomRadius: value(DefaultsKey.notchShapeBottomRadius, bottomRadiusRange, classic.bottomRadius),
+                                  floatingRadius: value(DefaultsKey.notchShapeFloatingRadius, floatingRadiusRange, classic.floatingRadius))
+        dictation = NotchShapeTuning(shoulder: value(DefaultsKey.dictationShapeShoulder, shoulderRange, island.shoulder),
+                                     bottomRadius: value(DefaultsKey.dictationShapeBottomRadius, bottomRadiusRange, island.bottomRadius),
+                                     floatingRadius: value(DefaultsKey.dictationShapeFloatingRadius, floatingRadiusRange, island.floatingRadius))
+        current = dictationActive ? dictation : island
+    }
+
+    /// Dictation's curves while it is on screen, the island's otherwise.
+    static func setDictationActive(_ active: Bool) {
+        dictationActive = active
+        current = active ? dictation : island
     }
 
     /// The page's side inset: upstream's 28 points, plus what the top curve adds.

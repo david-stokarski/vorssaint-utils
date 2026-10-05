@@ -258,6 +258,10 @@ struct NotchAppearanceCard: View {
     @AppStorage(DefaultsKey.dictationSilhouette) private var dictationSilhouette = ""
     @AppStorage(DefaultsKey.notchShapeShoulder) private var shoulder = 22.0
     @AppStorage(DefaultsKey.notchShapeBottomRadius) private var bottomRadius = 30.0
+    @AppStorage(DefaultsKey.notchShapeFloatingRadius) private var floatingRadius = 28.0
+    @AppStorage(DefaultsKey.dictationShapeShoulder) private var dictationShoulder = 22.0
+    @AppStorage(DefaultsKey.dictationShapeBottomRadius) private var dictationBottomRadius = 30.0
+    @AppStorage(DefaultsKey.dictationShapeFloatingRadius) private var dictationFloatingRadius = 28.0
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
@@ -279,10 +283,16 @@ struct NotchAppearanceCard: View {
                 DictationShapePicker(selection: $dictationSilhouette)
             }
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+                GridRow { Text("Island corners").font(.caption.weight(.semibold)).foregroundStyle(.secondary).gridCellColumns(3) }
                 curve("Top curve", value: $shoulder, range: NotchShapeTuning.shoulderRange)
                 curve("Bottom corners", value: $bottomRadius, range: NotchShapeTuning.bottomRadiusRange)
+                curve("Floating corners", value: $floatingRadius, range: NotchShapeTuning.floatingRadiusRange)
+                GridRow { Text("Dictation corners").font(.caption.weight(.semibold)).foregroundStyle(.secondary).gridCellColumns(3) }
+                curve("Top curve", value: $dictationShoulder, range: NotchShapeTuning.shoulderRange)
+                curve("Bottom corners", value: $dictationBottomRadius, range: NotchShapeTuning.bottomRadiusRange)
+                curve("Floating corners", value: $dictationFloatingRadius, range: NotchShapeTuning.floatingRadiusRange)
             }
-            Text("Hanging meets the top of the screen with an inverse curve, as a notch does; Floating is a capsule below the menu bar. Dictation can follow the island or take its own. A display with a camera always hangs.")
+            Text("Hanging meets the top of the screen with an inverse curve (Top curve) and rounds below (Bottom corners); Floating is a capsule below the menu bar (Floating corners). Dictation can follow the island's shape or take its own, and always has its own corners. A display with a camera always hangs.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -302,6 +312,10 @@ struct NotchAppearanceCard: View {
         .onChange(of: dictationSilhouette) { _, _ in NotchService.shared.syncWithPreferences() }
         .onChange(of: shoulder) { _, _ in reshape() }
         .onChange(of: bottomRadius) { _, _ in reshape() }
+        .onChange(of: floatingRadius) { _, _ in reshape() }
+        .onChange(of: dictationShoulder) { _, _ in reshape() }
+        .onChange(of: dictationBottomRadius) { _, _ in reshape() }
+        .onChange(of: dictationFloatingRadius) { _, _ in reshape() }
         .onChange(of: dictationMaterial) { _, _ in NotchService.shared.refreshPresentation(animated: false) }
     }
 
