@@ -130,6 +130,8 @@ struct CommandBarSettings: View {
                 Text(text.pageTitle)
             }
 
+            CommandBarHyperKeySection { showsAppShortcuts = true }  // Fork
+
             Section {
                 Button {
                     showsAppShortcuts = true
