@@ -19,6 +19,7 @@ struct DictationSettings: View {
     @AppStorage(DefaultsKey.dictationPauseMedia) private var pauseMedia = true
     @AppStorage(DefaultsKey.dictationMaterial) private var material = NotchSurfaceMaterial.glass.rawValue
     @AppStorage(DefaultsKey.dictationTint) private var tint = NotchSurfaceAppearance.defaultDictationTint
+    @AppStorage(DefaultsKey.dictationSilhouette) private var shape = ""
     @AppStorage(DefaultsKey.dictationCleanupEnabled) private var cleanupEnabled = false
     @AppStorage(DefaultsKey.dictationCleanupStyling) private var styling = DictationCleanupStyling.semiFormal.rawValue
     @AppStorage(DefaultsKey.dictationCleanupStructure) private var structure = DictationCleanupStructure.prose.rawValue
@@ -100,6 +101,8 @@ struct DictationSettings: View {
             }
 
             Section("While dictating") {
+                LabeledContent("Shape") { DictationShapePicker(selection: $shape) }
+                    .onChange(of: shape) { _, _ in NotchService.shared.syncWithPreferences() }
                 Picker("Background", selection: $material) {
                     ForEach(NotchSurfaceMaterial.dictationChoices) { Text($0.title).tag($0.rawValue) }
                 }
