@@ -171,7 +171,7 @@ enum DockPreviewSupport {
     /// earlier, so a shorter wait would read it the moment the cursor lands;
     /// and `switchDelay` plus its inline reading stays under it, so a switch is
     /// never slower than an open.
-    static let openDelayMillisecondsRange: ClosedRange<Int> = 50 ... 900  // Fork: was 200...900
+    static let openDelayMillisecondsRange: ClosedRange<Int> = 0 ... 900  // Fork: was 200...900; 0 opens on arrival
 
     static func sanitizedOpenDelay(milliseconds: Int) -> Int {
         min(max(milliseconds, openDelayMillisecondsRange.lowerBound),
@@ -185,7 +185,10 @@ enum DockPreviewSupport {
     /// Handing an already open panel to the app under the cursor: the panel is
     /// on screen and only has to re-point. Kept under the shortest open delay
     /// on offer, so a switch is never slower than an open.
-    static let switchDelay: TimeInterval = 0.05  // Fork: was 0.1, under the 50 ms floor
+    static let switchDelay: TimeInterval = 0.05  // Fork: was 0.1
+
+    /// Fork: a switch never waits longer than an open would, down to none.
+    static func switchDelay(openDelay: TimeInterval) -> TimeInterval { min(switchDelay, max(0, openDelay)) }
 
     /// How far ahead of the panel the window list is read: far enough that an
     /// ordinary list is in hand when the panel opens, no further, so what it
