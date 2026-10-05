@@ -636,7 +636,7 @@ final class NotchService: ObservableObject {
     private var headerTitleWidth: CGFloat {
         guard !showingSections else { return 0 }
         if NotchStyle.isTabbed() {
-            return NotchTabbedLayout.tabStripWidth(count: NotchTabbedLayout.tabs(NotchQuickAccessConfiguration.current()).count)
+            return NotchTabbedLayout.tabStripWidth(itemCount: NotchTabbedLayout.currentTabs().count)
         }
         let detail = showingAppPanel || selectedMetric != nil
         guard detail || modules.isEmpty else {

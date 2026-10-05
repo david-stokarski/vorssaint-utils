@@ -120,3 +120,26 @@ enum NotchAppearanceTests {
         defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-appearance")
     }
 }
+
+/// Fork: the tabbed island's chosen tabs.
+enum NotchTabsTests {
+    static func run(_ suite: TestSuite) {
+        let defaults = UserDefaults(suiteName: "com.vorssaint.tests.notch-tabs")!
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-tabs")
+        defer { defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-tabs") }
+        let legacy = NotchTabbedLayout.storedTabs(in: defaults)
+        suite.expect(legacy.first == .home && legacy.count <= NotchTabbedLayout.maximumTabs,
+                     "never chosen, the tabs are Home and the quick-access buttons")
+        defaults.set("home,music,home,bogus,timer,calendar,explore,settings,pin,mixer", forKey: DefaultsKey.notchTabs)
+        let chosen = NotchTabbedLayout.storedTabs(in: defaults)
+        suite.expect(chosen.count == NotchTabbedLayout.maximumTabs, "at most six tabs")
+        suite.expect(chosen.map(\.id) == ["home", "music", "timer", "calendar", "explore", "settings"],
+                     "tabs keep their order, each once, unknown ids skipped")
+        defaults.set("", forKey: DefaultsKey.notchTabs)
+        suite.expect(NotchTabbedLayout.storedTabs(in: defaults).isEmpty, "every tab can be removed")
+        suite.expect(NotchTabbedLayout.encode(chosen) == "home,music,timer,calendar,explore,settings",
+                     "tabs store as their ids")
+        suite.expect(NotchTabbedLayout.tabStripWidth(itemCount: 6) == 6 * NotchTabbedLayout.tabWidth + 5 * NotchTabbedLayout.tabSpacing,
+                     "the row is as wide as its tabs")
+    }
+}

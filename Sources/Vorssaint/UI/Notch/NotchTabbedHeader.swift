@@ -79,17 +79,19 @@ struct NotchTabbedHeader: View {
 
     private var tabStrip: some View {
         HStack(spacing: NotchTabbedLayout.tabSpacing) {
-            tab(id: "home", symbol: "house", title: "Home", action: service.showHome)
-            ForEach(NotchTabbedLayout.tabs(NotchQuickAccessConfiguration.current())) { button in
-                if let action = button.action { quickTab(button, action: action) }
+            ForEach(NotchTabbedLayout.currentTabs()) { item in
+                switch item {
+                case .home: tab(id: "home", symbol: "house", title: "Home", action: service.showHome)
+                case .action(let action): quickTab(action)
+                }
             }
         }
         .animation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.82), value: selectedTab)
     }
 
-    private func quickTab(_ button: NotchQuickButton, action: NotchQuickAction) -> some View {
+    private func quickTab(_ action: NotchQuickAction) -> some View {
         var symbol = action.symbol
-        var title = button.label.isEmpty ? action.title(l10n) : button.label
+        var title = action.title(l10n)
         var active = false
         switch action {
         case .pin:

@@ -12,6 +12,28 @@ extension DefaultsKey {
     static let notchStyle = "notchStyle"
     /// The Home page's widgets, in order, comma separated.
     static let notchHomeWidgets = "notchHomeWidgets"
+    /// The tabs along the island's top left, in order, comma separated.
+    static let notchTabs = "notchTabs"
+}
+
+/// A tab in the tabbed island's top row: Home, or anything the quick-access
+/// buttons could hold (a section, the gallery, pin, Settings, a control).
+enum NotchTabItem: Hashable, Identifiable {
+    case home
+    case action(NotchQuickAction)
+
+    var id: String {
+        switch self {
+        case .home: return "home"
+        case .action(let action): return action.id
+        }
+    }
+
+    init?(id: String) {
+        if id == "home" { self = .home; return }
+        guard let action = NotchQuickAction(id: id) else { return nil }
+        self = .action(action)
+    }
 }
 
 /// `tabbed` keeps every section inside the island behind a row of tabs with a
@@ -91,11 +113,42 @@ enum NotchTabbedLayout {
         return sides.flatMap { side in configuration.buttons.filter { $0.side == side } }
     }
 
-    /// Home plus the pinned tabs, as the header lays them out.
-    static func tabStripWidth(count: Int) -> CGFloat {
-        let tabs = CGFloat(count + 1)
+    /// The row of tabs, as the header lays them out.
+    static func tabStripWidth(itemCount: Int) -> CGFloat {
+        let tabs = CGFloat(max(0, itemCount))
         return tabs * tabWidth + max(0, tabs - 1) * tabSpacing
     }
+
+    static let maximumTabs = 6
+
+    /// The chosen tabs; never chosen, Home and the quick-access buttons as
+    /// they were. At most six, each once.
+    static func storedTabs(in defaults: UserDefaults = .standard) -> [NotchTabItem] {
+        let items: [NotchTabItem]
+        if let raw = defaults.string(forKey: DefaultsKey.notchTabs) {
+            items = raw.split(separator: ",").compactMap { NotchTabItem(id: String($0)) }
+        } else {
+            items = [.home] + tabs(NotchQuickAccessConfiguration.stored(in: defaults)).compactMap(\.action).map(NotchTabItem.action)
+        }
+        var seen = Set<NotchTabItem>()
+        return Array(items.filter { seen.insert($0).inserted }.prefix(maximumTabs))
+    }
+
+    /// The tabs the island shows now: a section that is off, or a control
+    /// whose feature isn't installed, drops out until it is back.
+    static func currentTabs(in defaults: UserDefaults = .standard) -> [NotchTabItem] {
+        storedTabs(in: defaults).filter {
+            if case .action(let action) = $0 { return action.isAvailable(in: defaults) }
+            return true
+        }
+    }
+
+    static func encode(_ items: [NotchTabItem]) -> String {
+        items.prefix(maximumTabs).map(\.id).joined(separator: ",")
+    }
+
+    /// Everything a tab can be, Home first.
+    static var tabOptions: [NotchTabItem] { [.home] + NotchQuickAction.optionalActions.map(NotchTabItem.action) }
 }
 
 extension NotchGeometry {
