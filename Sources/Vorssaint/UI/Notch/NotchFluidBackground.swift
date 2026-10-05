@@ -42,8 +42,12 @@ struct NotchFluidBackground: View {
         case .glass:
 #if compiler(>=6.2)
             if #available(macOS 26, *) {
+                // Glass lights every edge of its shape. A hanging island's top
+                // edge is the screen's own, so the shape reaches above it and
+                // that rim falls outside the window instead of drawing a line.
                 Color.clear
-                    .glassEffect(.clear, in: shape)
+                    .glassEffect(.clear, in: NotchGlassShape(contour: presentation.contour,
+                                                            hanging: presentation.floatingGap == 0))
                     .environment(\.appearsActive, true)
                     .materialActiveAppearance(.active)
             } else {
@@ -114,5 +118,20 @@ private final class NotchFluidMaterialView: NSVisualEffectView {
             context.fillPath()
             return true
         }
+    }
+}
+
+/// The island's contour for its glass; hanging, extended past the screen's
+/// top edge so the glass's highlight along that side is never on screen.
+private struct NotchGlassShape: Shape {
+    var contour: Path
+    var hanging: Bool
+    static let lift: CGFloat = 12
+
+    func path(in rect: CGRect) -> Path {
+        let box = contour.boundingRect
+        guard hanging, !box.isNull, box.width > 0, box.minY <= 0.5 else { return contour }
+        let above = Path(CGRect(x: box.minX, y: box.minY - Self.lift, width: box.width, height: Self.lift + 1))
+        return contour.union(above)
     }
 }
