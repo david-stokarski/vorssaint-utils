@@ -171,7 +171,7 @@ enum DockPreviewSupport {
     /// earlier, so a shorter wait would read it the moment the cursor lands;
     /// and `switchDelay` plus its inline reading stays under it, so a switch is
     /// never slower than an open.
-    static let openDelayMillisecondsRange: ClosedRange<Int> = 200 ... 900
+    static let openDelayMillisecondsRange: ClosedRange<Int> = 50 ... 900  // Fork: was 200...900
 
     static func sanitizedOpenDelay(milliseconds: Int) -> Int {
         min(max(milliseconds, openDelayMillisecondsRange.lowerBound),
@@ -185,15 +185,16 @@ enum DockPreviewSupport {
     /// Handing an already open panel to the app under the cursor: the panel is
     /// on screen and only has to re-point. Kept under the shortest open delay
     /// on offer, so a switch is never slower than an open.
-    static let switchDelay: TimeInterval = 0.1
+    static let switchDelay: TimeInterval = 0.05  // Fork: was 0.1, under the 50 ms floor
 
     /// How far ahead of the panel the window list is read: far enough that an
     /// ordinary list is in hand when the panel opens, no further, so what it
     /// opens on is still true. Half the shortest wait.
     static let prefetchLead: TimeInterval = 0.1
 
+    /// Fork: a short wait reads the list halfway through instead of at once.
     static func prefetchDelay(openDelay: TimeInterval) -> TimeInterval {
-        max(0, openDelay - prefetchLead)
+        openDelay <= prefetchLead * 2 ? openDelay / 2 : openDelay - prefetchLead
     }
     static let hideDelay: TimeInterval = 0.22
     /// A little slack around the panel so the cursor grazing its edge doesn't
@@ -256,14 +257,25 @@ enum DockPreviewSupport {
     // the same 12pt. Scaling the band with the card left that line adrift in
     // 31pt of nothing at the largest size and squeezed into 13pt at the
     // smallest, which is the one thing here that was actually wrong.
-    static var cardPadding: CGFloat { 10 * PreviewSizing.scale }
+    // Fork: tighter chrome. A card's padding and the picture's inset were 10
+    // and 5 points (plus the panel's 10), leaving 25 points of frame around
+    // every window; now 4 and 2, and none at all with minimal previews.
+    static var minimal: Bool { UserDefaults.standard.bool(forKey: DefaultsKey.minimalWindowPreviews) }
+    static func cardPadding(scale: CGFloat, minimal: Bool) -> CGFloat { minimal ? 0 : 4 * scale }
+    static func cardThumbnailInset(scale: CGFloat, minimal: Bool) -> CGFloat { minimal ? 0 : 2 * scale }
+    static func panelPadding(scale: CGFloat, minimal: Bool) -> CGFloat { (minimal ? 3 : 5) * scale }
+    static var cardPadding: CGFloat { cardPadding(scale: PreviewSizing.scale, minimal: minimal) }
     static var cardTitleSpacing: CGFloat { 7 * PreviewSizing.scale }
     /// A 13pt name over a 10.5pt subtitle, beside the two 16pt window controls
     /// -- the App Switcher's title block, to the point. Fixed: what it holds is
     /// the same at every preview size.
     static let cardTitleHeight: CGFloat = 29
     static var cardSpacing: CGFloat { 8 * PreviewSizing.scale }
-    static var panelPadding: CGFloat { 10 * PreviewSizing.scale }
+    static var panelPadding: CGFloat { panelPadding(scale: PreviewSizing.scale, minimal: minimal) }
+    /// The picture's corner radius; the card and the panel wrap it concentrically.
+    static let pictureCornerRadius: CGFloat = 8
+    static var cardCornerRadius: CGFloat { pictureCornerRadius + cardPadding + cardThumbnailInset }
+    static var panelCornerRadius: CGFloat { cardCornerRadius + panelPadding }
     static let panelHeaderHeight: CGFloat = 28
 
     /// 16:10, the shape of the screen the captured window came from, so a
@@ -271,27 +283,30 @@ enum DockPreviewSupport {
     /// The picture inside keeps a 5pt inset, which is why this is 210x135
     /// rather than 200x125.
     static func cardThumbnailSize(scale: CGFloat) -> CGSize {
-        CGSize(width: 210 * scale, height: 135 * scale)
+        // Fork: the 200x125 picture plus whatever inset surrounds it, so the
+        // picture stays 16:10 however thin the frame is.
+        let inset = cardThumbnailInset(scale: scale, minimal: minimal)
+        return CGSize(width: 200 * scale + inset * 2, height: 125 * scale + inset * 2)
     }
 
     /// Minimal previews have no title band, so the card drops its height
     /// instead of padding the width-bound picture with space it cannot fill.
     static func cardSize(scale: CGFloat, minimal: Bool = false) -> CGSize {
         let thumbnail = cardThumbnailSize(scale: scale)
-        let padding = 10 * scale
+        let padding = cardPadding(scale: scale, minimal: minimal)
         return CGSize(width: thumbnail.width + padding * 2,
                       height: thumbnail.height + padding * 2 + (minimal ? 0 : 7 * scale + cardTitleHeight))
     }
 
     /// The picture's inset inside the thumbnail well. It scales with the well,
     /// so the 16:10 the well is cut to survives every preview size.
-    static func cardPictureSize(scale: CGFloat) -> CGSize {
+    static func cardPictureSize(scale: CGFloat, minimal: Bool = DockPreviewSupport.minimal) -> CGSize {
         let thumbnail = cardThumbnailSize(scale: scale)
-        let inset = 5 * scale
+        let inset = cardThumbnailInset(scale: scale, minimal: minimal)
         return CGSize(width: thumbnail.width - inset * 2, height: thumbnail.height - inset * 2)
     }
 
-    static var cardThumbnailInset: CGFloat { 5 * PreviewSizing.scale }
+    static var cardThumbnailInset: CGFloat { cardThumbnailInset(scale: PreviewSizing.scale, minimal: minimal) }
 
     /// The app's icon along the bottom edge of the picture, the size the App
     /// Switcher draws it. App artwork sits on the system icon grid with a clear
@@ -308,11 +323,8 @@ enum DockPreviewSupport {
 
     static var cardThumbnailWidth: CGFloat { cardThumbnailSize(scale: PreviewSizing.scale).width }
     static var cardThumbnailHeight: CGFloat { cardThumbnailSize(scale: PreviewSizing.scale).height }
-    static var cardWidth: CGFloat { cardSize(scale: PreviewSizing.scale).width }
-    static var cardHeight: CGFloat {
-        cardSize(scale: PreviewSizing.scale,
-                 minimal: UserDefaults.standard.bool(forKey: DefaultsKey.minimalWindowPreviews)).height
-    }
+    static var cardWidth: CGFloat { cardSize(scale: PreviewSizing.scale, minimal: minimal).width }
+    static var cardHeight: CGFloat { cardSize(scale: PreviewSizing.scale, minimal: minimal).height }
     static var cardFallbackIconSize: CGFloat { cardFallbackIconSize(scale: PreviewSizing.scale) }
 
     /// How solid the panel's frosted background is drawn, as a fraction. The

@@ -170,13 +170,19 @@ private struct DockPreviewPanelContent: View {
         .frame(width: stacksVertically ? DockPreviewSupport.cardWidth
                    + DockPreviewSupport.panelPadding * 2 : nil,
                height: stacksVertically ? nil : cardRunHeight)
-        .background(HUDBackdrop(cornerRadius: 18,
-                                opacity: DockPreviewSupport.sanitizedBackgroundOpacity(backgroundOpacity)))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // Fork: corners concentric with the tighter cards, and a darker plate.
+        .background {
+            ZStack {
+                HUDBackdrop(cornerRadius: DockPreviewSupport.panelCornerRadius,
+                            opacity: DockPreviewSupport.sanitizedBackgroundOpacity(backgroundOpacity))
+                Color.black.opacity(0.28)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: DockPreviewSupport.panelCornerRadius, style: .continuous))
         // The hairline keeps its full strength as the material fades: it is what
         // still draws the panel's shape once the frost stops doing it.
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: DockPreviewSupport.panelCornerRadius, style: .continuous)
                 .strokeBorder(minimalPreviews ? Color.clear : Color.white.opacity(0.12), lineWidth: 1)
         )
     }
@@ -396,14 +402,15 @@ private struct DockPreviewCard: View {
     var body: some View {
         VStack(spacing: DockPreviewSupport.cardTitleSpacing) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: DockPreviewSupport.pictureCornerRadius + DockPreviewSupport.cardThumbnailInset,
+                                 style: .continuous)
                     .fill(minimalPreviews ? Color.clear : Color.white.opacity(0.06))
 
                 if let preview {
                     Image(decorative: preview, scale: 2)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: DockPreviewSupport.pictureCornerRadius, style: .continuous))
                         .padding(DockPreviewSupport.cardThumbnailInset)
                 } else if let icon = window.appIcon {
                     // Drawn as a watermark, not as content. Every card in a
@@ -462,16 +469,16 @@ private struct DockPreviewCard: View {
         // the card instead put every child in the transaction, so arriving on a
         // card re-composited the shadowed app badge and it blinked once.
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: DockPreviewSupport.cardCornerRadius, style: .continuous)
                 .fill(isSelected ? Color.white.opacity(0.14) : Color.clear)
                 .animation(.spring(response: 0.2, dampingFraction: 0.82), value: isSelected)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: DockPreviewSupport.cardCornerRadius, style: .continuous)
                 .strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
                 .animation(.spring(response: 0.2, dampingFraction: 0.82), value: isSelected)
         )
-        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: DockPreviewSupport.cardCornerRadius, style: .continuous))
         .overlay {
             if window.windowID != nil {
                 DockPreviewMiddleClick(onClose: onMiddleClick)
