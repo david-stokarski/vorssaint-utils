@@ -241,7 +241,7 @@ final class DictationService: ObservableObject, @unchecked Sendable {
         phase = .finishing
         contentChanged()
         Task {
-            let raw = await engine.finish()
+            let raw = await engine.finish(timeout: 4)
             await MainActor.run { self.finish(raw, token: token) }
         }
     }
@@ -261,7 +261,15 @@ final class DictationService: ObservableObject, @unchecked Sendable {
     private func finish(_ raw: String, token: UUID) {
         guard session == token else { return }
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { end(); return }
+        guard !text.isEmpty else {
+            // Say why nothing was pasted when the microphone never delivered audio.
+            if capture.buffersReceived == 0 {
+                fail("No audio came from \(inputName ?? "the microphone"). Try again, or pick another microphone in Settings.")
+            } else {
+                end()
+            }
+            return
+        }
         transcript = text
         let defaults = UserDefaults.standard
         guard defaults.bool(forKey: DefaultsKey.dictationCleanupEnabled), #available(macOS 26.0, *),

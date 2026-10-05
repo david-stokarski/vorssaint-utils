@@ -18,6 +18,9 @@ final class DictationSpeechEngine: @unchecked Sendable {
     private var analyzer: SpeechAnalyzer?
     private var continuation: AsyncStream<AnalyzerInput>.Continuation?
     private var converter: AVAudioConverter?
+    /// The format `converter` reads; audio arriving in another (a Bluetooth
+    /// headset changing profile mid-session) gets a converter of its own.
+    private var converterInput: AVAudioFormat?
     private var analyzerFormat: AVAudioFormat?
     private var pending: [AVAudioPCMBuffer] = []
     private var resultsTask: Task<Void, Never>?
@@ -86,6 +89,7 @@ final class DictationSpeechEngine: @unchecked Sendable {
             self.analyzer = analyzer
             analyzerFormat = format
             converter = format == naturalFormat ? nil : AVAudioConverter(from: naturalFormat, to: format)
+            converterInput = naturalFormat
             self.continuation = continuation
             for buffer in pending { feedLocked(buffer) }
             pending.removeAll()
@@ -101,6 +105,26 @@ final class DictationSpeechEngine: @unchecked Sendable {
             return
         }
         feedLocked(buffer)
+    }
+
+    /// Fork: `finish()` with a deadline. Finalizing waits on the analyzer, and
+    /// an analyzer that never got audio (or never got going) may not answer;
+    /// past the deadline the session is cancelled and keeps what was heard.
+    func finish(timeout: TimeInterval) async -> String {
+        let once = DictationOnce()
+        return await withCheckedContinuation { result in
+            Task {
+                let text = await self.finish()
+                if once.claim() { result.resume(returning: text) }
+            }
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(max(0, timeout) * 1_000_000_000))
+                guard once.claim() else { return }
+                let text = self.transcript
+                result.resume(returning: text)
+                await self.cancel()
+            }
+        }
     }
 
     /// Ends the input and waits for the last stretch to be finalized.
@@ -161,6 +185,10 @@ final class DictationSpeechEngine: @unchecked Sendable {
 
     private func feedLocked(_ buffer: AVAudioPCMBuffer) {
         guard let continuation else { return }
+        if let format = analyzerFormat, buffer.format != converterInput {
+            converterInput = buffer.format
+            converter = buffer.format == format ? nil : AVAudioConverter(from: buffer.format, to: format)
+        }
         guard let converter, let format = analyzerFormat else {
             if let copy = Self.copy(buffer) { continuation.yield(AnalyzerInput(buffer: copy)) }
             return
@@ -197,5 +225,19 @@ final class DictationSpeechEngine: @unchecked Sendable {
             return nil
         }
         return copy
+    }
+}
+
+/// Lets exactly one of several racing tasks answer.
+final class DictationOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var claimed = false
+
+    func claim() -> Bool {
+        lock.withLock {
+            guard !claimed else { return false }
+            claimed = true
+            return true
+        }
     }
 }

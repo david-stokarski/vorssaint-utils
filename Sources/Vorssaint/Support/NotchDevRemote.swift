@@ -42,25 +42,30 @@ enum DictationFileProbe {
         let arguments = CommandLine.arguments
         guard let flag = arguments.firstIndex(of: "--dictation-file"), arguments.indices.contains(flag + 1) else { return }
         guard #available(macOS 26.0, *) else { print("DICTATION needs macOS 26"); exit(1) }
-        let url = URL(fileURLWithPath: arguments[flag + 1])
+        // Any further files follow the first, as a headset changing profile
+        // mid-session changes the rate the audio arrives at.
+        let urls = arguments[(flag + 1)...].prefix { !$0.hasPrefix("--") }.map { URL(fileURLWithPath: $0) }
         Task {
             do {
-                let file = try AVAudioFile(forReading: url)
-                let format = file.processingFormat
+                var format: AVAudioFormat?
+                var buffers: [AVAudioPCMBuffer] = []
+                for url in urls {
+                    let file = try AVAudioFile(forReading: url)
+                    format = format ?? file.processingFormat
+                    while file.framePosition < file.length {
+                        guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 2048) else { break }
+                        try file.read(into: buffer, frameCount: 2048)
+                        buffers.append(buffer)
+                    }
+                }
+                guard let format else { exit(1) }
                 let engine = DictationSpeechEngine()
                 engine.onText = { print("partial: \($0)") }
-                // Feed some audio before the analyzer is ready, as a session does.
-                var buffers: [AVAudioPCMBuffer] = []
-                while file.framePosition < file.length {
-                    guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 2048) else { break }
-                    try file.read(into: buffer, frameCount: 2048)
-                    buffers.append(buffer)
-                }
                 let early = min(10, buffers.count)
                 for buffer in buffers[..<early] { engine.append(buffer) }
                 try await engine.start(locale: Locale(identifier: "en-US"), naturalFormat: format)
                 for buffer in buffers[early...] { engine.append(buffer) }
-                let text = await engine.finish()
+                let text = await engine.finish(timeout: 8)
                 print("DICTATION: \(text)")
                 exit(text.isEmpty ? 1 : 0)
             } catch {
