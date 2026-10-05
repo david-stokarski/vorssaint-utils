@@ -272,6 +272,10 @@ enum SettingsDirectory {
                                          [s.windowMaximizeName,
                                           FeatureStrings.windowMaximizerExclusions(language).listTitle]),
                                       ]),
+                SettingsDirectoryItem(page: .workspaces,  // Fork
+                                      title: WorkspaceSupport.title,
+                                      icon: "square.stack.3d.up",
+                                      keywords: ["workspaces", "virtual desktops", "spaces", "aerospace", "move window", "switch workspace"]),
                 SettingsDirectoryItem(page: .autoQuit, title: s.autoQuitName, icon: "xmark.rectangle",
                                       keywords: [s.autoQuitEnable]),
                 SettingsDirectoryItem(page: .quitProtection,
