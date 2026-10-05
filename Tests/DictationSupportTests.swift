@@ -98,3 +98,32 @@ enum SpectrumAnalyzerTests {
         suite.expect((music.max() ?? 0) > 0.6, "audible music still fills its band")
     }
 }
+
+/// Fork: the assignable Back and Forward mouse buttons.
+enum MouseNavigationButtonTests {
+    static func run(_ suite: TestSuite) {
+        let defaults = UserDefaults(suiteName: "com.vorssaint.tests.mouse-navigation")!
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.mouse-navigation")
+        defer {
+            defaults.removePersistentDomain(forName: "com.vorssaint.tests.mouse-navigation")
+            MouseNavigationSupport.reload(from: defaults)
+        }
+        MouseNavigationSupport.reload(from: defaults)
+        suite.expect(MouseNavigationSupport.direction(forButtonNumber: 3) == .back
+                     && MouseNavigationSupport.direction(forButtonNumber: 4) == .forward,
+                     "without a choice the standard side buttons navigate")
+        defaults.set(5, forKey: DefaultsKey.mouseNavigationBackButton)
+        defaults.set(6, forKey: DefaultsKey.mouseNavigationForwardButton)
+        MouseNavigationSupport.reload(from: defaults)
+        suite.expect(MouseNavigationSupport.direction(forButtonNumber: 5) == .back
+                     && MouseNavigationSupport.direction(forButtonNumber: 6) == .forward
+                     && MouseNavigationSupport.direction(forButtonNumber: 3) == nil,
+                     "recorded buttons replace the standard ones")
+        defaults.set(0, forKey: DefaultsKey.mouseNavigationBackButton)
+        defaults.set(99, forKey: DefaultsKey.mouseNavigationForwardButton)
+        MouseNavigationSupport.reload(from: defaults)
+        suite.expect(MouseNavigationSupport.backButtonNumber == MouseNavigationSupport.defaultBackButtonNumber
+                     && MouseNavigationSupport.forwardButtonNumber == MouseNavigationSupport.defaultForwardButtonNumber,
+                     "a left click or an impossible button falls back to the standard ones")
+    }
+}

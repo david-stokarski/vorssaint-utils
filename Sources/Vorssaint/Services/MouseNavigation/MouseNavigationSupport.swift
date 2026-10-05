@@ -3,6 +3,12 @@
 
 import Foundation
 
+// Fork: the assignable Back and Forward buttons.
+extension DefaultsKey {
+    static let mouseNavigationBackButton = "mouseNavigationBackButton"
+    static let mouseNavigationForwardButton = "mouseNavigationForwardButton"
+}
+
 enum MouseNavigationDirection: Hashable, CaseIterable {
     case back
     case forward
@@ -12,8 +18,27 @@ enum MouseNavigationSupport {
     /// CoreGraphics numbers the first two side buttons after left, right and
     /// middle as 3 and 4. These are what standard Back and Forward buttons on
     /// multi-button mice expose when another driver has not remapped them.
-    static let backButtonNumber: Int64 = 3
-    static let forwardButtonNumber: Int64 = 4
+    static let defaultBackButtonNumber: Int64 = 3
+    static let defaultForwardButtonNumber: Int64 = 4
+    /// Fork: which buttons mean Back and Forward, set in Settings for mice
+    /// whose side buttons arrive under other numbers. Read from memory in the
+    /// event tap; `reload()` brings them in line with the preferences.
+    private(set) static var backButtonNumber: Int64 = defaultBackButtonNumber
+    private(set) static var forwardButtonNumber: Int64 = defaultForwardButtonNumber
+    /// The middle button and above; left and right clicks are never navigation.
+    static let assignableButtons: ClosedRange<Int64> = 2...31
+
+    static func reload(from defaults: UserDefaults = .standard) {
+        backButtonNumber = sanitizedButton(defaults.object(forKey: DefaultsKey.mouseNavigationBackButton),
+                                           fallback: defaultBackButtonNumber)
+        forwardButtonNumber = sanitizedButton(defaults.object(forKey: DefaultsKey.mouseNavigationForwardButton),
+                                              fallback: defaultForwardButtonNumber)
+    }
+
+    static func sanitizedButton(_ value: Any?, fallback: Int64) -> Int64 {
+        guard let number = (value as? NSNumber)?.int64Value, assignableButtons.contains(number) else { return fallback }
+        return number
+    }
 
     static func direction(forButtonNumber buttonNumber: Int64) -> MouseNavigationDirection? {
         switch buttonNumber {

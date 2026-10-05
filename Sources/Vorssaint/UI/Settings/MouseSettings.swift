@@ -415,6 +415,7 @@ struct MouseSettings: View {
                 activeBadge(l10n.s.mouseNavigationActiveNow)
             }
             if mouseNavigationEnabled {
+                MouseNavigationButtonsConfig()  // Fork
                 MouseExceptionsList(scope: .navigation)
             }
         }
