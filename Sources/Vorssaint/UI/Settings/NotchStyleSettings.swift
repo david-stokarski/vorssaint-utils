@@ -21,12 +21,14 @@ struct NotchStyleSettingsCard: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             Text(tabbed
-                 ? "Home and the buttons below appear as tabs inside the island. Everything else stays in All Sections, in the island's menu."
+                 ? "Up to six tabs sit at the island's top left, chosen below. Every section stays a click away in All Sections."
                  : "The island's title, section gallery and floating buttons.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if tabbed {
+                Divider()
+                NotchTabsEditor()
                 Divider()
                 Text("Home").font(.subheadline.weight(.semibold))
                 VStack(spacing: 6) {
@@ -371,5 +373,112 @@ struct DictationShapePicker: View {
         .pickerStyle(.segmented)
         .labelsHidden()
         .fixedSize()
+    }
+}
+
+/// Fork: the tabs at the island's top left, in order, at most six.
+struct NotchTabsEditor: View {
+    @AppStorage(DefaultsKey.notchTabs) private var raw: String?
+    @ObservedObject private var l10n = L10n.shared
+
+    private var items: [NotchTabItem] {
+        _ = raw  // Read so a change redraws the list.
+        return NotchTabbedLayout.storedTabs()
+    }
+
+    var body: some View {
+        let items = items
+        HStack {
+            Text("Tabs").font(.subheadline.weight(.semibold))
+            Spacer()
+            Text("\(items.count) of \(NotchTabbedLayout.maximumTabs)").font(.caption).foregroundStyle(.secondary)
+        }
+        VStack(spacing: 6) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                HStack(spacing: 10) {
+                    Image(systemName: symbol(item)).frame(width: 20).foregroundStyle(.secondary)
+                    Text(title(item))
+                    if !isAvailable(item) {
+                        Text("Off").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button { move(index, by: -1) } label: { Image(systemName: "chevron.up") }
+                        .buttonStyle(.borderless).disabled(index == 0)
+                        .accessibilityLabel("Move \(title(item)) left")
+                    Button { move(index, by: 1) } label: { Image(systemName: "chevron.down") }
+                        .buttonStyle(.borderless).disabled(index == items.count - 1)
+                        .accessibilityLabel("Move \(title(item)) right")
+                    Button { remove(index) } label: { Image(systemName: "minus.circle") }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Remove \(title(item))")
+                }
+            }
+        }
+        Menu("Add Tab") {
+            let available = NotchTabbedLayout.tabOptions.filter { !items.contains($0) && isAvailable($0) }
+            let sections = available.filter { if case .action(.module) = $0 { return true }; return false }
+            let controls = available.filter { if case .action(.control) = $0 { return true }; return false }
+            let general = available.filter { !sections.contains($0) && !controls.contains($0) }
+            ForEach(general) { item in Button { add(item) } label: { Label(title(item), systemImage: symbol(item)) } }
+            if !sections.isEmpty {
+                Section("Sections") {
+                    ForEach(sections) { item in Button { add(item) } label: { Label(title(item), systemImage: symbol(item)) } }
+                }
+            }
+            if !controls.isEmpty {
+                Section("Controls") {
+                    ForEach(controls) { item in Button { add(item) } label: { Label(title(item), systemImage: symbol(item)) } }
+                }
+            }
+        }
+        .fixedSize()
+        .disabled(items.count >= NotchTabbedLayout.maximumTabs)
+    }
+
+    private func title(_ item: NotchTabItem) -> String {
+        switch item {
+        case .home: return "Home"
+        case .action(let action): return action.title(l10n)
+        }
+    }
+
+    private func symbol(_ item: NotchTabItem) -> String {
+        switch item {
+        case .home: return "house"
+        case .action(let action): return action.symbol
+        }
+    }
+
+    private func isAvailable(_ item: NotchTabItem) -> Bool {
+        if case .action(let action) = item { return action.isAvailable() }
+        return true
+    }
+
+    private func save(_ next: [NotchTabItem]) {
+        raw = NotchTabbedLayout.encode(next)
+        NotchService.shared.syncWithPreferences()
+        NotchService.shared.refreshPresentation(animated: false)
+    }
+
+    private func add(_ item: NotchTabItem) {
+        var next = items
+        guard next.count < NotchTabbedLayout.maximumTabs, !next.contains(item) else { return }
+        next.append(item)
+        save(next)
+    }
+
+    private func remove(_ index: Int) {
+        var next = items
+        guard next.indices.contains(index) else { return }
+        next.remove(at: index)
+        save(next)
+    }
+
+    private func move(_ index: Int, by offset: Int) {
+        var next = items
+        let target = index + offset
+        guard next.indices.contains(index), next.indices.contains(target) else { return }
+        next.swapAt(index, target)
+        save(next)
     }
 }
