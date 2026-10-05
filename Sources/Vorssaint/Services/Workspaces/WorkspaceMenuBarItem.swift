@@ -3,6 +3,7 @@
 
 import AppKit
 import Combine
+import SwiftUI
 
 /// Fork: the workspaces in the menu bar. One rounded square per workspace
 /// that has windows, in workspace order: filled for the one in view, outlined
@@ -122,5 +123,23 @@ final class WorkspaceMenuBarItem: NSObject {
         }
         image.isTemplate = true
         return image
+    }
+}
+
+/// Fork: the workspaces item as the Monitor page's menu bar preview shows
+/// it, drawn from the same image the real item uses.
+struct WorkspaceMenuBarPreview: View {
+    @ObservedObject private var service = WorkspaceService.shared
+
+    var body: some View {
+        let squares = WorkspaceSupport.menuBarSquares(WorkspaceSupport.definitions(),
+                                                      active: service.activeWorkspaceID,
+                                                      occupied: service.occupiedWorkspaceIDs)
+        if service.isRunning, !squares.isEmpty {
+            Image(nsImage: WorkspaceMenuBarItem.image(for: squares))
+                .renderingMode(.template)
+                .foregroundStyle(.white)
+                .accessibilityLabel("Workspaces")
+        }
     }
 }

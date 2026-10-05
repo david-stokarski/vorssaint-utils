@@ -39,6 +39,7 @@ struct MenuBarMetricsPreview: View {
     @AppStorage(DefaultsKey.menuBarMetricSpacing) private var metricSpacing = "standard"
     @AppStorage(DefaultsKey.menuBarHideIconWithMetrics) private var hideIconWithMetrics = false
     @AppStorage(DefaultsKey.menuBarSeparateMetrics) private var separateMetrics = false
+    @AppStorage(DefaultsKey.menuBarWorkspaces) private var workspaces = false  // Fork
     @ObservedObject private var l10n = L10n.shared
 
     var body: some View {
@@ -77,6 +78,10 @@ struct MenuBarMetricsPreview: View {
             if PowerSampler.hasInternalBattery {
                 Image(systemName: "battery.75")
                     .foregroundStyle(.white.opacity(0.5))
+            }
+            // Fork: the newest Vorssaint item, so macOS seats it leftmost.
+            if workspaces, AppFeature.workspaces.isAvailable {
+                WorkspaceMenuBarPreview()
             }
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 linesView(item)
