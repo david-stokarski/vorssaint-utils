@@ -335,10 +335,19 @@ struct NotchWindowBackground: View {
     @ObservedObject var presentation: NotchBackdropPresentation
     @AppStorage(DefaultsKey.notchLiquidGlassEnabled) private var glass = false
     @AppStorage(DefaultsKey.notchTranslucentBackground) private var translucent = false
+    // Fork: the island's and dictation's own materials (NotchAppearance).
+    @AppStorage(DefaultsKey.notchIslandMaterial) private var islandMaterial = ""
+    @AppStorage(DefaultsKey.notchIslandTint) private var islandTint = NotchSurfaceAppearance.defaultIslandTint
+    @AppStorage(DefaultsKey.dictationMaterial) private var dictationMaterial = ""
+    @AppStorage(DefaultsKey.dictationTint) private var dictationTint = NotchSurfaceAppearance.defaultDictationTint
 
     var body: some View {
-        NotchSurfaceBackground(presentation: presentation, glass: glass && !presentation.prefersTranslucent,
-                               translucent: translucent || presentation.prefersTranslucent)
+        let appearance = presentation.prefersTranslucent ? NotchSurfaceAppearance.dictation() : NotchSurfaceAppearance.island()
+        if appearance.material.seeThrough {
+            NotchFluidBackground(presentation: presentation, appearance: appearance)
+        } else {
+            NotchSurfaceBackground(presentation: presentation, glass: glass, translucent: translucent)
+        }
     }
 }
 

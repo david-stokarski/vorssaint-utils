@@ -47,7 +47,8 @@ struct NotchView: View {
 
     private var usesGlassSurface: Bool {
 #if compiler(>=6.2)
-        if #available(macOS 26, *), glass, !reduceTransparency {
+        // Fork: a see-through island material styles its content as glass does.
+        if #available(macOS 26, *), glass || NotchSurfaceAppearance.island().material.seeThrough, !reduceTransparency {
             // Resting wings, compact activities and small status notices keep
             // blending into the physical camera cutout.
             return service.usesGlassSurface

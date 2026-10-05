@@ -79,3 +79,27 @@ enum NotchAnimationTuningTests {
         defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-animation")
     }
 }
+
+/// Fork: the island's and dictation's materials.
+enum NotchAppearanceTests {
+    static func run(_ suite: TestSuite) {
+        let defaults = UserDefaults(suiteName: "com.vorssaint.tests.notch-appearance")!
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-appearance")
+        suite.expect(NotchSurfaceAppearance.island(in: defaults).material == .classic, "no preference keeps the island's own look")
+        suite.expect(NotchSurfaceAppearance.dictation(in: defaults).material == .black, "no preference keeps dictation black")
+        defaults.set("glass", forKey: DefaultsKey.notchIslandMaterial)
+        defaults.set("frosted", forKey: DefaultsKey.dictationMaterial)
+        defaults.set(5.0, forKey: DefaultsKey.dictationTint)
+        suite.expect(NotchSurfaceAppearance.island(in: defaults).material == .glass, "the island's material is its own")
+        suite.expect(NotchSurfaceAppearance.dictation(in: defaults).material == .frosted, "dictation's material is its own")
+        suite.expect(NotchSurfaceAppearance.dictation(in: defaults).tint == NotchSurfaceAppearance.tintRange.upperBound,
+                     "tints stay within range")
+        defaults.set("classic", forKey: DefaultsKey.dictationMaterial)
+        suite.expect(NotchSurfaceAppearance.dictation(in: defaults).material == .black, "dictation has no classic look")
+        suite.expect(NotchSurfaceAppearance.overlay(atDepth: 10, strip: 32, tint: 0.3) == 1, "the camera strip stays black")
+        suite.expect(abs(NotchSurfaceAppearance.overlay(atDepth: 200, strip: 32, tint: 0.3) - 0.3) < 1e-9, "below it the tint holds")
+        suite.expect(NotchSurfaceAppearance.overlay(atDepth: 0, strip: 0, tint: 0.3) == 0.3,
+                     "without a camera the tint reaches the top")
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.notch-appearance")
+    }
+}
