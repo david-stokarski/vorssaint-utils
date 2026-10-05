@@ -90,6 +90,7 @@ struct NotchEditorStrings {
         case .scratchpad: return scratchpadSummary
         case .agents: return agentsSummary
         case .watch: return watchSummary
+        case .aiChat: return "Ask your default model and keep chatting without leaving the island."  // Fork
         }
     }
 }

@@ -26,6 +26,9 @@ enum NotchDevRemote {
             case "dictation-end": DictationService.shared.endPreview()
             case "commandbar": CommandBarService.shared.show()
             case "aichat": AIChatService.shared.show()
+            case "settings-aichat":
+                SettingsRouter.shared.request(FeatureSettingsDestination(.aiChat), targetFeature: nil, sidebarFeature: nil)
+                (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
             case "aichat-settings": AIChatService.shared.show(); AIChatService.shared.showsSettings = true
             case let raw where raw.hasPrefix("aichat:"):
                 AIChatService.shared.ask(String(raw.dropFirst("aichat:".count)))

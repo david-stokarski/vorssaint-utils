@@ -131,7 +131,7 @@ struct CommandBarSettings: View {
             }
 
             CommandBarHyperKeySection { showsAppShortcuts = true }  // Fork
-            CommandBarAskAISection()  // Fork
+            if AppFeature.aiChat.isAvailable { CommandBarAskAISection() }  // Fork
 
             Section {
                 Button {

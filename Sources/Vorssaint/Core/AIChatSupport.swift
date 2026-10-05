@@ -114,6 +114,8 @@ enum AIStreamEvent: Equatable {
 }
 
 enum AIChatSupport {
+    static let title = "AI Chat"
+    static let hubDescription = "Chat with Claude, GPT and other models using your own API keys, and ask from the Command Bar."
     static let registeredDefaults: [String: Any] = [
         DefaultsKey.aiChatDefaultModel: AIModelChoice.fallbackDefault.storageValue,
         DefaultsKey.aiChatSystemPrompt: "",

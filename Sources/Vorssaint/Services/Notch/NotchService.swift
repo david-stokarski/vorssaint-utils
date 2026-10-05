@@ -181,6 +181,10 @@ final class NotchService: ObservableObject {
             || (expanded && !showingSections && selected == .captures && captureContent != nil)
             || (expanded && !showingSections && selected == .tools && (QuickLauncherService.shared.activeUtility != nil || QuickLauncherService.shared.isEditing))
     }
+    /// Fork: a half-typed question or a streaming reply keeps the AI Chat page open.
+    private var aiChatHoldsIsland: Bool {
+        expanded && !showingSections && selected == .aiChat && AIChatService.shared.holdsIsland
+    }
     private var running = false
     private var session = NotchSessionState()
     private var suspended: Bool { !session.canPresent }
@@ -1258,6 +1262,7 @@ final class NotchService: ObservableObject {
                       !self.pointerOverChildWindow(NSEvent.mouseLocation) else { return }
                 self.releaseNotification()
                 guard !self.pinned, !self.heldDrag, !self.keepsWorkingSurface, self.captureControls == nil,
+                      !self.aiChatHoldsIsland,  // Fork
                       !AssistiveKeyboard.ownsCocoaPoint(NSEvent.mouseLocation),
                       NotchSupport.closesOnPointerExit(expanded: self.expanded, peeking: self.peeking, openedByHover: self.openedByHover) else { return }
                 self.collapse()

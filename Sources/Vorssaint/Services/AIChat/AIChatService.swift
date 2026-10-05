@@ -53,7 +53,6 @@ enum AIChatStore {
 /// Fork: the AI Chat window and everything it talks to. One reply streams at
 /// a time; text arrives in small batches so a long answer does not re-render
 /// on every token.
-@MainActor
 final class AIChatService: NSObject, ObservableObject, NSWindowDelegate {
     static let shared = AIChatService()
 
@@ -61,6 +60,8 @@ final class AIChatService: NSObject, ObservableObject, NSWindowDelegate {
     @Published var selectedID: UUID?
     @Published private(set) var streamingID: UUID?
     @Published var draft = ""
+    /// The island's own message field, kept here so it survives the island closing.
+    @Published var islandDraft = ""
     @Published var showsSettings = false
     @Published private(set) var keyedProviders: Set<AIProvider> = []
     @Published private(set) var models: [AIProvider: [String]] = [:]
@@ -79,6 +80,12 @@ final class AIChatService: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     var isStreaming: Bool { streamingID != nil }
+
+    /// The island stays open while a question is half typed or a reply is
+    /// still arriving, wherever the pointer goes.
+    var holdsIsland: Bool {
+        isStreaming || !islandDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     // MARK: - Window
 
@@ -111,7 +118,7 @@ final class AIChatService: NSObject, ObservableObject, NSWindowDelegate {
             showsSettings = true
             return
         }
-        send(question)
+        if send(question) { draft = "" }
     }
 
     private func makeWindow() -> NSWindow {
@@ -141,7 +148,7 @@ final class AIChatService: NSObject, ObservableObject, NSWindowDelegate {
 
     // MARK: - Chats
 
-    private func loadIfNeeded() {
+    func loadIfNeeded() {
         guard !hasLoaded else { return }
         hasLoaded = true
         conversations = AIChatStore.loadAll()
@@ -177,6 +184,14 @@ final class AIChatService: NSObject, ObservableObject, NSWindowDelegate {
         if selectedID == nil { newChat() }
     }
 
+    func deleteAll() {
+        stop()
+        for chat in conversations { AIChatStore.delete(chat.id) }
+        conversations = []
+        selectedID = nil
+        newChat()
+    }
+
     func rename(_ id: UUID, to title: String) {
         update(id) { $0.title = title.trimmingCharacters(in: .whitespacesAndNewlines) }
         persist(id)
@@ -200,17 +215,20 @@ final class AIChatService: NSObject, ObservableObject, NSWindowDelegate {
 
     // MARK: - Sending
 
-    func send(_ text: String) {
+    /// False when nothing was sent, so the caller keeps what was typed.
+    @discardableResult
+    func send(_ text: String) -> Bool {
         let question = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !question.isEmpty, !isStreaming else { return }
+        guard !question.isEmpty, !isStreaming else { return false }
+        loadIfNeeded()
         if selected == nil { newChat() }
-        guard let id = selectedID else { return }
+        guard let id = selectedID else { return false }
         update(id) { chat in
             if chat.messages.isEmpty, chat.title.isEmpty { chat.title = AIChatSupport.title(from: question) }
             chat.messages.append(AIChatMessage(role: .user, text: question))
         }
-        draft = ""
         stream(id)
+        return true
     }
 
     /// Asks again for the last reply, dropping the one that failed or was stopped.
@@ -245,7 +263,7 @@ final class AIChatService: NSObject, ObservableObject, NSWindowDelegate {
         }
         moveToTop(id)
         streamingID = id
-        task = Task { [weak self] in
+        task = Task { @MainActor [weak self] in
             var failure: String?
             do {
                 let (bytes, response) = try await URLSession.shared.bytes(for: request)
@@ -321,7 +339,7 @@ final class AIChatService: NSObject, ObservableObject, NSWindowDelegate {
     // MARK: - Providers
 
     func reloadKeys() {
-        keyedProviders = Set(AIProvider.allCases.filter { AIChatKeychain.key(for: $0) != nil })
+        keyedProviders = Set(AIProvider.allCases.filter { AIChatKeychain.hasKey(for: $0) })
     }
 
     @discardableResult
@@ -336,7 +354,7 @@ final class AIChatService: NSObject, ObservableObject, NSWindowDelegate {
         guard let key = AIChatKeychain.key(for: provider) else { return }
         refreshedProviders.insert(provider)
         let request = AIChatSupport.modelsRequest(for: provider, apiKey: key)
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             do {
                 let (data, response) = try await URLSession.shared.data(for: request)
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0

@@ -345,6 +345,10 @@ enum SettingsDirectory {
                                       title: DictationSupport.title,
                                       icon: "waveform.and.mic",
                                       keywords: ["dictation", "speech", "voice", "transcribe", "stt", "speech to text"]),
+                SettingsDirectoryItem(page: .aiChat,
+                                      title: AIChatSupport.title,
+                                      icon: "bubble.left.and.bubble.right",
+                                      keywords: ["ai", "chat", "assistant", "claude", "gpt", "openai", "anthropic", "llm", "api key"]),
             ]),
             (categories.utilities, [
                 SettingsDirectoryItem(page: .notch,
