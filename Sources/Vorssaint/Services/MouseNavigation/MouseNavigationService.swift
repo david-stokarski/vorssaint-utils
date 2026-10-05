@@ -99,7 +99,21 @@ final class MouseNavigationService: ObservableObject {
 
     private func handleSwipe(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            if let swipeTap { CGEvent.tapEnable(tap: swipeTap, enable: true) }
+            // Re-armed only as the button tap is: still wanted, still trusted,
+            // and only into the session on screen; otherwise released.
+            let wanted = AppFeature.mouseNavigation.isAvailable
+                && UserDefaults.standard.bool(forKey: DefaultsKey.mouseNavigationEnabled)
+                && MouseNavigationSupport.watchesSwipes
+            let shouldRearm = SessionActivitySupport.tapShouldRun(
+                featureWanted: wanted,
+                accessibilityGranted: AXIsProcessTrusted(),
+                sessionIsActive: SessionActivity.shared.isActive
+            )
+            if shouldRearm, let swipeTap {
+                CGEvent.tapEnable(tap: swipeTap, enable: true)
+            } else {
+                DispatchQueue.main.async { [weak self] in self?.syncWithPreferences() }
+            }
             return Unmanaged.passUnretained(event)
         }
         guard type.rawValue == 31, let swipe = NSEvent(cgEvent: event), swipe.type == .swipe,
