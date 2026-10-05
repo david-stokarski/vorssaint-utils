@@ -15,6 +15,16 @@ enum AIChatKeychain {
          kSecAttrAccount as String: provider.rawValue]
     }
 
+    /// Whether a key is saved, without reading it. Only the secret itself is
+    /// behind the keychain's access prompt, so asking this never shows one.
+    static func hasKey(for provider: AIProvider) -> Bool {
+        var search = query(provider)
+        search[kSecReturnAttributes as String] = true
+        search[kSecMatchLimit as String] = kSecMatchLimitOne
+        var item: CFTypeRef?
+        return SecItemCopyMatching(search as CFDictionary, &item) == errSecSuccess
+    }
+
     static func key(for provider: AIProvider) -> String? {
         var item: CFTypeRef?
         var search = query(provider)

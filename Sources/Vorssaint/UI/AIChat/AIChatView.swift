@@ -210,6 +210,10 @@ struct AIChatDetailView: View {
         !service.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private func send() {
+        if service.send(service.draft) { service.draft = "" }
+    }
+
     private var composer: some View {
         VStack(spacing: 6) {
             HStack(alignment: .bottom, spacing: 8) {
@@ -219,7 +223,7 @@ struct AIChatDetailView: View {
                     .font(.system(size: 13.5))
                     .lineLimit(1...10)
                     .focused($composerFocused)
-                    .onSubmit { service.send(service.draft) }
+                    .onSubmit(send)
                     .padding(.vertical, 4)
                 if service.isStreaming {
                     Button(action: service.stop) {
@@ -230,7 +234,7 @@ struct AIChatDetailView: View {
                     .keyboardShortcut(".", modifiers: .command)
                     .help("Stop (⌘.)")
                 } else {
-                    Button { service.send(service.draft) } label: {
+                    Button(action: send) {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.system(size: 22))
                             .foregroundStyle(canSend ? Color.accentColor : Color.secondary.opacity(0.5))
@@ -364,6 +368,7 @@ struct AIChatMessageView: View {
 /// fenced code with a copy button.
 struct AIMarkdownView: View {
     let text: String
+    var fontSize: CGFloat = 13.5
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -371,17 +376,17 @@ struct AIMarkdownView: View {
                 switch block {
                 case .prose(let prose):
                     Text(Self.inline(prose))
-                        .font(.system(size: 13.5))
+                        .font(.system(size: fontSize))
                         .lineSpacing(3)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 case .heading(let level, let heading):
                     Text(Self.inline(heading))
-                        .font(.system(size: level == 1 ? 18 : level == 2 ? 16 : 14, weight: .semibold))
+                        .font(.system(size: fontSize + (level == 1 ? 4.5 : level == 2 ? 2.5 : 0.5), weight: .semibold))
                         .textSelection(.enabled)
                         .padding(.top, 4)
                 case .code(let language, let code):
-                    AICodeBlockView(language: language, code: code)
+                    AICodeBlockView(language: language, code: code, fontSize: fontSize - 1)
                 }
             }
         }
@@ -398,6 +403,7 @@ struct AIMarkdownView: View {
 struct AICodeBlockView: View {
     let language: String
     let code: String
+    var fontSize: CGFloat = 12.5
     @State private var copied = false
 
     var body: some View {
@@ -422,7 +428,7 @@ struct AICodeBlockView: View {
             Divider()
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(code)
-                    .font(.system(size: 12.5, design: .monospaced))
+                    .font(.system(size: fontSize, design: .monospaced))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: true, vertical: true)
                     .padding(12)

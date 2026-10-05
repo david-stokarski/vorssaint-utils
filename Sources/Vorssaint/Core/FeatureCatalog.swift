@@ -28,7 +28,7 @@ enum AppFeature: String, CaseIterable {
     // Tools
     case quickLauncher, quickToggles, colorPicker, screenOCR, cleaningMode, mediaTools,
          cleaner, uninstaller, homebrew, appUpdates, screenshot, cameraPreview, radialMenu, scratchpad,
-         commandBar, screenRecorder, wallpaper, killProcess, portManager
+         commandBar, screenRecorder, wallpaper, killProcess, portManager, aiChat
     // Dynamic Island, then its extensions
     case notch, notchCalendar, notchNotifications, notchGestures, notchTimer, notchAccessories, notchLyrics,
          notchQueue, notchLiveEqualizer, notchDownloads, notchAgents, notchWatch
@@ -113,7 +113,7 @@ extension AppFeature {
             return .energyDisplay
         case .quickLauncher, .quickToggles, .colorPicker, .screenOCR, .cleaningMode, .mediaTools,
              .cleaner, .uninstaller, .homebrew, .appUpdates, .screenshot, .cameraPreview, .radialMenu,
-             .scratchpad, .commandBar, .screenRecorder, .wallpaper, .killProcess, .portManager:
+             .scratchpad, .commandBar, .screenRecorder, .wallpaper, .killProcess, .portManager, .aiChat:
             return .tools
         case .notch, .notchCalendar, .notchNotifications, .notchGestures, .notchTimer, .notchAccessories,
              .notchLyrics, .notchQueue, .notchLiveEqualizer, .notchDownloads, .notchAgents, .notchWatch:
@@ -161,6 +161,7 @@ extension AppFeature {
         case .audioPriority: return "list.number"
         case .micMute: return "mic.slash"
         case .dictation: return "waveform.and.mic"
+        case .aiChat: return "bubble.left.and.bubble.right"  // Fork
         case .musicBlock: return "music.note"
         case .keepAwake: return "moon.zzz.fill"
         case .brightness: return "display.2"
@@ -268,6 +269,7 @@ extension AppFeature {
         case .clipboardHistory: return [DefaultsKey.clipboardHistoryEnabled]
         case .pastePlain: return [DefaultsKey.pastePlainEnabled]
         case .dictation: return [DefaultsKey.dictationShortcutEnabled]
+        case .aiChat: return []  // Fork: on demand
         case .finderCutPaste: return [DefaultsKey.finderCutPasteEnabled,
                                       DefaultsKey.finderPasteImageAsFile]
         case .finderRename: return [DefaultsKey.finderRenameEnabled]
@@ -366,6 +368,7 @@ extension AppFeature {
         case .cameraPreview: return [.camera]
         // Records the microphone and pastes at the caret.
         case .dictation: return [.microphone, .accessibility]
+        case .aiChat: return []
         case .keepAwake: return [.accessibility]
         case .brightness: return [.accessibility]
         case .cleaner: return [.fullDiskAccess, .filesAndFolders, .notifications]
@@ -473,7 +476,7 @@ extension AppFeature {
              .connectedDevices:
             return true
         case .focusFollowsMouse, .scrollHorizontal, .linearScroll, .diskImageInstaller, .audioPriority,
-             .wallpaper, .killProcess, .portManager, .fanControl, .dictation:
+             .wallpaper, .killProcess, .portManager, .fanControl, .dictation, .aiChat:
             return false
         }
     }

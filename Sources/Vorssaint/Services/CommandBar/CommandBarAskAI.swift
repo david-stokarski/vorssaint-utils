@@ -7,7 +7,7 @@ import Foundation
 /// model, asked in the AI Chat window.
 extension CommandBarService {
     var askAIOffered: Bool {
-        guard case .search = mode, rows.isEmpty,
+        guard AppFeature.aiChat.isAvailable, case .search = mode, rows.isEmpty,
               UserDefaults.standard.bool(forKey: DefaultsKey.commandBarAskAI) else { return false }
         return !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -15,9 +15,8 @@ extension CommandBarService {
     func askAI() {
         let question = query
         hide()
-        Task { @MainActor in
-            // The bar's own fade has to finish before the chat takes focus.
-            try? await Task.sleep(nanoseconds: 120_000_000)
+        // The bar's own fade has to finish before the chat takes focus.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
             AIChatService.shared.ask(question)
         }
     }

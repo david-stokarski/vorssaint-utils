@@ -428,13 +428,15 @@ enum CommandBarCatalog {
                 trouble: Permissions.shared.camera == .granted ? nil : .needsPermission,
                 run: { _ in afterBeat { CameraPreviewService.shared.show() } }))
         }
-        entries.append(CommandBarEntry(  // Fork
-            id: "action.aiChat",
-            title: "AI Chat",
-            subtitle: "Chat with Claude, GPT and other models",
-            keywords: "ai chat assistant claude gpt openai anthropic llm ask",
-            icon: .symbol("sparkles"),
-            run: { _ in afterBeat { Task { @MainActor in AIChatService.shared.show() } } }))
+        if AppFeature.aiChat.isAvailable {  // Fork
+            entries.append(CommandBarEntry(
+                id: "action.aiChat",
+                title: AIChatSupport.title,
+                subtitle: "Chat with Claude, GPT and other models",
+                keywords: "ai chat assistant claude gpt openai anthropic llm ask",
+                icon: .symbol("bubble.left.and.bubble.right"),
+                run: { _ in afterBeat { AIChatService.shared.show() } }))
+        }
         if AppFeature.shelf.isAvailable {
             let enabled = UserDefaults.standard.bool(forKey: DefaultsKey.shelfEnabled)
             entries.append(CommandBarEntry(
