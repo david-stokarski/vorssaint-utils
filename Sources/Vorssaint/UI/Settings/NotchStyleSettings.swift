@@ -246,3 +246,52 @@ struct NotchClosedSizeCard: View {
         }
     }
 }
+
+/// Fork: what the open island and the dictation surface are made of, set
+/// apart so either can be glass while the other stays as it is.
+struct NotchAppearanceCard: View {
+    @AppStorage(DefaultsKey.notchIslandMaterial) private var islandMaterial = NotchSurfaceMaterial.glass.rawValue
+    @AppStorage(DefaultsKey.notchIslandTint) private var islandTint = NotchSurfaceAppearance.defaultIslandTint
+    @AppStorage(DefaultsKey.dictationMaterial) private var dictationMaterial = NotchSurfaceMaterial.glass.rawValue
+    @AppStorage(DefaultsKey.dictationTint) private var dictationTint = NotchSurfaceAppearance.defaultDictationTint
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        SettingsCard(title: "Appearance") {
+            surface("Island", choices: NotchSurfaceMaterial.islandChoices, material: $islandMaterial, tint: $islandTint)
+            Divider()
+            surface("Dictation", choices: NotchSurfaceMaterial.dictationChoices, material: $dictationMaterial, tint: $dictationTint)
+            Text(reduceTransparency
+                 ? "Reduce Transparency is on in System Settings, so both stay solid black."
+                 : "Glass is Liquid Glass over the whole surface; Frosted blurs what's behind it. Tint darkens either for legibility. The closed island stays black, and on a display with a camera the strip over it stays black too. Classic keeps the island's own look and its glass switch.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onChange(of: islandMaterial) { _, _ in NotchService.shared.refreshPresentation(animated: false) }
+        .onChange(of: dictationMaterial) { _, _ in NotchService.shared.refreshPresentation(animated: false) }
+    }
+
+    @ViewBuilder
+    private func surface(_ title: String, choices: [NotchSurfaceMaterial], material: Binding<String>,
+                         tint: Binding<Double>) -> some View {
+        HStack {
+            Text(title).font(.subheadline.weight(.semibold))
+            Spacer()
+            Picker(title, selection: material) {
+                ForEach(choices) { Text($0.title).tag($0.rawValue) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+        }
+        if NotchSurfaceMaterial(rawValue: material.wrappedValue)?.seeThrough == true {
+            HStack(spacing: 12) {
+                Text("Tint").foregroundStyle(.secondary)
+                Slider(value: tint, in: NotchSurfaceAppearance.tintRange) { Text("\(title) tint") }.labelsHidden()
+                Text(tint.wrappedValue.formatted(.percent.precision(.fractionLength(0))))
+                    .monospacedDigit().foregroundStyle(.secondary).frame(width: 44, alignment: .trailing)
+            }
+        }
+    }
+}

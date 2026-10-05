@@ -17,7 +17,8 @@ struct DictationSettings: View {
     @AppStorage(DefaultsKey.dictationSilenceDuration) private var silenceDuration = DictationSupport.defaultSilenceDuration
     @AppStorage(DefaultsKey.dictationSilenceThreshold) private var silenceThreshold = DictationSupport.defaultMinimumVoiceLevel
     @AppStorage(DefaultsKey.dictationPauseMedia) private var pauseMedia = true
-    @AppStorage(DefaultsKey.dictationTranslucent) private var translucent = true
+    @AppStorage(DefaultsKey.dictationMaterial) private var material = NotchSurfaceMaterial.glass.rawValue
+    @AppStorage(DefaultsKey.dictationTint) private var tint = NotchSurfaceAppearance.defaultDictationTint
     @AppStorage(DefaultsKey.dictationCleanupEnabled) private var cleanupEnabled = false
     @AppStorage(DefaultsKey.dictationCleanupStyling) private var styling = DictationCleanupStyling.semiFormal.rawValue
     @AppStorage(DefaultsKey.dictationCleanupStructure) private var structure = DictationCleanupStructure.prose.rawValue
@@ -99,8 +100,18 @@ struct DictationSettings: View {
             }
 
             Section("While dictating") {
-                Toggle("See-through background", isOn: $translucent)
-                Text("Blurs what's behind the island instead of filling it with black. Reduce Transparency keeps it black.")
+                Picker("Background", selection: $material) {
+                    ForEach(NotchSurfaceMaterial.dictationChoices) { Text($0.title).tag($0.rawValue) }
+                }
+                if NotchSurfaceMaterial(rawValue: material)?.seeThrough == true {
+                    LabeledContent("Tint") {
+                        HStack {
+                            Slider(value: $tint, in: NotchSurfaceAppearance.tintRange)
+                            Text(tint.formatted(.percent.precision(.fractionLength(0)))).monospacedDigit().frame(width: 44)
+                        }
+                    }
+                }
+                Text("Frosted blurs what's behind the dictation; Glass uses Liquid Glass. Tint darkens it for legibility. Reduce Transparency keeps it black.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Pause music and video", isOn: $pauseMedia)
                 Text("Whatever is playing pauses so the speakers don't reach the microphone, and resumes after the text is pasted.")

@@ -184,7 +184,9 @@ final class NotchWindowHost: NSObject, CAAnimationDelegate {
             || frame != previousFrame || (!isAnimating && panel.frame != appliedFrame)
         targetUsesGlass = usesGlass
         // Fork: without a camera to meet, a see-through surface needs no black strip.
-        let strip = canvas.backdropPresentation.prefersTranslucent && geometry.floats ? 0 : geometry.stripHeight
+        let seeThrough = canvas.backdropPresentation.prefersTranslucent
+            ? NotchSurfaceAppearance.dictation().material.seeThrough : NotchSurfaceAppearance.island().material.seeThrough
+        let strip = seeThrough && geometry.floats ? 0 : geometry.stripHeight
         if canvas.backdropPresentation.stripHeight != strip {
             canvas.backdropPresentation.stripHeight = strip
         }

@@ -1847,6 +1847,7 @@ enum Defaults {
         .merging(NotchAnimationTuning.registeredDefaults) { current, _ in current }
         .merging(NotchHoverTuning.registeredDefaults) { current, _ in current }
         .merging(NotchClosedSize.registeredDefaults) { current, _ in current }
+        .merging(NotchSurfaceAppearance.registeredDefaults) { current, _ in current }
 
     static func register() {
         let defaults = UserDefaults.standard

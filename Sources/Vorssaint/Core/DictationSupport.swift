@@ -18,8 +18,6 @@ extension DefaultsKey {
     static let dictationSilenceThreshold = "dictationSilenceThreshold"
     static let dictationSilenceDuration = "dictationSilenceDuration"
     static let dictationPauseMedia = "dictationPauseMedia"
-    /// A blurred, see-through surface instead of the island's black.
-    static let dictationTranslucent = "dictationTranslucent"
     /// Polish the text with Apple Intelligence's on-device model.
     static let dictationCleanupEnabled = "dictationCleanupEnabled"
     static let dictationCleanupStyling = "dictationCleanupStyling"
@@ -49,7 +47,6 @@ enum DictationSupport {
         DefaultsKey.dictationSilenceThreshold: defaultMinimumVoiceLevel,
         DefaultsKey.dictationSilenceDuration: defaultSilenceDuration,
         DefaultsKey.dictationPauseMedia: true,
-        DefaultsKey.dictationTranslucent: true,
         DefaultsKey.dictationCleanupEnabled: false,
         DefaultsKey.dictationCleanupStyling: DictationCleanupStyling.semiFormal.rawValue,
         DefaultsKey.dictationCleanupStructure: DictationCleanupStructure.prose.rawValue,
@@ -67,7 +64,8 @@ enum DictationSupport {
         }
     }
 
-    static var translucent: Bool { UserDefaults.standard.bool(forKey: DefaultsKey.dictationTranslucent) }
+    /// The dictation surface lets what is behind it show (NotchAppearance).
+    static var translucent: Bool { NotchSurfaceAppearance.dictation().material.seeThrough }
 
     /// Voice stands clearly above the room: three times its floor, and never
     /// below the chosen minimum.
