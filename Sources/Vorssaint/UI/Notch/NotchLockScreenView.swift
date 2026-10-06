@@ -206,14 +206,14 @@ struct NotchLockScreenPlayer: View {
             Text(playback.track.title ?? text.mediaNowPlaying)
                 .font(.system(size: 18, weight: .bold))
                 .lineLimit(1)
-            if let artist = playback.track.artist ?? playback.track.album {
-                Text(artist)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.72))
-                    .lineLimit(1)
-                    .padding(.top, 2)
-            }
-            if lyrics { NotchLockScreenLyrics(playback: playback) }  // Fork
+            // Fork: the row is kept without an artist, so every song is one height.
+            Text(playback.track.artist ?? playback.track.album ?? " ")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white.opacity(0.72))
+                .lineLimit(1)
+                .padding(.top, 2)
+            // Fork: lyrics, in a space that keeps one height either way.
+            if lyrics, NotchLyricsSupport.isEnabled() { NotchLockScreenLyrics(playback: playback) }
             NotchMusicTimeline(playback: playback, service: music, tint: accent)
                 .padding(.top, 16)
             transport(playback)
