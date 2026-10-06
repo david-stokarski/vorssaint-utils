@@ -496,3 +496,26 @@ struct NotchTabsEditor: View {
         save(next)
     }
 }
+
+/// Fork: which display the island's size settings belong to.
+struct NotchDisplayProfileCard: View {
+    @AppStorage(DefaultsKey.notchDisplayProfilesEnabled) private var enabled = true
+    @AppStorage(DefaultsKey.notchDisplayProfileActive) private var active = ""
+
+    var body: some View {
+        SettingsCard(title: "Size per Display") {
+            SettingsRow(symbol: "display.2", title: "Separate size for each display",
+                        caption: enabled
+                            ? "The island's size, closed size and fits below are for \(displayName). Each display keeps its own; the glass and everything else are shared."
+                            : "One island size for every display.") {
+                Toggle("Separate size for each display", isOn: $enabled)
+                    .labelsHidden().toggleStyle(.switch)
+                    .onChange(of: enabled) { _, _ in NotchService.shared.syncWithPreferences() }
+            }
+        }
+    }
+
+    private var displayName: String {
+        NSScreen.screens.first { $0.notchProfileKey == active }?.localizedName ?? "this display"
+    }
+}

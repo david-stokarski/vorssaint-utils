@@ -731,7 +731,10 @@ final class NotchService: ObservableObject {
         if showingSections {
             return geometry.sectionPickerSize(count: filteredSections.count)
         }
-        if showingHome { return geometry.homeSize(widgets: NotchHomeWidget.current(modules: modules).count) }
+        // Fork: sized by the header Home draws. The bare geometry knows no tab
+        // strip, so it took the tabs to sit beside a camera they sit under,
+        // and the page lost the camera's height off its bottom.
+        if showingHome { return expandedGeometry.homeSize(widgets: NotchHomeWidget.current(modules: modules).count) }
         let musicExtras = NotchLyricsSupport.isEnabled() || NotchQueueSupport.isEnabled()
         let launcher = QuickLauncherService.shared
         return pageSize(in: expandedGeometry, module: showingAppPanel ? .tools : selected,
@@ -3051,6 +3054,10 @@ final class NotchService: ObservableObject {
         guard let index = screenIndex(in: screens) else { withdrawFromMissingScreen(); return }
         let screen = screens[index]
         displayID = screen.notchDisplayID
+        // Fork: this display's own island size, swapped in before it is read.
+        if NotchDisplayProfiles.activate(screen.notchProfileKey, builtIn: CGDisplayIsBuiltin(screen.notchDisplayID) != 0) {
+            NotchClosedSize.reload()
+        }
         var next = baseGeometry(for: screen)
         let sameMenuBar = next.hasSameMenuBar(as: geometry)
         if sameMenuBar { next.compactSideRoom = geometry.compactSideRoom }
@@ -4543,5 +4550,12 @@ extension NotchService {
 extension NSScreen {
     var notchDisplayID: CGDirectDisplayID {
         (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
+    }
+
+    /// Fork: the display's lasting identity, which survives reconnecting and
+    /// restarting where its number does not.
+    var notchProfileKey: String {
+        guard let uuid = CGDisplayCreateUUIDFromDisplayID(notchDisplayID)?.takeRetainedValue() else { return "" }
+        return CFUUIDCreateString(nil, uuid) as String? ?? ""
     }
 }

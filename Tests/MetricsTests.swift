@@ -113,6 +113,7 @@ struct MetricsTests {
                 NotchLyricMarqueeTests.run(suite)  // Fork
                 NotchClaudeSwirlTests.run(suite)  // Fork
                 NotchLastPlayedTests.run(suite)  // Fork
+                NotchDisplayProfilesTests.run(suite)  // Fork
             }),
             ("settings", {
                 SettingsFeatureTests.run(suite)

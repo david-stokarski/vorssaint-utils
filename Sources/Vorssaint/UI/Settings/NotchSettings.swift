@@ -198,6 +198,7 @@ struct NotchSettings: View {
             NotchAppearanceCard()  // Fork
             NotchAnimationSettingsCard()  // Fork
             NotchClosedSizeCard()  // Fork
+            NotchDisplayProfileCard()  // Fork
             NotchLayoutEditor(configuration: access, size: $size, width: $customWidth, height: $customHeight) {
                 selectedModule = .controls; tab = .content
             }
