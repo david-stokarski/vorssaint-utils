@@ -132,6 +132,13 @@ final class CommandBarService: ObservableObject {
     /// Where the open bar shows: its own window, a window the Dynamic Island
     /// drops below itself, or inside the open island.
     @Published private(set) var presentation = CommandBarPresentation.window
+    /// Fork: the drop is opening into the live bar; the drop carries the
+    /// companion meanwhile, so the bar's own face waits.
+    @Published private(set) var dropOpening = false
+
+    func setDropOpening(_ opening: Bool) {
+        if dropOpening != opening { dropOpening = opening }
+    }
 
     /// True while a file search or a saved script is still answering what
     /// was typed. The companion thinks meanwhile.
@@ -464,7 +471,8 @@ final class CommandBarService: ObservableObject {
             if CommandBarPlacement.stored() != nil { position(panel) } else { hang(panel, below: island) }
             focusField(in: panel)
             // Still unseen: what is typed while the drop falls lands in the field.
-            CommandBarDroplet.shared.drop(from: island, into: panel.frame, look: NotchMascotSupport.look()) {
+            CommandBarDroplet.shared.drop(from: island, into: panel.frame, look: NotchMascotSupport.look(),
+                                          barWindow: panel) {  // Fork: the live bar opens with the drop
                 [weak self, weak panel] in
                 guard let self, let panel, self.presentation == .droplet, panel.isVisible else { return }
                 panel.alphaValue = 1

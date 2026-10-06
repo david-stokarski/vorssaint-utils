@@ -33,6 +33,9 @@ struct CommandBarDropletMotion: Equatable {
     /// When the shape has all but arrived and the bar itself can take over,
     /// while the drop fades through its last half point of swing.
     var reveal: TimeInterval = 0
+    /// Fork: when the landed drop starts opening into the field, for the live
+    /// bar to show through it from then on.
+    var opening: TimeInterval = 0
 
     /// The bar hangs this far below the island, where the drop lands.
     static let landingGap: CGFloat = 16
@@ -73,6 +76,7 @@ struct CommandBarDropletMotion: Equatable {
         var motion = CommandBarDropletMotion()
         motion.duration = duration
         motion.landing = fallEnd
+        motion.opening = openStart  // Fork
         motion.reveal = min(duration, openStart + max(settling(widthSpring, from: squashed.width, to: field.width, within: 2),
                                                       settling(heightSpring, from: squashed.height, to: field.height,
                                                                within: 1)))

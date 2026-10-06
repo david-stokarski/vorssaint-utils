@@ -245,6 +245,7 @@ struct CommandBarView: View {
                 // bar stays where the island put it.
                 CommandBarMascot(service: service)
                     .frame(width: 22, height: 22)
+                    .opacity(service.dropOpening ? 0 : 1)  // Fork: the drop carries it in
                     // Fork: the companion is the handle, as the mark is.
                     .overlay(DragHandle().help(text.dragHint))
             }

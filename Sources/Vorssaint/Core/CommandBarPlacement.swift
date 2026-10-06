@@ -172,6 +172,7 @@ extension CommandBarDropletMotion {
         motion.duration /= speed
         motion.landing /= speed
         motion.reveal /= speed
+        motion.opening /= speed
         return motion
     }
 }

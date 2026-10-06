@@ -46,7 +46,8 @@ final class CommandBarDroplet {
     /// Lets the drop fall from `island` into the bar's frame `bar`, both on
     /// screen. `revealed` runs once it has opened into the field, for the bar
     /// itself to take its place.
-    func drop(from island: CGRect, into bar: CGRect, look: NotchMascotLook, revealed: @escaping () -> Void) {
+    func drop(from island: CGRect, into bar: CGRect, look: NotchMascotLook, barWindow: NSWindow? = nil,
+              revealed: @escaping () -> Void) {
         cancel()
         self.island = island
         // The companion goes into the drop, and the island rests without it.
@@ -68,12 +69,14 @@ final class CommandBarDroplet {
         prepare(in: area, look: look, mood: .surprised)
         mascot.turn(to: .idle, at: begin + motion.landing)
         play(motion, edge: edge, centerX: centerX, begin: begin, completion: nil)
+        if let barWindow { revealLive(barWindow, motion: motion, area: area, begin: begin) }  // Fork
         // The bar takes over once the shape has all but arrived, and the
         // drop fades through the last of its swing on top of it.
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
             guard let self, self.generation == current else { return }
             self.falling = false
+            self.unmaskLive()
             revealed()
             self.fadeOut(current)
         }
@@ -119,6 +122,7 @@ final class CommandBarDroplet {
     func cancel() {
         generation += 1
         falling = false
+        unmaskLive()
         for layer in [stage, neck, bead, mascot.root] { layer.removeAllAnimations() }
         panel?.orderOut(nil)
     }
@@ -175,6 +179,7 @@ final class CommandBarDroplet {
         CATransaction.setDisableActions(true)
         stage.frame = CGRect(origin: .zero, size: area.size)
         stage.opacity = 1
+        bead.opacity = 1
         stage.contentsScale = scale
         neck.frame = stage.bounds
         neck.contentsScale = scale
@@ -230,6 +235,83 @@ final class CommandBarDroplet {
         mascot.root.position = figure(last)
         mascot.root.transform = CATransform3DMakeScale(last.mascotScale, last.mascotScale, 1)
         CATransaction.commit()
+    }
+
+    // MARK: Fork: the live bar opening with the drop
+
+    /// The bar whose content view is masked while the drop opens.
+    private weak var maskedView: NSView?
+
+    /// Shows the real bar, already holding the keyboard, through a mask that
+    /// follows the drop as it opens into the field. Typing during the drop
+    /// shows up as the bar spreads, and the drop's own black bead gives way
+    /// to it. Before the drop lands the mask is empty, so nothing shows early.
+    private func revealLive(_ bar: NSWindow, motion: CommandBarDropletMotion, area: CGRect, begin: CFTimeInterval) {
+        guard let host = bar.contentView, motion.duration > 0, motion.opening > 0,
+              motion.frames.count == motion.keyTimes.count, !motion.frames.isEmpty else { return }
+        host.wantsLayer = true
+        guard let layer = host.layer else { return }
+        let barFrame = bar.frame
+        // From the drop's points (top left of its area) to the bar's own,
+        // top left too: the hosting view is flipped, so a bar growing
+        // downward as results arrive keeps the mask on its field.
+        func local(_ rect: CGRect) -> CGRect {
+            CGRect(x: area.minX + rect.minX - barFrame.minX, y: barFrame.maxY - (area.maxY - rect.minY),
+                   width: rect.width, height: rect.height)
+        }
+        var rects: [CGRect] = []
+        var radii: [NSNumber] = []
+        var beadOpacity: [NSNumber] = []
+        for (index, frame) in motion.frames.enumerated() {
+            let opened = motion.keyTimes[index] * motion.duration >= motion.opening
+            let rect = local(frame.bead)
+            rects.append(opened ? rect : CGRect(x: rect.midX, y: rect.midY, width: 0, height: 0))
+            radii.append(NSNumber(value: Double(opened ? frame.radius : 0)))
+            beadOpacity.append(NSNumber(value: opened ? 0 : 1))
+        }
+        let times = motion.keyTimes.map { NSNumber(value: $0) }
+        func keyframes(_ key: String, _ values: [Any]) -> CAKeyframeAnimation {
+            let animation = CAKeyframeAnimation(keyPath: key)
+            animation.values = values
+            animation.keyTimes = times
+            animation.duration = motion.duration
+            animation.beginTime = begin
+            animation.calculationMode = .linear
+            animation.fillMode = .backwards
+            return animation
+        }
+        let mask = CALayer()
+        mask.backgroundColor = NSColor.black.cgColor
+        mask.cornerCurve = .continuous
+        mask.actions = ["position": NSNull(), "bounds": NSNull(), "cornerRadius": NSNull()]
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if let last = rects.last {
+            mask.bounds = CGRect(origin: .zero, size: last.size)
+            mask.position = CGPoint(x: last.midX, y: last.midY)
+            mask.cornerRadius = CGFloat(truncating: radii.last ?? 0)
+        }
+        mask.add(keyframes("bounds", rects.map { NSValue(rect: CGRect(origin: .zero, size: $0.size)) }), forKey: "open")
+        mask.add(keyframes("position", rects.map { NSValue(point: CGPoint(x: $0.midX, y: $0.midY)) }), forKey: "openPosition")
+        mask.add(keyframes("cornerRadius", radii), forKey: "openRadius")
+        layer.mask = mask
+        bead.add(keyframes("opacity", beadOpacity), forKey: "openFade")
+        bead.opacity = 0
+        CATransaction.commit()
+        maskedView = host
+        bar.alphaValue = 1
+        CommandBarService.shared.setDropOpening(true)
+    }
+
+    private func unmaskLive() {
+        if let view = maskedView {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            view.layer?.mask = nil
+            CATransaction.commit()
+        }
+        maskedView = nil
+        CommandBarService.shared.setDropOpening(false)
     }
 
     /// The bar is in place under the drop, and the drop fades off it.
