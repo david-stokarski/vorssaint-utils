@@ -89,7 +89,8 @@ struct CommandBarView: View {
                 guard let window else { return }
                 // Fork: a drag that snaps to the display's thirds and middle,
                 // with the guides drawn while it lasts.
-                if CommandBarDragController.shared.track(from: event, window: window) {
+                if CommandBarDragController.shared.track(from: event, window: window,
+                                                         onBegin: { CommandBarService.shared.detachForDrag() }) {
                     CommandBarService.shared.finishPanelDrag()
                 }
             }
@@ -200,7 +201,7 @@ struct CommandBarView: View {
         .frame(width: Self.width)
         .environment(\.colorScheme, shownAs == .window ? colorScheme : .dark)
         // Fork: any spot without a control of its own moves the bar.
-        .background { if shownAs == .window { DragHandle(showsHand: false) } }
+        .background { if shownAs != .island { DragHandle(showsHand: false) } }
         .background(backdrop)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .onAppear {

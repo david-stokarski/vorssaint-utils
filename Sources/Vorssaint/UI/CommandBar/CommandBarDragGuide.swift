@@ -18,7 +18,7 @@ final class CommandBarDragController {
     /// Follows the pointer from `event` until the button comes up. Returns
     /// whether the bar actually moved, as opposed to a plain click.
     @discardableResult
-    func track(from event: NSEvent, window: NSWindow) -> Bool {
+    func track(from event: NSEvent, window: NSWindow, onBegin: () -> Void = {}) -> Bool {
         let startMouse = NSEvent.mouseLocation
         let startOrigin = window.frame.origin
         var dragging = false
@@ -32,6 +32,7 @@ final class CommandBarDragController {
                 guard hypot(dx, dy) > 3 else { continue }
                 dragging = true
                 NSCursor.closedHand.push()
+                onBegin()
             }
             guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? window.screen
             else { continue }
