@@ -41,6 +41,11 @@ final class MouseNavigationService: ObservableObject {
     /// Fork: apps whose buttons send keys of their own, read once per sync so
     /// the tap callback never decodes anything.
     private var appShortcuts: [MouseNavigationAppShortcut] = []
+    /// Fork: the swipe as AppKit hands it to the app in front. Logi Options+
+    /// posts its Back and Forward swipes past the event taps, so for apps with
+    /// keys of their own this is what sees them. It only watches, so an app
+    /// that understands swipes itself still gets the gesture.
+    private var swipeMonitor: Any?
     private var webHandlerObservers: [NSObjectProtocol] = []
     private var webHandlerRefreshWork: DispatchWorkItem?
     private var webHandlerRefreshGeneration = 0
@@ -57,6 +62,7 @@ final class MouseNavigationService: ObservableObject {
     func syncWithPreferences() {
         MouseNavigationSupport.reload()  // Fork: the chosen Back and Forward buttons
         appShortcuts = MouseNavigationAppShortcuts.stored()  // Fork: per-app keys
+        defer { syncSwipeMonitor() }
         let wanted = AppFeature.mouseNavigation.isAvailable
             && UserDefaults.standard.bool(forKey: DefaultsKey.mouseNavigationEnabled)
         if SessionActivitySupport.tapShouldRun(
@@ -71,16 +77,37 @@ final class MouseNavigationService: ObservableObject {
         syncSwipeTap()
     }
 
-    func suspend() { stop(); syncSwipeTap() }
+    func suspend() { stop(); syncSwipeTap(); syncSwipeMonitor() }
 
     // MARK: Fork: swipes as Back and Forward
+
+    private func syncSwipeMonitor() {
+        let wanted = isRunning && MouseNavigationSupport.watchesSwipes && !appShortcuts.isEmpty
+        if wanted, swipeMonitor == nil {
+            swipeMonitor = NSEvent.addGlobalMonitorForEvents(matching: .swipe) { [weak self] swipe in
+                guard let self,
+                      let direction = MouseNavigationSupport.direction(
+                        forSwipeSign: MouseNavigationSupport.swipeSign(deltaX: Double(swipe.deltaX))),
+                      let keys = MouseNavigationAppShortcuts.shortcut(
+                        for: direction, bundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+                        in: self.appShortcuts) else { return }
+                Self.send(keys)
+            }
+        } else if !wanted, let swipeMonitor {
+            NSEvent.removeMonitor(swipeMonitor)
+            self.swipeMonitor = nil
+        }
+    }
 
     private func syncSwipeTap() {
         let wanted = isRunning && MouseNavigationSupport.watchesSwipes
         if wanted, swipeTap == nil {
             guard let created = CGEvent.tapCreate(
                 tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
-                eventsOfInterest: CGEventMask(1) << 31,
+                // Fork: swipes reach apps as general gesture events (29) that
+                // AppKit only names as swipes on delivery, so both are watched
+                // and anything that is not a swipe passes untouched.
+                eventsOfInterest: (CGEventMask(1) << 31) | (CGEventMask(1) << 29),
                 callback: { _, type, event, userInfo in
                     guard let userInfo else { return Unmanaged.passUnretained(event) }
                     let service = Unmanaged<MouseNavigationService>.fromOpaque(userInfo).takeUnretainedValue()
@@ -120,7 +147,7 @@ final class MouseNavigationService: ObservableObject {
             }
             return Unmanaged.passUnretained(event)
         }
-        guard type.rawValue == 31, let swipe = NSEvent(cgEvent: event), swipe.type == .swipe,
+        guard type.rawValue == 31 || type.rawValue == 29, let swipe = NSEvent(cgEvent: event), swipe.type == .swipe,
               let direction = MouseNavigationSupport.direction(
                 forSwipeSign: MouseNavigationSupport.swipeSign(deltaX: Double(swipe.deltaX))) else {
             return Unmanaged.passUnretained(event)
