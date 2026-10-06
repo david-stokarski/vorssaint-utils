@@ -38,6 +38,9 @@ final class MouseNavigationService: ObservableObject {
     /// Registered web handlers that should keep their native side-button events.
     /// Resolved outside the tap callback so its hot path only reads memory.
     private var webURLHandlers: Set<String> = []
+    /// Fork: apps whose buttons send keys of their own, read once per sync so
+    /// the tap callback never decodes anything.
+    private var appShortcuts: [MouseNavigationAppShortcut] = []
     private var webHandlerObservers: [NSObjectProtocol] = []
     private var webHandlerRefreshWork: DispatchWorkItem?
     private var webHandlerRefreshGeneration = 0
@@ -53,6 +56,7 @@ final class MouseNavigationService: ObservableObject {
 
     func syncWithPreferences() {
         MouseNavigationSupport.reload()  // Fork: the chosen Back and Forward buttons
+        appShortcuts = MouseNavigationAppShortcuts.stored()  // Fork: per-app keys
         let wanted = AppFeature.mouseNavigation.isAvailable
             && UserDefaults.standard.bool(forKey: DefaultsKey.mouseNavigationEnabled)
         if SessionActivitySupport.tapShouldRun(
@@ -120,6 +124,12 @@ final class MouseNavigationService: ObservableObject {
               let direction = MouseNavigationSupport.direction(
                 forSwipeSign: MouseNavigationSupport.swipeSign(deltaX: Double(swipe.deltaX))) else {
             return Unmanaged.passUnretained(event)
+        }
+        // Fork: an app with keys of its own for Back and Forward gets them.
+        if let keys = MouseNavigationAppShortcuts.shortcut(
+            for: direction, bundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, in: appShortcuts) {
+            DispatchQueue.main.async { Self.send(keys) }
+            return nil
         }
         // The same apps keep the raw gesture as keep the raw buttons: this
         // app's Settings, browsers that swipe between pages themselves, and
@@ -292,6 +302,17 @@ final class MouseNavigationService: ObservableObject {
             return Unmanaged.passUnretained(event)
         }
 
+        // Fork: an app with keys of its own for Back and Forward gets them,
+        // ahead of the browsers and exceptions that keep the raw buttons.
+        if let keys = MouseNavigationAppShortcuts.shortcut(
+            for: direction, bundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, in: appShortcuts) {
+            passThroughButtons.remove(buttonNumber)
+            if type == .otherMouseDown {
+                DispatchQueue.main.async { Self.send(keys) }
+            }
+            return nil
+        }
+
         if type == .otherMouseDown {
             // Apps that consume the side buttons themselves keep the raw
             // event; replacing it would drop navigation the user already had,
@@ -431,6 +452,19 @@ final class MouseNavigationService: ObservableObject {
             return nil
         }
         return value as? T
+    }
+
+    /// Fork: presses the keys chosen for the app in front, as typed.
+    private static func send(_ shortcut: GlobalShortcut) {
+        guard shortcut.hasUsableKeyCode else { return }
+        let source = CGEventSource(stateID: .hidSystemState)
+        let key = CGKeyCode(shortcut.keyCode)
+        guard let down = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: false) else { return }
+        down.flags = shortcut.modifiers.cgFlags
+        up.flags = shortcut.modifiers.cgFlags
+        down.post(tap: .cgSessionEventTap)
+        up.post(tap: .cgSessionEventTap)
     }
 
     private func postCommand(_ shortcut: MouseNavigationKeys.Shortcut) {

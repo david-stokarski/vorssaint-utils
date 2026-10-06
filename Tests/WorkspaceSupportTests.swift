@@ -137,3 +137,26 @@ enum WorkspaceMenuBarTests {
         suite.expect(WorkspaceSupport.occupied(state) == [ids[1]], "occupancy comes from assigned windows")
     }
 }
+
+/// Fork: per-app keys for the side buttons.
+enum MouseNavigationAppShortcutTests {
+    static func run(_ suite: TestSuite) {
+        let slack = MouseNavigationAppShortcuts.suggested(bundleID: "com.tinyspeck.slackmacgap", name: "Slack")
+        suite.expect(slack.shortcut(for: .back) == GlobalShortcut(keyCode: Int64(kVK_ANSI_LeftBracket), modifiers: [.command])
+                        && slack.shortcut(for: .forward) == GlobalShortcut(keyCode: Int64(kVK_ANSI_RightBracket), modifiers: [.command]),
+                     "a new app starts on ⌘[ and ⌘]")
+        var noForward = slack
+        noForward.forward = ""
+        let list = [noForward]
+        suite.expect(MouseNavigationAppShortcuts.shortcut(for: .back, bundleID: "com.tinyspeck.slackmacgap", in: list) != nil,
+                     "the app in front gets its own keys")
+        suite.expect(MouseNavigationAppShortcuts.shortcut(for: .forward, bundleID: "com.tinyspeck.slackmacgap", in: list) == nil,
+                     "a button with no keys keeps the usual behavior")
+        suite.expect(MouseNavigationAppShortcuts.shortcut(for: .back, bundleID: "com.apple.finder", in: list) == nil
+                        && MouseNavigationAppShortcuts.shortcut(for: .back, bundleID: nil, in: list) == nil,
+                     "other apps keep the usual behavior")
+        let encoded = MouseNavigationAppShortcuts.encode([slack, slack, MouseNavigationAppShortcuts.suggested(bundleID: "", name: "x")])
+        suite.expect(MouseNavigationAppShortcuts.decode(encoded) == [slack], "duplicates and blank apps are dropped")
+        suite.expect(MouseNavigationAppShortcuts.decode("nonsense").isEmpty, "bad stored values are ignored")
+    }
+}

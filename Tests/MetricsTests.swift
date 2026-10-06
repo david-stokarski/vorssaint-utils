@@ -107,6 +107,7 @@ struct MetricsTests {
                 WorkspaceSupportTests.run(suite)  // Fork
                 WorkspaceMenuBarTests.run(suite)  // Fork
                 CommandBarPlacementTests.run(suite)  // Fork
+                MouseNavigationAppShortcutTests.run(suite)  // Fork
             }),
             ("settings", {
                 SettingsFeatureTests.run(suite)

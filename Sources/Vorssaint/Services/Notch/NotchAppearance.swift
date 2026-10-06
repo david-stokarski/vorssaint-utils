@@ -11,6 +11,9 @@ extension DefaultsKey {
     static let notchIslandTint = "notchIslandTint"
     static let dictationMaterial = "dictationMaterial"
     static let dictationTint = "dictationTint"
+    /// The Command Bar's own surface, in or out of the island's drop.
+    static let commandBarMaterial = "commandBarMaterial"
+    static let commandBarTint = "commandBarTint"
 }
 
 enum NotchSurfaceMaterial: String, CaseIterable, Identifiable {
@@ -38,6 +41,7 @@ enum NotchSurfaceMaterial: String, CaseIterable, Identifiable {
 
     static let islandChoices: [Self] = [.classic, .frosted, .glass]
     static let dictationChoices: [Self] = [.black, .frosted, .glass]
+    static let commandBarChoices: [Self] = [.classic, .black, .frosted, .glass]
 }
 
 struct NotchSurfaceAppearance: Equatable {
@@ -48,6 +52,7 @@ struct NotchSurfaceAppearance: Equatable {
     static let tintRange = 0.0...0.9
     static let defaultIslandTint = 0.35
     static let defaultDictationTint = 0.3
+    static let defaultCommandBarTint = 0.3
 
     static let registeredDefaults: [String: Any] = [
         DefaultsKey.notchIslandMaterial: NotchSurfaceMaterial.glass.rawValue,
@@ -60,6 +65,12 @@ struct NotchSurfaceAppearance: Equatable {
     static func island(in defaults: UserDefaults = .standard) -> Self {
         Self(material: NotchSurfaceMaterial(rawValue: defaults.string(forKey: DefaultsKey.notchIslandMaterial) ?? "") ?? .classic,
              tint: tint(DefaultsKey.notchIslandTint, defaultIslandTint, defaults))
+    }
+
+    /// Classic, the bar's own look, until another is chosen.
+    static func commandBar(in defaults: UserDefaults = .standard) -> Self {
+        Self(material: NotchSurfaceMaterial(rawValue: defaults.string(forKey: DefaultsKey.commandBarMaterial) ?? "") ?? .classic,
+             tint: tint(DefaultsKey.commandBarTint, defaultCommandBarTint, defaults))
     }
 
     static func dictation(in defaults: UserDefaults = .standard) -> Self {

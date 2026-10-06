@@ -43,6 +43,8 @@ struct CommandBarView: View {
     @ObservedObject private var uninstaller = AppUninstaller.shared
     @ObservedObject private var homebrew = HomebrewManager.shared
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage(DefaultsKey.commandBarMaterial) private var barMaterial = NotchSurfaceMaterial.classic.rawValue  // Fork
+    @AppStorage(DefaultsKey.commandBarTint) private var barTint = NotchSurfaceAppearance.defaultCommandBarTint  // Fork
     @FocusState private var searchFocused: Bool
     @State private var showHomebrewDetails = false
 
@@ -132,11 +134,24 @@ struct CommandBarView: View {
     /// Out of the island the bar is the island's: black, or the open island's
     /// own surface, and dark like it.
     @ViewBuilder private var backdrop: some View {
-        switch shownAs {
-        case .window: HUDBackdrop(cornerRadius: 22, contrast: .high)
-        case .droplet: RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.black)
-        case .island: Color.clear
+        if shownAs == .island {
+            Color.clear
+        } else if let surface = chosenSurface {
+            CommandBarSurface(appearance: surface)  // Fork: the material chosen in Settings
+        } else {
+            switch shownAs {
+            case .window: HUDBackdrop(cornerRadius: 22, contrast: .high)
+            case .droplet: RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.black)
+            case .island: Color.clear
+            }
         }
+    }
+
+    /// Fork: a material other than Classic, or nil for the bar's own look.
+    private var chosenSurface: NotchSurfaceAppearance? {
+        _ = (barMaterial, barTint)  // Read so a change in Settings redraws the bar.
+        let surface = NotchSurfaceAppearance.commandBar()
+        return surface.material == .classic ? nil : surface
     }
 
     var body: some View {
@@ -198,7 +213,7 @@ struct CommandBarView: View {
             }
         }
         .frame(width: Self.width)
-        .environment(\.colorScheme, shownAs == .window ? colorScheme : .dark)
+        .environment(\.colorScheme, shownAs == .window && chosenSurface == nil ? colorScheme : .dark)
         // Fork: any spot without a control of its own moves the bar.
         .background { if shownAs != .island { DragHandle(showsHand: false) } }
         .background(backdrop)

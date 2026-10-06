@@ -422,6 +422,7 @@ struct MouseSettings: View {
             }
             if mouseNavigationEnabled {
                 MouseNavigationButtonsConfig()  // Fork
+                MouseNavigationAppShortcutsConfig()  // Fork
                 MouseExceptionsList(scope: .navigation)
             }
         }
