@@ -20,6 +20,20 @@ enum NotchClaudeSwirlTests {
                         && end.allSatisfy { abs($0.depth) < 0.01 && abs(abs($0.x) - 1) < 0.01 && abs(abs($0.y) - 1) < 0.01 },
                      "it ends on the square too, so the repeat has no seam")
 
+        for dot in 0..<4 {
+            let first = NotchClaudeSwirl.pose(dot: dot, at: 0)
+            let last = NotchClaudeSwirl.pose(dot: dot, at: 1 - 1e-7)
+            let beforeLast = NotchClaudeSwirl.pose(dot: dot, at: 1 - 1e-4)
+            let afterFirst = NotchClaudeSwirl.pose(dot: dot, at: 1e-4)
+            suite.expect(hypot(first.x - last.x, first.y - last.y) < 1e-4 && abs(first.depth - last.depth) < 1e-4,
+                         "dot \(dot) ends the loop on the corner it started from")
+            // Moving the same way across the join: the step into the loop
+            // matches the step out of it.
+            let outX = last.x - beforeLast.x, outY = last.y - beforeLast.y
+            let inX = afterFirst.x - first.x, inY = afterFirst.y - first.y
+            suite.expect(hypot(outX - inX, outY - inY) < 2e-5 && hypot(inX, inY) > 1e-4, "dot \(dot) keeps its speed across the join")
+        }
+
         let samples = 2000
         var largestStep = 0.0
         var saneLooks = true
@@ -39,8 +53,13 @@ enum NotchClaudeSwirlTests {
 
         let folded = (0..<4).map { NotchClaudeSwirl.apply(.fold, x: NotchClaudeSwirl.corners[$0].0,
                                                           y: NotchClaudeSwirl.corners[$0].1, dot: $0, progress: 0.5) }
-        suite.expect(folded[0].depth == 0 && folded[2].depth == 0 && folded[1].depth > 0.8 && folded[3].depth < -0.8,
-                     "the fold keeps its hinge and passes one dot behind, one in front")
+        suite.expect(folded[0].depth == 0 && folded[2].depth == 0 && abs(folded[1].x + 1) < 1e-9
+                        && abs(folded[3].x - 1) < 1e-9,
+                     "halfway, the fold keeps its hinge and has swapped the other two")
+        let quarter = (0..<4).map { NotchClaudeSwirl.apply(.fold, x: NotchClaudeSwirl.corners[$0].0,
+                                                           y: NotchClaudeSwirl.corners[$0].1, dot: $0, progress: 1.0 / 3) }
+        suite.expect(quarter[1].depth > 0.8 && quarter[3].depth < -0.8,
+                     "on the way one passes behind and one in front")
         suite.expect(NotchClaudeSwirl.period >= 9, "the loop is slow")
     }
 }

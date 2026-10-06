@@ -5,11 +5,11 @@ import CoreGraphics
 import Foundation
 
 // Fork: the choreography of Claude's four-dot loader, one slow loop of
-// moves. The dots swirl a quarter turn, fold over the diagonal (the pair
-// off the fold passing behind and in front), sink back one after another,
+// moves. The dots swirl a quarter turn, fold round the diagonal (the pair
+// off the fold passing behind and in front, and back), sink back one after another,
 // chase each other round a full turn, swirl home and breathe. Each move
-// starts where the last one left the dots, and every move ends on the
-// square, so the loop has no seam. Under it all the square drifts one slow
+// starts where the last one left the dots, and every dot ends the loop on
+// the corner it started from, moving as it did then, so the loop has no seam. Under it all the square drifts one slow
 // turn per loop, so the dots are never quite still.
 //
 // Positions are in units of the square's half-width (the corners are ±1);
@@ -41,7 +41,7 @@ enum NotchClaudeSwirl {
     static let moves: [(move: Move, seconds: Double)] = [
         (.swirl(clockwise: true), 1.4),
         (.rest, 0.2),
-        (.fold, 1.7),
+        (.fold, 2.4),
         (.rest, 0.15),
         (.sink, 2.0),
         (.chase, 2.2),
@@ -94,13 +94,14 @@ enum NotchClaudeSwirl {
             let pull = 1 - 0.4 * sin(Double.pi * e)
             return rotated(x, y, by: angle, scale: pull)
         case .fold:
-            // A half turn about the top-left to bottom-right diagonal: those
-            // two stay on the hinge, the other two swap through the middle,
-            // one passing behind and the other in front.
+            // A full turn about the top-left to bottom-right diagonal: those
+            // two stay on the hinge, the other two fold through the middle,
+            // one passing behind and the other in front, and fold back round
+            // to where they started, so no dot ends the loop in another's place.
             let e = ease(p)
             let along = (x - y) / 2      // on the hinge, direction (1, -1)
             let across = (x + y) / 2     // off it, direction (1, 1)
-            let theta = Double.pi * e
+            let theta = 2 * Double.pi * e
             let folded = across * cos(theta)
             return Pose(x: along + folded, y: -along + folded, depth: across * sin(theta) * 0.9)
         case .sink:

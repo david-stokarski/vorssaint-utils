@@ -144,7 +144,10 @@ final class NotchClaudeLoaderView: NSView {
         let spread = size * Self.spreadShare
         let centre = CGPoint(x: size / 2, y: size / 2)
         for (index, dot) in dots.enumerated() {
-            let poses = (0...count).map { NotchClaudeSwirl.pose(dot: index, at: Double($0) / Double(count)) }
+            // The last keyframe repeats the first, which is where the loop
+            // ends, so the repeat joins without a step.
+            var poses = (0..<count).map { NotchClaudeSwirl.pose(dot: index, at: Double($0) / Double(count)) }
+            poses.append(poses[0])
             func track(_ keyPath: String, _ values: [Any]) -> CAKeyframeAnimation {
                 let animation = CAKeyframeAnimation(keyPath: keyPath)
                 animation.values = values
