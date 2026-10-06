@@ -571,7 +571,8 @@ final class CommandBarService: ObservableObject {
         awaitsAnswers = false
         pendingKeys = []
         if let dropped {
-            CommandBarDroplet.shared.retract(from: dropped, look: NotchMascotSupport.look(), mood: farewell)
+            CommandBarDroplet.shared.retract(from: dropped, look: NotchMascotSupport.look(), mood: farewell,
+                                             bodyless: NotchSurfaceAppearance.commandBar().material.seeThrough)  // Fork
         }
         if presented == .island { NotchService.shared.dismissCommandBar() }
         // Leaving mid-review through this path (global shortcut, outside

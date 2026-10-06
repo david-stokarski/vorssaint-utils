@@ -454,17 +454,49 @@ final class MouseNavigationService: ObservableObject {
         return value as? T
     }
 
-    /// Fork: presses the keys chosen for the app in front, as typed.
+    /// Fork: what the last button press in an app with its own keys did,
+    /// for the settings row to show.
+    @Published private(set) var lastAppShortcut: String?
+
+    /// Fork: presses the keys chosen for the app in front as a hand would:
+    /// each modifier goes down first and comes up last, around the key.
+    /// Chromium-based apps such as Slack can ignore a lone key that merely
+    /// carries modifier flags.
     private static func send(_ shortcut: GlobalShortcut) {
+        let app = NSWorkspace.shared.frontmostApplication
+        shared.lastAppShortcut = "\(shortcut.displayString) → \(app?.localizedName ?? "the app in front")"
         guard shortcut.hasUsableKeyCode else { return }
-        let source = CGEventSource(stateID: .hidSystemState)
+        let source = CGEventSource(stateID: .combinedSessionState)
+        let modifierKeys: [(GlobalShortcutModifiers, Int, CGEventFlags)] = [
+            (.control, kVK_Control, .maskControl), (.option, kVK_Option, .maskAlternate),
+            (.shift, kVK_Shift, .maskShift), (.command, kVK_Command, .maskCommand),
+        ].filter { shortcut.modifiers.contains($0.0) }
+        var flags: CGEventFlags = []
+        var events: [CGEvent] = []
+        for (_, code, flag) in modifierKeys {
+            flags.insert(flag)
+            if let event = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(code), keyDown: true) {
+                event.type = .flagsChanged
+                event.flags = flags
+                events.append(event)
+            }
+        }
         let key = CGKeyCode(shortcut.keyCode)
-        guard let down = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: false) else { return }
-        down.flags = shortcut.modifiers.cgFlags
-        up.flags = shortcut.modifiers.cgFlags
-        down.post(tap: .cgSessionEventTap)
-        up.post(tap: .cgSessionEventTap)
+        for down in [true, false] {
+            if let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down) {
+                event.flags = flags
+                events.append(event)
+            }
+        }
+        for (_, code, flag) in modifierKeys.reversed() {
+            flags.remove(flag)
+            if let event = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(code), keyDown: false) {
+                event.type = .flagsChanged
+                event.flags = flags
+                events.append(event)
+            }
+        }
+        for event in events { event.post(tap: .cgSessionEventTap) }
     }
 
     private func postCommand(_ shortcut: MouseNavigationKeys.Shortcut) {

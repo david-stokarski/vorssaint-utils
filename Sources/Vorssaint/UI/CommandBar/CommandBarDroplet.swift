@@ -91,7 +91,9 @@ final class CommandBarDroplet {
 
     /// Folds the bar at `bar` back into a drop that rises into the island.
     /// The bar's window is already gone. This draws its shape on the way.
-    func retract(from bar: CGRect, look: NotchMascotLook, mood: NotchMascotMood) {
+    /// Fork: `bodyless` sends only the companion home, for a bar drawn in
+    /// glass or blur, which a black drop cannot stand in for.
+    func retract(from bar: CGRect, look: NotchMascotLook, mood: NotchMascotMood, bodyless: Bool = false) {
         let unseen = falling
         cancel()
         guard !unseen, !Self.reducesMotion, let island = NotchService.shared.commandBarDropSource() ?? island else {
@@ -110,6 +112,13 @@ final class CommandBarDroplet {
         let motion = CommandBarDropletMotion.retract(edge: edge, centerX: centerX, bar: local(bar), field: fieldRect, icon: icon)
             .scaled(by: CommandBarAnimation.speed())  // Fork
         prepare(in: area, look: look, mood: mood)
+        if bodyless {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            bead.opacity = 0
+            neck.opacity = 0
+            CATransaction.commit()
+        }
         play(motion, edge: edge, centerX: centerX, begin: CACurrentMediaTime()) { [weak self] in
             guard let self, self.generation == current else { return }
             self.panel?.orderOut(nil)
@@ -180,6 +189,7 @@ final class CommandBarDroplet {
         stage.frame = CGRect(origin: .zero, size: area.size)
         stage.opacity = 1
         bead.opacity = 1
+        neck.opacity = 1
         stage.contentsScale = scale
         neck.frame = stage.bounds
         neck.contentsScale = scale
@@ -298,7 +308,7 @@ final class CommandBarDroplet {
         // it live so the bar always opens to what it holds now.
         maskTimer?.invalidate()
         let duration = motion.duration
-        let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak host, weak mask] _ in
+        let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak host, weak mask, weak bar] _ in
             guard let host, let mask else { return }
             let share = min(1, max(0, (CACurrentMediaTime() - begin) / duration))
             let step = steps[min(steps.count - 1, Int((share * Double(steps.count - 1)).rounded()))]
@@ -310,6 +320,11 @@ final class CommandBarDroplet {
                 mask.bounds = CGRect(origin: .zero, size: rect.size)
                 mask.position = CGPoint(x: rect.midX, y: rect.midY)
                 mask.cornerRadius = step.radius
+                // Glass and blur draw outside any layer mask, so the bar's
+                // surface is told the same shape to fill, and the window
+                // only shows once the drop has landed and starts to open.
+                CommandBarReveal.shared.update(rect, radius: step.radius)
+                if let bar, bar.alphaValue < 1 { bar.alphaValue = 1 }
             } else {
                 mask.bounds = .zero
             }
@@ -318,13 +333,16 @@ final class CommandBarDroplet {
         RunLoop.main.add(timer, forMode: .common)
         maskTimer = timer
         maskedView = host
-        bar.alphaValue = 1
+        // Unseen while the companion falls; the timer shows it on landing.
+        bar.alphaValue = 0
+        CommandBarReveal.shared.update(.zero, radius: 0)
         CommandBarService.shared.setDropOpening(true)
     }
 
     private func unmaskLive() {
         maskTimer?.invalidate()
         maskTimer = nil
+        CommandBarReveal.shared.update(nil, radius: 0)
         if let view = maskedView {
             CATransaction.begin()
             CATransaction.setDisableActions(true)

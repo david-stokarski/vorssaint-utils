@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 struct MouseNavigationAppShortcutsConfig: View {
     @AppStorage(DefaultsKey.mouseNavigationAppShortcuts) private var raw = ""
     @ObservedObject private var l10n = L10n.shared
+    @ObservedObject private var service = MouseNavigationService.shared
     @State private var message: String?
 
     private var list: [MouseNavigationAppShortcut] { MouseNavigationAppShortcuts.decode(raw) }
@@ -26,6 +27,13 @@ struct MouseNavigationAppShortcutsConfig: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             ForEach(list) { entry in row(entry) }
+            if !list.isEmpty {
+                Label(service.lastAppShortcut.map { "Last press: sent \($0)" }
+                      ?? "Press a side button in one of these apps to see what it sends.",
+                      systemImage: "dot.radiowaves.left.and.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if let message {
                 Text(message).font(.caption).foregroundStyle(.orange)
             }

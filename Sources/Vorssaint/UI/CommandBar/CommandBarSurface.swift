@@ -9,11 +9,27 @@ import SwiftUI
 /// black over the see-through ones.
 struct CommandBarSurface: View {
     let appearance: NotchSurfaceAppearance
+    @ObservedObject private var reveal = CommandBarReveal.shared
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    private let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: reveal.rect == nil ? 22 : reveal.radius, style: .continuous)
+    }
 
     var body: some View {
+        // While the drop opens, the surface fills only the shape it has
+        // reached; glass would otherwise show whole through the mask.
+        if let rect = reveal.rect {
+            surface
+                .frame(width: rect.width, height: rect.height)
+                .offset(x: rect.minX, y: rect.minY)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            surface
+        }
+    }
+
+    private var surface: some View {
         ZStack {
             if reduceTransparency || appearance.material == .black {
                 shape.fill(Color.black)
@@ -43,6 +59,19 @@ struct CommandBarSurface: View {
         } else {
             CommandBarFrost()
         }
+    }
+}
+
+/// Fork: the shape a bar dropped from the island has opened to, in the
+/// bar's own top-left points, or nil once it has arrived.
+final class CommandBarReveal: ObservableObject {
+    static let shared = CommandBarReveal()
+    @Published private(set) var rect: CGRect?
+    @Published private(set) var radius: CGFloat = 22
+
+    func update(_ rect: CGRect?, radius: CGFloat) {
+        if self.rect != rect { self.rect = rect }
+        if self.radius != radius { self.radius = radius }
     }
 }
 
