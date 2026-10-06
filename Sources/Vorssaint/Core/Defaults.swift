@@ -1900,6 +1900,7 @@ enum Defaults {
         .merging(AIChatSupport.registeredDefaults) { current, _ in current }
         .merging(WorkspaceSupport.registeredDefaults) { current, _ in current }
         .merging(NotchActivityPairing.registeredDefaults) { current, _ in current }
+        .merging(CommandBarAnimation.registeredDefaults) { current, _ in current }
 
     static func register() {
         let defaults = UserDefaults.standard

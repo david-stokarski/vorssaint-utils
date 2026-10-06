@@ -34,6 +34,9 @@ enum NotchDevRemote {
                 }
             case "commandbar-guides-end": CommandBarDragController.shared.endPreview()
             case "aichat": AIChatService.shared.show()
+            case "settings-commandbar":
+                SettingsRouter.shared.request(FeatureSettingsDestination(.commandBar), targetFeature: nil, sidebarFeature: nil)
+                (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
             case "settings-workspaces":
                 SettingsRouter.shared.request(FeatureSettingsDestination(.workspaces), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()

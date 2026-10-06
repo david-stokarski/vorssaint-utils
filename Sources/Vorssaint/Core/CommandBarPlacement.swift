@@ -137,3 +137,41 @@ struct CommandBarPlacement: Equatable {
         guides.isEmpty ? nil : guides.map(\.name).joined(separator: " · ")
     }
 }
+
+// Fork: how the bar's opening plays. The drop out of the island (and its
+// rise back) can run faster or slower, or not at all.
+
+extension DefaultsKey {
+    static let commandBarAnimates = "commandBarAnimates"
+    /// 1 is the drop's own pace; 2 plays it in half the time.
+    static let commandBarAnimationSpeed = "commandBarAnimationSpeed"
+}
+
+enum CommandBarAnimation {
+    static let speedRange: ClosedRange<Double> = 0.5...3
+    static let registeredDefaults: [String: Any] = [
+        DefaultsKey.commandBarAnimates: true,
+        DefaultsKey.commandBarAnimationSpeed: 1.0,
+    ]
+
+    static func animates(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: DefaultsKey.commandBarAnimates) as? Bool ?? true
+    }
+
+    static func speed(in defaults: UserDefaults = .standard) -> Double {
+        let stored = defaults.object(forKey: DefaultsKey.commandBarAnimationSpeed) as? Double ?? 1
+        return stored.isFinite ? min(max(stored, speedRange.lowerBound), speedRange.upperBound) : 1
+    }
+}
+
+extension CommandBarDropletMotion {
+    /// The same motion played `speed` times as fast.
+    func scaled(by speed: Double) -> CommandBarDropletMotion {
+        guard speed.isFinite, speed > 0, speed != 1 else { return self }
+        var motion = self
+        motion.duration /= speed
+        motion.landing /= speed
+        motion.reveal /= speed
+        return motion
+    }
+}

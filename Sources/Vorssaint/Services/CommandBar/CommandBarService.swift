@@ -440,7 +440,7 @@ final class CommandBarService: ObservableObject {
         // once instead of fading over it. Out of the island the bar is flat
         // black like the island, with no shadow to appear as the drop hands
         // over or to vanish as it folds back.
-        panel.animationBehavior = dropSource == nil ? .default : .none
+        panel.animationBehavior = dropSource == nil && CommandBarAnimation.animates() ? .default : .none  // Fork
         panel.hasShadow = dropSource == nil
         // Only a drop takes the companion out of the island.
         if dropSource == nil { NotchService.shared.setMascotInBar(false) }

@@ -59,5 +59,18 @@ enum CommandBarPlacementTests {
         suite.expect(rise.frames.first.map { abs($0.bead.midX - field.midX) < 1 } ?? false
                         && rise.frames.last.map { abs($0.bead.midX - 1200) < 1 } ?? false,
                      "closing folds where the bar is and rises across to the island")
+
+        // The opening's speed.
+        let faster = drop.scaled(by: 2)
+        suite.expect(abs(faster.duration - drop.duration / 2) < 0.0001 && abs(faster.reveal - drop.reveal / 2) < 0.0001
+                        && faster.frames == drop.frames, "2× plays the same drop in half the time")
+        suite.expect(drop.scaled(by: 0) == drop && drop.scaled(by: .nan) == drop, "a bad speed leaves the drop alone")
+        let defaults = UserDefaults(suiteName: "com.vorssaint.tests.command-bar-animation")!
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.command-bar-animation")
+        suite.expect(CommandBarAnimation.speed(in: defaults) == 1 && CommandBarAnimation.animates(in: defaults),
+                     "the drop animates at its own pace by default")
+        defaults.set(9.0, forKey: DefaultsKey.commandBarAnimationSpeed)
+        suite.expect(CommandBarAnimation.speed(in: defaults) == 3, "the speed is kept in range")
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.command-bar-animation")
     }
 }

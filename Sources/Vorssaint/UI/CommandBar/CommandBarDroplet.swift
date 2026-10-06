@@ -37,7 +37,11 @@ final class CommandBarDroplet {
         stage.addSublayer(mascot.root)
     }
 
-    private static var reducesMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    /// Fork: the Command Bar's own setting turns the drop off as Reduce
+    /// Motion does.
+    private static var reducesMotion: Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || !CommandBarAnimation.animates()
+    }
 
     /// Lets the drop fall from `island` into the bar's frame `bar`, both on
     /// screen. `revealed` runs once it has opened into the field, for the bar
@@ -59,6 +63,7 @@ final class CommandBarDroplet {
         let fieldRect = local(field)
         let icon = CGPoint(x: fieldRect.minX + 16 + CommandBarDropletMotion.mascotSize / 2, y: fieldRect.midY)
         let motion = CommandBarDropletMotion.drop(edge: edge, centerX: centerX, field: fieldRect, icon: icon)
+            .scaled(by: CommandBarAnimation.speed())  // Fork
         let begin = CACurrentMediaTime()
         prepare(in: area, look: look, mood: .surprised)
         mascot.turn(to: .idle, at: begin + motion.landing)
@@ -100,6 +105,7 @@ final class CommandBarDroplet {
         let fieldRect = local(field)
         let icon = CGPoint(x: fieldRect.minX + 16 + CommandBarDropletMotion.mascotSize / 2, y: fieldRect.midY)
         let motion = CommandBarDropletMotion.retract(edge: edge, centerX: centerX, bar: local(bar), field: fieldRect, icon: icon)
+            .scaled(by: CommandBarAnimation.speed())  // Fork
         prepare(in: area, look: look, mood: mood)
         play(motion, edge: edge, centerX: centerX, begin: CACurrentMediaTime()) { [weak self] in
             guard let self, self.generation == current else { return }
@@ -236,7 +242,7 @@ final class CommandBarDroplet {
         let fade = CABasicAnimation(keyPath: "opacity")
         fade.fromValue = 1
         fade.toValue = 0
-        fade.duration = 0.14
+        fade.duration = 0.14 / CommandBarAnimation.speed()  // Fork
         stage.add(fade, forKey: "fade")
         stage.opacity = 0
         CATransaction.commit()
