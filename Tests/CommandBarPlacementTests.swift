@@ -45,5 +45,19 @@ enum CommandBarPlacementTests {
                      "the same spot on a smaller display is still centred and in the middle")
         suite.expect(CommandBarPlacement.decode("2,0.5") == nil && CommandBarPlacement.decode("x") == nil
                         && CommandBarPlacement.decode(nil) == nil, "bad stored values are ignored")
+
+        // The drop out of the island reaches a bar wherever it was put.
+        let field = CGRect(x: 100, y: 400, width: 560, height: 50)
+        let icon = CGPoint(x: field.minX + 27, y: field.midY)
+        let drop = CommandBarDropletMotion.drop(edge: 10, centerX: 1200, field: field, icon: icon)
+        let landed = drop.frames.first { $0.bead.midY >= field.midY - 0.5 && $0.bead.width < field.width / 2 }
+        suite.expect(landed.map { abs($0.bead.midX - field.midX) < 1 } ?? false,
+                     "the drop lands on a bar dragged to the side, not under the island")
+        suite.expect(drop.frames.last?.bead == field && drop.frames.last?.mascot == icon,
+                     "the drop ends as the bar's field with the companion in place")
+        let rise = CommandBarDropletMotion.retract(edge: 10, centerX: 1200, bar: field, field: field, icon: icon)
+        suite.expect(rise.frames.first.map { abs($0.bead.midX - field.midX) < 1 } ?? false
+                        && rise.frames.last.map { abs($0.bead.midX - 1200) < 1 } ?? false,
+                     "closing folds where the bar is and rises across to the island")
     }
 }

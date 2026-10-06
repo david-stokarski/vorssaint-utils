@@ -427,8 +427,7 @@ final class CommandBarService: ObservableObject {
     private func claimKeyboard(with panel: NSPanel) {
         CommandBarDroplet.shared.cancel()
         dropSource = nil
-        // Fork: a spot chosen by dragging means the bar's own window, there.
-        let style = CommandBarPlacement.stored() == nil ? NotchMascotSupport.commandBarStyle() : nil
+        let style = NotchMascotSupport.commandBarStyle()
         if style == .island, let host = NotchService.shared.presentCommandBar() {
             islandHost = host
             presentation = .island
@@ -461,7 +460,8 @@ final class CommandBarService: ObservableObject {
         if presentation == .droplet, let island = dropSource {
             installMonitors(for: panel)
             guard !reopening else { focusField(in: panel); return }
-            hang(panel, below: island)
+            // Fork: a spot chosen by dragging is where the drop lands.
+            if CommandBarPlacement.stored() != nil { position(panel) } else { hang(panel, below: island) }
             focusField(in: panel)
             // Still unseen: what is typed while the drop falls lands in the field.
             CommandBarDroplet.shared.drop(from: island, into: panel.frame, look: NotchMascotSupport.look()) {
@@ -3267,19 +3267,6 @@ final class CommandBarService: ObservableObject {
         }
         hasCustomPosition = !encoded.isEmpty
             || UserDefaults.standard.string(forKey: DefaultsKey.commandBarPlacement) != nil
-    }
-
-    /// Fork: a bar hanging from the island becomes a window of its own the
-    /// moment it is dragged, and opens as one from then on.
-    func detachForDrag() {
-        guard presentation == .droplet, let panel else { return }
-        CommandBarDroplet.shared.cancel()
-        dropSource = nil
-        presentation = .window
-        panel.animationBehavior = .default
-        panel.hasShadow = true
-        NotchService.shared.setMascotInBar(false)
-        panel.alphaValue = 1
     }
 
     /// The way back: a double-click on the mark, or the button in Settings,

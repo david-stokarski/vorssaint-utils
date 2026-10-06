@@ -89,8 +89,7 @@ struct CommandBarView: View {
                 guard let window else { return }
                 // Fork: a drag that snaps to the display's thirds and middle,
                 // with the guides drawn while it lasts.
-                if CommandBarDragController.shared.track(from: event, window: window,
-                                                         onBegin: { CommandBarService.shared.detachForDrag() }) {
+                if CommandBarDragController.shared.track(from: event, window: window) {
                     CommandBarService.shared.finishPanelDrag()
                 }
             }
@@ -246,6 +245,8 @@ struct CommandBarView: View {
                 // bar stays where the island put it.
                 CommandBarMascot(service: service)
                     .frame(width: 22, height: 22)
+                    // Fork: the companion is the handle, as the mark is.
+                    .overlay(DragHandle().help(text.dragHint))
             }
             if case .naming(let entryID) = service.mode,
                let entry = service.entry(withID: entryID) {

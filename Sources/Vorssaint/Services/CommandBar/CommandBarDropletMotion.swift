@@ -51,11 +51,15 @@ struct CommandBarDropletMotion: Equatable {
     /// the bar's `field`, with the companion's place at `icon`.
     static func drop(edge: CGFloat, centerX: CGFloat, field: CGRect, icon: CGPoint) -> CommandBarDropletMotion {
         let side = beadSide
-        let land = CGPoint(x: centerX, y: field.midY)
+        // Fork: the bar may sit anywhere the person dragged it, so the drop
+        // lands on the field's own middle, gliding across as it falls.
+        let land = CGPoint(x: field.midX, y: field.midY)
         let stretchEnd: TimeInterval = 0.12
         let pinchEnd: TimeInterval = 0.20
         let pinched = edge + side * 0.95
-        let fall = TimeInterval(min(0.14, max(0.06, Double(max(0, land.y - pinched)) / 380)))
+        let across = abs(land.x - centerX)
+        let fall = TimeInterval(min(across > 0.5 ? 0.24 : 0.14,
+                                    max(0.06, Double(hypot(across, max(0, land.y - pinched))) / 380)))
         let fallEnd = pinchEnd + fall
         let neckBack: TimeInterval = 0.12
         let openStart = fallEnd + 0.04
@@ -110,7 +114,8 @@ struct CommandBarDropletMotion: Equatable {
                 if time < fallEnd {
                     // Falling, faster and faster, a little long.
                     let share = (time - pinchEnd) / max(0.001, fall)
-                    center = CGPoint(x: centerX, y: pinched + (land.y - pinched) * CGFloat(share * share))
+                    center = CGPoint(x: centerX + (land.x - centerX) * ease(share),
+                                     y: pinched + (land.y - pinched) * CGFloat(share * share))
                     size = CGSize(width: side * 0.96, height: side * 1.06)
                 } else if time < openStart {
                     // Landing flattens it, as it starts to spread.
@@ -125,7 +130,7 @@ struct CommandBarDropletMotion: Equatable {
                     size = CGSize(width: max(side * 0.5, width),
                                   height: max(side * 0.5, squashed.height + (field.height - squashed.height) * heightShare))
                     let spread = min(1, max(0, (size.width - squashed.width) / max(1, field.width - squashed.width)))
-                    center = CGPoint(x: centerX + (field.midX - centerX) * spread, y: land.y)
+                    center = land
                     mascot = CGPoint(x: center.x + (icon.x - center.x) * spread, y: center.y + (icon.y - center.y) * spread)
                     scale = ridingScale + (1 - ridingScale) * min(1, spread * 1.4)
                 }
@@ -162,7 +167,8 @@ struct CommandBarDropletMotion: Equatable {
         let absorb: TimeInterval = 0.06
         let riseStart = fold + shrink * 0.55
         let duration = riseStart + rise + absorb
-        let rest = CGPoint(x: centerX, y: field.midY)
+        // Fork: it folds where the bar is and rises across to the island.
+        let rest = CGPoint(x: field.midX, y: field.midY)
         var motion = CommandBarDropletMotion()
         motion.duration = duration
         let count = max(2, Int((duration * rate).rounded(.up)))
@@ -189,6 +195,7 @@ struct CommandBarDropletMotion: Equatable {
                     let share = min(1, (time - riseStart) / rise)
                     let target = edge + side * 0.2
                     center.y = rest.y + (target - rest.y) * CGFloat(share * share)
+                    center.x = rest.x + (centerX - rest.x) * ease(share)
                     size = CGSize(width: width * (1 - 0.15 * share), height: height * (1 + 0.2 * share))
                     // The island bulges toward the drop as it nears and joins
                     // it once the two all but touch, so no thread ever
@@ -204,6 +211,7 @@ struct CommandBarDropletMotion: Equatable {
                     if time >= riseStart + rise {
                         let gone = min(1, (time - riseStart - rise) / absorb)
                         center.y = target - (side * 0.8) * gone
+                        center.x = centerX
                         size = CGSize(width: size.width * (1 - 0.4 * gone), height: size.height * (1 - 0.4 * gone))
                         neckRoot = 14 * (1 - gone)
                         neckTip = size.width * 0.45 * (1 - gone)
