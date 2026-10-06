@@ -104,7 +104,7 @@ enum NotchTabbedLayout {
     /// Artwork, three text lines, the timeline and the transport.
     static let homeContentHeight: CGFloat = 132
     static let widgetMinimumWidth: CGFloat = 300
-    static let widgetSpacing: CGFloat = 24
+    static let widgetSpacing: CGFloat = 40
 
     /// The pinned set reads left to right: the left side, then the bottom,
     /// then the right, as the floating buttons were laid out.
