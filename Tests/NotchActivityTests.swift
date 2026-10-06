@@ -597,8 +597,10 @@ enum NotchActivityTests {
                      "an activity that is not showing offers no pair")
         suite.expect(companions(of: .calendar, running: false) == [.downloads, .agents, .music],
                      "an event's clock keeps its side beside a download, agents or music, whatever the timer does")
-        suite.expect([NotchCompactActivity.downloads, .agents, .music].allSatisfy { companions(of: $0).isEmpty },
-                     "downloads, agents and music need both wings and cannot lead a pair")
+        suite.expect([NotchCompactActivity.downloads, .music].allSatisfy { companions(of: $0).isEmpty },
+                     "downloads and music need both wings and cannot lead a pair")
+        // Fork: agents keep their reading on the right and give the left to the song.
+        suite.expect(companions(of: .agents) == [.music], "agents lead a pair with music only")
         suite.expect(NotchActivityCombination(primary: .calendar, companion: .music).title(.enUS) == "Music + Calendar"
                      && NotchActivityCombination(primary: .timer, companion: .calendar).title(.enUS) == "Calendar + Timer",
                      "a pair is named in the order the island shows it, the companion left of the camera first")

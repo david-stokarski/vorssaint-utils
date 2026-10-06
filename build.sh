@@ -306,6 +306,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Notch/NotchKeepAwakeSupport.swift
         Sources/Vorssaint/Services/Notch/NotchSupport.swift
         Sources/Vorssaint/Services/Notch/NotchTabbedSupport.swift
+        Sources/Vorssaint/Services/Notch/NotchActivityPairing.swift
         Sources/Vorssaint/Services/Notch/NotchAnimationTuning.swift
         Sources/Vorssaint/Services/Notch/NotchAudioLevelSupport.swift
         Sources/Vorssaint/Services/Notch/NotchVolumeKeyGate.swift

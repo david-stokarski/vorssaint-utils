@@ -462,7 +462,11 @@ final class NotchService: ObservableObject {
         (inside || activityPickerMenuOpen) && !hiddenInFullscreen && !hiddenUntilHover && !expanded && !peeking
             && !dragPlaceholder && notice == nil && captureControls == nil
             && compactActivities.count > 1
+            && !pairsActivities  // Fork: both show at once, so hovering just opens the island
     }
+
+    /// Fork: two activities share the closed island instead of a chooser.
+    private var pairsActivities: Bool { NotchActivityPairing.isOn() }
 
     var compactActivityPickerLayout: NotchActivityPickerLayout {
         let activities = compactActivities
@@ -530,10 +534,16 @@ final class NotchService: ObservableObject {
         }
     }
 
-    /// A single activity never borrows another activity's wing implicitly.
+    /// A single activity never borrows another activity's wing implicitly,
+    /// unless the fork's pairing is on: then whatever runs beside it shares
+    /// the strip.
     var compactCompanion: NotchCompactActivity? {
-        guard let activity = compactActivity, activity == activitySelection.preferred else { return nil }
-        return activitySelection.companion(available: compactCompanions(of: activity))
+        guard let activity = compactActivity else { return nil }
+        let companions = compactCompanions(of: activity)
+        if activity == activitySelection.preferred,
+           let chosen = activitySelection.companion(available: companions) { return chosen }
+        guard pairsActivities else { return nil }
+        return NotchActivityPairing.automaticCompanion(for: activity, companions: companions)
     }
 
     private var compactActivityIsVisible: Bool {
@@ -574,7 +584,7 @@ final class NotchService: ObservableObject {
         case .downloads:
             let name = NotchDownloadService.shared.items.first { $0.active && !$0.completed }?.name
             return geometry.compactDownloadGeometry(wing: NotchDownloadSupport.compactWing(for: name, in: geometry))
-        case .agents: return geometry.compactAgentGeometry(wing: agentStripWing(in: geometry))
+        case .agents: return geometry.compactAgentGeometry(wing: agentStripWing(in: geometry, companion: companion))
         case .watch: return geometry.compactWatchGeometry(wing: watchStripWing(in: geometry))
         case .calendar:
             return geometry.compactCalendarGeometry(wing: calendarStripWing(for: companion, in: geometry),
@@ -689,7 +699,7 @@ final class NotchService: ObservableObject {
     /// The wider of the two sides, the reading or the working agents' marks,
     /// with the clearance from the silhouette's curve that the strip keeps
     /// and air beside the camera.
-    private func agentStripWing(in geometry: NotchGeometry) -> CGFloat {
+    private func agentStripWing(in geometry: NotchGeometry, companion: NotchCompactActivity? = nil) -> CGFloat {
         let provisional = geometry.compactAgentGeometry(wing: NotchAgentSupport.stripWingRange.lowerBound)
         let size = NotchAgentSupport.stripTextSize(height: provisional.compactActivityContentHeight)
         let shape = NotchAgentSupport.readingShape(NotchAgentSupport.stripReading(
@@ -706,6 +716,14 @@ final class NotchService: ObservableObject {
         let frame = mark * 1.45 + 1
         let marks = CGFloat(max(1, working)) * frame + CGFloat(max(0, working - 1))
             + provisional.compactActivityEdgeInset(boxHeight: mark + 4, radius: (mark + 4) / 2)
+        // Fork: paired with music, the marks join the reading on the right and
+        // the cover and bars take the left.
+        if companion == .music {
+            let right = reading + CGFloat(max(1, working)) * frame + 3
+            let left = provisional.compactMusicArtworkInset + provisional.compactMusicArtworkSide
+                + 6 + NotchLayout.compactMusicBarsWidth
+            return max(right, left) + NotchAgentSupport.stripCameraGap
+        }
         return max(reading, marks) + NotchAgentSupport.stripCameraGap
     }
 
@@ -959,6 +977,9 @@ final class NotchService: ObservableObject {
             let reading = NotchAgentSupport.stripReading(AgentUsageService.shared.snapshot, readout: NotchAgentSupport.readout(),
                                                          display: NotchAgentSupport.limitDisplay(),
                                                          focus: NotchAgentSupport.limitFocus(), now: Date())
+            if companion == .music {  // Fork
+                return layout.agentMusicSurface(reading: reading, working: working, geometry: geometry)
+            }
             return layout.agentSurface(reading: reading, working: working, geometry: geometry)
         case .calendar:
             guard let countdown = NotchCalendarService.shared.countdown else { return geometry.restingSize(showsContent: false) }

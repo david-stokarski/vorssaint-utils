@@ -67,6 +67,7 @@ enum NotchHoverTests {
     struct NotchCompactMusicSnapshot: Equatable { let title: String }
     class State {
         var dictationPresented = false  // Fork
+        var pairsActivities = false  // Fork: upstream's chooser stays under test
         var noticeFitsInPlace = false
         func schedulePointerFollow() {}
         var hiddenInFullscreen = false

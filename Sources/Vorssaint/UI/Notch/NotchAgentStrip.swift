@@ -40,6 +40,11 @@ struct NotchAgentStrip: View {
             ? geometry.compactActivityEdgeInset(boxHeight: iconSize + 4, radius: (iconSize + 4) / 2) : 0
         let textInset = !geometry.compactActivityUsesFooter
             ? geometry.compactActivityEdgeInset(boxHeight: textSize * 0.72, radius: 0) : 0
+        if service.compactCompanion == .music {
+            // Fork: the song on the left of the camera, the agents on the right.
+            NotchAgentMusicPair(service: service, geometry: geometry, working: working, iconSize: iconSize,
+                                textSize: textSize, textInset: textInset) { reading(at: $0, live: live) }
+        } else {
         HStack(spacing: 0) {
             Button { service.openActivity(.agents) } label: {
                 HStack(spacing: 1) {
@@ -89,6 +94,7 @@ struct NotchAgentStrip: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { service.openActivity(.agents) }
         .accessibilityHint(FeatureStrings.notch(l10n.language).open)
+        }
     }
 
     private func reading(at now: Date, live: [AgentLiveSession]) -> String {
@@ -159,5 +165,73 @@ struct NotchAgentRestingWing: View {
                     .minimumScaleFactor(0.7)
             }
         }
+    }
+}
+
+/// Fork: working agents paired with the playing song. The cover and bars take
+/// the wing left of the camera; the agents' marks and reading the right one.
+/// Each side opens its own page.
+struct NotchAgentMusicPair: View {
+    @ObservedObject var service: NotchService
+    let geometry: NotchGeometry
+    let working: [AgentProvider]
+    let iconSize: CGFloat
+    let textSize: CGFloat
+    let textInset: CGFloat
+    let reading: (Date) -> String
+    @ObservedObject private var music = NotchMusicService.shared
+    @AppStorage(DefaultsKey.notchAgentsReadout) private var readout = NotchAgentReadout.elapsed.rawValue
+
+    var body: some View {
+        let tint = working.first?.tint ?? .white
+        HStack(spacing: 0) {
+            Button { service.openActivity(.music) } label: {
+                HStack(spacing: 6) {
+                    NotchMusicCover(artwork: music.artwork, side: geometry.compactMusicArtworkSide,
+                                    radius: geometry.compactMusicArtworkRadius)
+                    NotchLiveEqualizerBars(isPlaying: music.playback?.isPlaying == true,
+                                           bars: NotchLayout.compactMusicBarCount,
+                                           barWidth: NotchLayout.compactMusicBarWidth,
+                                           height: geometry.compactMusicBarHeight,
+                                           tint: music.artworkTint?.color ?? .white)
+                }
+                .padding(.leading, geometry.compactMusicArtworkInset)
+                .frame(width: geometry.compactActivityWingWidth, height: geometry.compactActivityContentHeight,
+                       alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            Color.clear.frame(width: geometry.compactActivityCameraGap)
+            Button { service.openActivity(.agents) } label: {
+                HStack(spacing: 3) {
+                    HStack(spacing: 1) {
+                        ForEach(working) { NotchAgentGlyph(provider: $0, size: iconSize) }
+                    }
+                    NotchAgentReadoutTimeline(readout: NotchAgentReadout(rawValue: readout) ?? .elapsed) { date in
+                        let text = reading(date)
+                        Text(text)
+                            .font(.system(size: textSize, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(tint)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .onChange(of: NotchAgentSupport.readingShape(text)) { _, _ in
+                                DispatchQueue.main.async { service.refreshPresentation() }
+                            }
+                    }
+                }
+                .padding(.trailing, textInset)
+                .frame(width: geometry.compactActivityWingWidth, height: geometry.compactActivityContentHeight,
+                       alignment: .trailing)
+                .contentShape(Rectangle())
+            }
+        }
+        .frame(height: geometry.compactActivityContentHeight)
+        .padding(.horizontal, geometry.compactActivityHorizontalPadding)
+        .padding(.top, geometry.compactActivityTopPadding)
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(([music.playback?.track.title].compactMap { $0 } + working.map(\.displayName))
+            .joined(separator: ", "))
+        .accessibilityValue(reading(Date()))
     }
 }

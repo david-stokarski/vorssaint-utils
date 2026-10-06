@@ -198,8 +198,22 @@ struct NotchHoverTimingCard: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            Divider()
+            Toggle("Show two activities side by side", isOn: Binding(
+                get: { pairing },
+                set: { on in
+                    UserDefaults.standard.set(on, forKey: DefaultsKey.notchPairActivities)
+                    pairing = on
+                    NotchService.shared.refreshPresentation()
+                }))
+            Text("With music playing and an agent working, the closed island shows the song on the left and the agent on the right, and hovering opens the island instead of asking which one to show.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
+
+    @State private var pairing = NotchActivityPairing.isOn()  // Redraws the switch.
 
     private func row(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double) -> some View {
         GridRow {

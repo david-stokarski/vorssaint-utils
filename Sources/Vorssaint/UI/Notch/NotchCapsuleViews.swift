@@ -398,6 +398,7 @@ struct NotchCapsuleAgentStrip: View {
     /// Another display's capsule, when the island shows on every display.
     var displayGeometry: NotchGeometry? = nil
     @ObservedObject private var usage = AgentUsageService.shared
+    @ObservedObject private var music = NotchMusicService.shared  // Fork: paired with the song
     @ObservedObject private var l10n = L10n.shared
     @AppStorage(DefaultsKey.notchAgentsReadout) private var readout = NotchAgentReadout.elapsed.rawValue
     @AppStorage(DefaultsKey.notchAgentsLimitDisplay) private var display = NotchAgentLimitDisplay.remaining.rawValue
@@ -414,6 +415,55 @@ struct NotchCapsuleAgentStrip: View {
 
     @ViewBuilder private func row(live: [AgentLiveSession]) -> some View {
         let working = working(live)
+        if service.compactCompanion == .music {
+            pairedRow(live: live, working: working)
+        } else {
+            soloRow(live: live, working: working)
+        }
+    }
+
+    /// Fork: the song at the leading end, the agents at the trailing end.
+    @ViewBuilder private func pairedRow(live: [AgentLiveSession], working: [AgentProvider]) -> some View {
+        let geometry = displayGeometry ?? service.geometry
+        let side = CapsuleLayout.artworkSide(geometry)
+        NotchCapsuleRow(size: size, geometry: geometry, leading: CapsuleLayout.artworkInset(geometry)) {
+            HStack(spacing: 0) {
+                HStack(spacing: CapsuleLayout.spacing) {
+                    NotchMusicCover(artwork: music.artwork, side: side, radius: side / 2)
+                    NotchLiveEqualizerBars(isPlaying: music.playback?.isPlaying == true,
+                                           bars: NotchLayout.compactMusicBarCount,
+                                           barWidth: NotchLayout.compactMusicBarWidth,
+                                           height: CapsuleLayout.barsHeight(geometry),
+                                           tint: music.artworkTint?.color ?? .white)
+                }
+                Spacer(minLength: CapsuleLayout.pairGap)
+                HStack(spacing: CapsuleLayout.spacing) {
+                    NotchCapsuleAgentMarks(providers: working)
+                    readingText(live: live, working: working)
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(([music.playback?.track.title].compactMap { $0 } + working.map(\.displayName))
+            .joined(separator: ", "))
+        .accessibilityValue(reading(at: Date(), live: live))
+        .accessibilityHint(FeatureStrings.notch(l10n.language).open)
+    }
+
+    private func readingText(live: [AgentLiveSession], working: [AgentProvider]) -> some View {
+        NotchAgentReadoutTimeline(readout: NotchAgentReadout(rawValue: readout) ?? .elapsed) { date in
+            let text = reading(at: date, live: live)
+            Text(text)
+                .font(Font(CapsuleLayout.readingFont as CTFont))
+                .foregroundStyle(working.first?.tint ?? .white)
+                .lineLimit(1).fixedSize()
+                .onChange(of: NotchAgentSupport.readingShape(text)) { _, _ in
+                    DispatchQueue.main.async { service.refreshPresentation() }
+                }
+        }
+    }
+
+    @ViewBuilder private func soloRow(live: [AgentLiveSession], working: [AgentProvider]) -> some View {
         NotchCapsuleRow(size: size, geometry: displayGeometry ?? service.geometry) {
             HStack(spacing: CapsuleLayout.spacing) {
                 NotchCapsuleAgentMarks(providers: working)

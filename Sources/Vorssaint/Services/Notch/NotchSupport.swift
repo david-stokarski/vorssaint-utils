@@ -1403,6 +1403,9 @@ enum NotchSupport {
                      (running && music, .music)]
         case .calendar where calendar:
             pairs = [(downloads, .downloads), (agents, .agents), (music, .music)]
+        // Fork: the song on the left, the agents' reading on the right.
+        case .agents where agents:
+            pairs = [(music, .music)]
         default:
             pairs = []
         }
