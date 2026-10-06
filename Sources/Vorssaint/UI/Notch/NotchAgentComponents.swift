@@ -148,12 +148,19 @@ struct NotchAgentGlyph: View {
     var working = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    @ViewBuilder
     var body: some View {
-        NotchAgentGlyphBridge(provider: provider, size: size, animates: working && !reduceMotion)
-            // Room for the widest mark, the Claude one, drawn past its size.
-            .frame(width: size * 1.45 + 1, height: size * 1.45 + 1)
-            .accessibilityHidden(true)
-            .allowsHitTesting(false)
+        if provider == .claude, working, !reduceMotion {
+            // Fork: Claude at work swirls its four dots.
+            NotchClaudeLoader(size: size * 1.2, tint: provider.tint)
+                .frame(width: size * 1.45 + 1, height: size * 1.45 + 1)
+        } else {
+            NotchAgentGlyphBridge(provider: provider, size: size, animates: working && !reduceMotion)
+                // Room for the widest mark, the Claude one, drawn past its size.
+                .frame(width: size * 1.45 + 1, height: size * 1.45 + 1)
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+        }
     }
 }
 

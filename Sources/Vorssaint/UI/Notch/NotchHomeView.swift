@@ -154,10 +154,20 @@ struct NotchHomeMusicWidget: View {
     @ViewBuilder private func lyricLine(_ playback: NotchPlayback) -> some View {
         if let loaded = lyrics.lyrics, !loaded.lines.isEmpty {
             TimelineView(.explicit(loaded.changeDates(for: playback, offset: lyrics.offset, from: Date()))) { context in
-                let index = loaded.activeIndex(at: playback.position(at: context.date), offset: lyrics.offset)
-                Text(index.map { loaded.lines[$0].text } ?? "♪")
-                    .contentTransition(.opacity)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: index)
+                let position = playback.position(at: context.date)
+                let index = loaded.activeIndex(at: position, offset: lyrics.offset)
+                // Fork: a line too long for the island scrolls through it.
+                ZStack(alignment: .leading) {
+                    NotchMarqueeText(text: index.map { loaded.lines[$0].text } ?? "♪",
+                                     remaining: index.flatMap {
+                                         NotchLyricMarquee.remaining(after: $0, times: loaded.lines.map(\.time),
+                                                                     position: position, offset: lyrics.offset,
+                                                                     rate: playback.isPlaying ? playback.rate : 0)
+                                     })
+                        .id(index)
+                        .transition(.opacity)
+                }
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: index)
             }
         } else if let album = playback.track.album, album != playback.track.title {
             Text(album)
