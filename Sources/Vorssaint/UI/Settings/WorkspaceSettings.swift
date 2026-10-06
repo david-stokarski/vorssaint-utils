@@ -240,7 +240,7 @@ struct WorkspaceMenuBarSetting: View {
     var body: some View {
         SettingsRow(symbol: "square.stack.3d.up", title: "Workspaces",
                     caption: service.isRunning
-                        ? "A square for each workspace with windows: filled for the one you're on. Click one to go there."
+                        ? "A square for each workspace with windows: filled for the one you're on. It replaces the Vorssaint icon; click it to open the menu."
                         : "Turn on Workspaces to show them here.") {
             Toggle("Workspaces", isOn: $shown)
                 .labelsHidden()

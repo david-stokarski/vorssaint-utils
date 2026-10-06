@@ -81,8 +81,16 @@ final class StatusItemController {
 
     var button: NSStatusBarButton? { statusItem.button }
 
+    /// Fork: menu bar items that stand in for the main one while they show,
+    /// so the glyph steps aside and they open the same panel and menu.
+    private var standInItems: [NSStatusItem] {
+        guard AppFeature.workspaces.isAvailable else { return [] }
+        return [WorkspaceMenuBarItem.shared.statusItem].compactMap { $0 }
+    }
+
     func containsStatusItem(at screenPoint: NSPoint) -> Bool {
         let items = [statusItem, clipboardPreviewStatusItem].compactMap { $0 } + Array(metricStatusItems.values)
+            + standInItems  // Fork
         // A hidden item keeps its last frame, which another app's item may
         // occupy by now.
         let buttons = items.filter(\.isVisible).compactMap(\.button)
@@ -347,8 +355,9 @@ final class StatusItemController {
         let optionEnabled = defaults.bool(forKey: DefaultsKey.menuBarHideIconWithMetrics)
         let separateMetrics = defaults.bool(forKey: DefaultsKey.menuBarSeparateMetrics)
         let signal = updateAvailable || micBadgeActive
-        let islandHides = MenuBarSpacingSupport.islandHidesStatusIcon(
-            in: defaults, hiddenInFullscreen: islandHiddenInFullscreen) && !signal
+        // Fork: the workspaces item takes the glyph's place, as the island can.
+        let islandHides = (MenuBarSpacingSupport.islandHidesStatusIcon(
+            in: defaults, hiddenInFullscreen: islandHiddenInFullscreen) || !standInItems.isEmpty) && !signal
         let hidden = islandHides || MenuBarSpacingSupport.shouldHideStatusIcon(
             optionEnabled: optionEnabled,
             separateMetrics: separateMetrics,
@@ -414,6 +423,7 @@ final class StatusItemController {
     func menuHost(for button: NSStatusBarButton?) -> NSStatusItem {
         guard !statusItem.isVisible, let button else { return statusItem }
         let others = [clipboardPreviewStatusItem].compactMap { $0 } + Array(metricStatusItems.values)
+            + standInItems  // Fork
         return others.first { $0.button === button } ?? statusItem
     }
 
@@ -510,8 +520,8 @@ final class StatusItemController {
                 updateAvailable = false
             }
             let signal = updateAvailable || renderedMicBadgeActive
-            let glyphHidden = (MenuBarSpacingSupport.islandHidesStatusIcon(
-                in: defaults, hiddenInFullscreen: islandHiddenInFullscreen) && !signal)
+            let glyphHidden = ((MenuBarSpacingSupport.islandHidesStatusIcon(
+                in: defaults, hiddenInFullscreen: islandHiddenInFullscreen) || !standInItems.isEmpty) && !signal)
                 || MenuBarSpacingSupport.shouldHideStatusIcon(
                     optionEnabled: defaults.bool(forKey: DefaultsKey.menuBarHideIconWithMetrics),
                     separateMetrics: separateMetrics,
