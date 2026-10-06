@@ -7,7 +7,8 @@ import SwiftUI
 
 /// Fork: the workspaces in the menu bar. One rounded square per workspace
 /// that has windows, in workspace order: filled for the one in view, outlined
-/// for the rest. Clicking a square goes there. A template image, so the bar
+/// for the rest. It stands in for Vorssaint's icon, opening the same panel
+/// and menu. A template image, so the bar
 /// colors it for light and dark and for a focused or inactive display.
 final class WorkspaceMenuBarItem: NSObject {
     static let shared = WorkspaceMenuBarItem()
@@ -17,6 +18,7 @@ final class WorkspaceMenuBarItem: NSObject {
     private static let inset: CGFloat = 2
 
     private var item: NSStatusItem?
+    var statusItem: NSStatusItem? { item }
     private var sinks = Set<AnyCancellable>()
     private var timer: Timer?
     private var squares: [WorkspaceMenuBarSquare] = []
@@ -34,7 +36,7 @@ final class WorkspaceMenuBarItem: NSObject {
             item.autosaveName = "VorssaintWorkspaces"
             item.button?.target = self
             item.button?.action = #selector(clicked(_:))
-            item.button?.sendAction(on: [.leftMouseUp])
+            item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
             item.button?.imagePosition = .imageOnly
             self.item = item
             let service = WorkspaceService.shared
@@ -49,6 +51,8 @@ final class WorkspaceMenuBarItem: NSObject {
             timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { _ in
                 WorkspaceService.shared.refreshOccupancy()
             }
+            render()
+            (NSApp.delegate as? AppDelegate)?.refreshStatusItem()
         }
         render()
     }
@@ -57,9 +61,11 @@ final class WorkspaceMenuBarItem: NSObject {
         timer?.invalidate()
         timer = nil
         sinks.removeAll()
-        if let item { NSStatusBar.system.removeStatusItem(item) }
-        item = nil
+        guard let item else { return }
+        NSStatusBar.system.removeStatusItem(item)
+        self.item = nil
         squares = []
+        (NSApp.delegate as? AppDelegate)?.refreshStatusItem()
     }
 
     private func render() {
@@ -75,15 +81,10 @@ final class WorkspaceMenuBarItem: NSObject {
             .joined(separator: ", "))
     }
 
+    /// Stands in for Vorssaint's own icon: a click opens its panel from here,
+    /// a right-click its menu.
     @objc private func clicked(_ sender: NSStatusBarButton) {
-        guard let event = NSApp.currentEvent, !squares.isEmpty else { return }
-        let point = sender.convert(event.locationInWindow, from: nil)
-        let imageWidth = Self.width(for: squares.count)
-        let originX = (sender.bounds.width - imageWidth) / 2
-        let x = point.x - originX - Self.inset
-        let slot = Int((x + Self.spacing / 2) / (Self.side + Self.spacing))
-        guard squares.indices.contains(slot) else { return }
-        WorkspaceService.shared.switchTo(squares[slot].id)
+        (NSApp.delegate as? AppDelegate)?.statusStandInClicked(sender)
     }
 
     private static func width(for count: Int) -> CGFloat {

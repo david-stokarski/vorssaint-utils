@@ -464,6 +464,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         togglePopover()
     }
 
+    /// Fork: an item standing in for the main one (the workspaces) opens the
+    /// panel from itself on a click and the usual menu on a right-click.
+    func statusStandInClicked(_ button: NSStatusBarButton) {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            statusController.onRightClick?(button)
+            return
+        }
+        captureStatusClick()
+        if NotchSupport.routesAppPanel(), NotchService.shared.acceptsSystemFeedback {
+            NotchService.shared.openAppPanel(toggle: true); return
+        }
+        if !popover.isShown { MenuPanelFocus.shared.showNormalPanel() }
+        togglePopover(anchor: button)
+    }
+
+    /// Fork: a stand-in item came or went, so the glyph may need to follow.
+    func refreshStatusItem() {
+        statusController?.refresh()
+    }
+
     func isOverStatusItem(_ point: NSPoint) -> Bool {
         statusController?.containsStatusItem(at: point) == true
     }

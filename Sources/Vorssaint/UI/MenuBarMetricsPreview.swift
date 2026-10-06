@@ -69,7 +69,9 @@ struct MenuBarMetricsPreview: View {
         // The steady state of the hide option: a pending update or a muted
         // microphone brings the real icon back, and the preview does not
         // pretend to know about either.
-        let iconHidden = hideIconWithMetrics && (!lines.isEmpty || !items.isEmpty)
+        // Fork: the workspaces item stands in for the icon while it shows.
+        let workspacesShown = workspaces && AppFeature.workspaces.isAvailable && WorkspaceService.shared.isRunning
+        let iconHidden = (hideIconWithMetrics && (!lines.isEmpty || !items.isEmpty)) || workspacesShown
 
         HStack(spacing: 12) {
             Spacer()
