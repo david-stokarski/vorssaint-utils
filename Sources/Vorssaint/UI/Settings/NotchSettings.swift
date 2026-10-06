@@ -397,6 +397,8 @@ struct NotchSettings: View {
             if lyricsEnabled, AppFeature.notchLyrics.isAvailable {
                 switchRow("globe", music.online, caption: music.onlineHint, isOn: $lyricsOnline)
                     .padding(.leading, settingsRowTextInset)
+                NotchLyricsTimingSetting()  // Fork
+                    .padding(.leading, settingsRowTextInset)
             }
             switchRow("list.bullet", music.enableQueue, caption: music.queueDescription, isOn: $queueEnabled)
                 .disabled(!AppFeature.notchQueue.isAvailable)

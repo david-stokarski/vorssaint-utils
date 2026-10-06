@@ -11,7 +11,11 @@ final class NotchLyricsService: ObservableObject {
     @Published private(set) var state: State = .idle
     @Published private var memory = NotchLyricsMemory()
     var lyrics: NotchLyrics? { memory.lyrics }
-    var offset: Double { memory.offset }
+    // Fork: the song's nudge on top of the standing offset from Settings.
+    var offset: Double {
+        NotchLyricsTiming.effective(song: memory.offset, standing: NotchLyricsTiming.defaultOffset())
+    }
+    private var standingObserver: AnyCancellable?
     private var track: NotchMusicIdentity? { memory.track }
     private var session: URLSession?
     private var generation = UUID()
@@ -20,7 +24,15 @@ final class NotchLyricsService: ObservableObject {
     private var importPanel: NSOpenPanel?
     var isImporting: Bool { importPanel != nil }
 
-    private init() {}
+    private init() {
+        // Fork: a change in Settings retimes lyrics already on screen.
+        standingObserver = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .map { _ in NotchLyricsTiming.defaultOffset() }
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+    }
 
     func update(playback: NotchPlayback?, visible: Bool) {
         guard NotchLyricsSupport.isEnabled() else { stop(); return }

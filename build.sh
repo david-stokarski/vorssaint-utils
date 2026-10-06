@@ -259,6 +259,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/WorkspaceSupport.swift
         Sources/Vorssaint/Core/CommandBarPlacement.swift
         Sources/Vorssaint/Core/ClipboardCommandBarSupport.swift
+        Sources/Vorssaint/Services/Notch/NotchLyricsTiming.swift
         Sources/Vorssaint/Services/Notch/NotchAppearance.swift
         Sources/Vorssaint/Services/Audio/SpectrumAnalyzer.swift
         Sources/Vorssaint/Core/NotchStrings.swift
