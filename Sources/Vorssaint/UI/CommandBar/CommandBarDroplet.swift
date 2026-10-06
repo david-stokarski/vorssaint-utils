@@ -241,9 +241,11 @@ final class CommandBarDroplet {
 
     /// The bar whose content view is masked while the drop opens.
     private weak var maskedView: NSView?
+    private var maskTimer: Timer?
 
     /// Shows the real bar, already holding the keyboard, through a mask that
-    /// follows the drop as it opens into the field. Typing during the drop
+    /// follows the drop as it opens: across with the drop into the field, and
+    /// down to the rest of the bar at the same pace. Typing during the drop
     /// shows up as the bar spreads, and the drop's own black bead gives way
     /// to it. Before the drop lands the mask is empty, so nothing shows early.
     private func revealLive(_ bar: NSWindow, motion: CommandBarDropletMotion, area: CGRect, begin: CFTimeInterval) {
@@ -259,51 +261,70 @@ final class CommandBarDroplet {
             CGRect(x: area.minX + rect.minX - barFrame.minX, y: barFrame.maxY - (area.maxY - rect.minY),
                    width: rect.width, height: rect.height)
         }
-        var rects: [CGRect] = []
-        var radii: [NSNumber] = []
-        var beadOpacity: [NSNumber] = []
-        for (index, frame) in motion.frames.enumerated() {
+        // The widening, 0 to 1, read off the drop's own width, so the bar
+        // grows downward at exactly the pace it grows across.
+        guard let firstOpened = motion.frames.indices.first(where: {
+            motion.keyTimes[$0] * motion.duration >= motion.opening
+        }), let field = motion.frames.last?.bead else { return }
+        let startWidth = motion.frames[firstOpened].bead.width
+        let fieldBottom = local(field).maxY
+        struct Step { var rect: CGRect; var radius: CGFloat; var spread: CGFloat; var opened: Bool }
+        let steps = motion.frames.enumerated().map { index, frame -> Step in
             let opened = motion.keyTimes[index] * motion.duration >= motion.opening
-            let rect = local(frame.bead)
-            rects.append(opened ? rect : CGRect(x: rect.midX, y: rect.midY, width: 0, height: 0))
-            radii.append(NSNumber(value: Double(opened ? frame.radius : 0)))
-            beadOpacity.append(NSNumber(value: opened ? 0 : 1))
+            let spread = min(1, max(0, (frame.bead.width - startWidth) / max(1, field.width - startWidth)))
+            return Step(rect: local(frame.bead), radius: frame.radius, spread: opened ? spread : 0, opened: opened)
         }
-        let times = motion.keyTimes.map { NSNumber(value: $0) }
-        func keyframes(_ key: String, _ values: [Any]) -> CAKeyframeAnimation {
-            let animation = CAKeyframeAnimation(keyPath: key)
-            animation.values = values
-            animation.keyTimes = times
-            animation.duration = motion.duration
-            animation.beginTime = begin
-            animation.calculationMode = .linear
-            animation.fillMode = .backwards
-            return animation
-        }
+        let beadOpacity = steps.map { NSNumber(value: $0.opened ? 0 : 1) }
+        let fade = CAKeyframeAnimation(keyPath: "opacity")
+        fade.values = beadOpacity
+        fade.keyTimes = motion.keyTimes.map { NSNumber(value: $0) }
+        fade.duration = motion.duration
+        fade.beginTime = begin
+        fade.calculationMode = .discrete
+        fade.fillMode = .backwards
         let mask = CALayer()
         mask.backgroundColor = NSColor.black.cgColor
         mask.cornerCurve = .continuous
         mask.actions = ["position": NSNull(), "bounds": NSNull(), "cornerRadius": NSNull()]
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        if let last = rects.last {
-            mask.bounds = CGRect(origin: .zero, size: last.size)
-            mask.position = CGPoint(x: last.midX, y: last.midY)
-            mask.cornerRadius = CGFloat(truncating: radii.last ?? 0)
-        }
-        mask.add(keyframes("bounds", rects.map { NSValue(rect: CGRect(origin: .zero, size: $0.size)) }), forKey: "open")
-        mask.add(keyframes("position", rects.map { NSValue(point: CGPoint(x: $0.midX, y: $0.midY)) }), forKey: "openPosition")
-        mask.add(keyframes("cornerRadius", radii), forKey: "openRadius")
+        mask.bounds = .zero
         layer.mask = mask
-        bead.add(keyframes("opacity", beadOpacity), forKey: "openFade")
+        bead.add(fade, forKey: "openFade")
         bead.opacity = 0
         CATransaction.commit()
+        // Driven frame by frame rather than by keyframes: the bar's own
+        // height changes as its results arrive mid-drop, and the mask reads
+        // it live so the bar always opens to what it holds now.
+        maskTimer?.invalidate()
+        let duration = motion.duration
+        let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak host, weak mask] _ in
+            guard let host, let mask else { return }
+            let share = min(1, max(0, (CACurrentMediaTime() - begin) / duration))
+            let step = steps[min(steps.count - 1, Int((share * Double(steps.count - 1)).rounded()))]
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            if step.opened {
+                var rect = step.rect
+                rect.size.height += max(0, host.bounds.height - fieldBottom) * step.spread
+                mask.bounds = CGRect(origin: .zero, size: rect.size)
+                mask.position = CGPoint(x: rect.midX, y: rect.midY)
+                mask.cornerRadius = step.radius
+            } else {
+                mask.bounds = .zero
+            }
+            CATransaction.commit()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        maskTimer = timer
         maskedView = host
         bar.alphaValue = 1
         CommandBarService.shared.setDropOpening(true)
     }
 
     private func unmaskLive() {
+        maskTimer?.invalidate()
+        maskTimer = nil
         if let view = maskedView {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
