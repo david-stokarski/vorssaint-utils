@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.4.1-beta.2] - 2026-10-06
+
 ### Summary
 This beta gives Dynamic Island a companion that rests beside the camera, reacts to what happens and carries the Command Bar out of the island. Watch turns any part of a window into a live activity, and AI Agents now follows OpenCode and GitHub Copilot. On macOS 27, one app can play through an AirPlay speaker.
 
@@ -19,7 +21,7 @@ This beta gives Dynamic Island a companion that rests beside the camera, reacts 
 
 ### Dynamic Island
 - A companion can live in the island, resting beside the camera and reacting to music, timers, AI agents, downloads and more. Betas install it if you use the Command Bar with the island. Settings → Dynamic Island → Companion.
-- The Command Bar shortcut can drop the bar out of the island with the companion as its face, or open it inside the island. Settings → Dynamic Island → Companion → Command Bar in the island.
+- The Command Bar shortcut can drop the bar out of the island with the companion as its face, or open it inside the island. Typing as it drops shows the bar right away, and closing it sends the drop back. Settings → Dynamic Island → Companion → Command Bar in the island.
 - Watch turns part of any window into a live activity and speaks up when it changes or shows a text or number you set. Nothing leaves the Mac. Settings → Dynamic Island → Content → Watch.
 - AI Agents follows OpenCode and GitHub Copilot next to Claude Code and Codex, reading only what changed since the last launch. Settings → Dynamic Island → Content → AI Agents.
 - The closed island can show the Session or Week limit instead of the one closest to running out. Settings → Dynamic Island → Content → AI Agents → Limit to show.
