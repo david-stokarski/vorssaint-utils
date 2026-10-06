@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Vorssaint
 
 import AppKit
+import Carbon.HIToolbox
 import SwiftUI
 
 /// An AppKit text view configured as a pure plain-text surface: no smart
@@ -103,8 +104,13 @@ struct PlainTextEditor: NSViewRepresentable {
         // synchronously, and makeNSView runs inside SwiftUI's update pass,
         // where writing state is undefined behavior.
         textView.delegate = context.coordinator
+        context.coordinator.installLineMoveMonitor(for: textView)
         onCreate?(textView)
         return scroll
+    }
+
+    static func dismantleNSView(_ nsView: NSScrollView, coordinator: Coordinator) {
+        coordinator.removeLineMoveMonitor()
     }
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
@@ -134,10 +140,83 @@ struct PlainTextEditor: NSViewRepresentable {
         private let text: Binding<String>
         private let selectedRange: Binding<Range<Int>?>?
         var isApplyingExternalText = false
+        private weak var textView: NSTextView?
+        private var lineMoveMonitor: Any?
 
         init(text: Binding<String>, selectedRange: Binding<Range<Int>?>?) {
             self.text = text
             self.selectedRange = selectedRange
+        }
+
+        /// Option-Up/Down moves the current line (or every line a selection
+        /// touches) past its neighbor, as in most code editors. AppKit has
+        /// no default key binding for it, so it is caught here rather than
+        /// through a selector NSTextView would otherwise never resolve.
+        func installLineMoveMonitor(for textView: NSTextView) {
+            self.textView = textView
+            lineMoveMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, let textView = self.textView,
+                      event.window === textView.window,
+                      textView.window?.firstResponder === textView,
+                      !textView.hasMarkedText(),
+                      event.modifierFlags.intersection([.command, .option, .shift, .control]) == .option
+                else { return event }
+                let direction: PlainTextLineMover.Direction
+                switch Int(event.keyCode) {
+                case kVK_UpArrow: direction = .up
+                case kVK_DownArrow: direction = .down
+                default: return event
+                }
+                return self.moveLine(direction, in: textView) ? nil : event
+            }
+        }
+
+        func removeLineMoveMonitor() {
+            if let lineMoveMonitor {
+                NSEvent.removeMonitor(lineMoveMonitor)
+                self.lineMoveMonitor = nil
+            }
+        }
+
+        private func moveLine(_ direction: PlainTextLineMover.Direction, in textView: NSTextView) -> Bool {
+            let before = textView.selectedRange()
+            guard let result = PlainTextLineMover.moving(direction, in: textView.string, selection: before)
+            else { return false }
+            // Only the two neighbours trade places, in a span that keeps its
+            // length, so only that span is replaced: undo then restores two
+            // lines rather than the whole note.
+            let full = textView.string as NSString
+            let block = full.lineRange(for: before)
+            let span = direction == .up
+                ? NSUnionRange(full.lineRange(for: NSRange(location: block.location - 1, length: 0)), block)
+                : NSUnionRange(block, full.lineRange(for: NSRange(location: NSMaxRange(block), length: 0)))
+            let replacement = (result.text as NSString).substring(with: span)
+            if replacement != full.substring(with: span) {
+                guard textView.isEditable else { return false }
+                textView.breakUndoCoalescing()
+                // Undo leaves the caret at the end of what it restored;
+                // these put the selection back on both sides of the step.
+                // The first goes in before the text view's own undo, so it
+                // runs after it.
+                Self.keepSelection(before, whenUndoing: true, in: textView)
+                guard textView.shouldChangeText(in: span, replacementString: replacement) else { return false }
+                textView.textStorage?.replaceCharacters(in: span, with: replacement)
+                textView.didChangeText()
+                Self.keepSelection(result.selection, whenUndoing: false, in: textView)
+            }
+            textView.setSelectedRange(result.selection)
+            textView.scrollRangeToVisible(result.selection)
+            return true
+        }
+
+        /// Selects `selection` when the step is undone (or redone), and
+        /// registers itself again each time so the pair survives any number
+        /// of round trips.
+        private static func keepSelection(_ selection: NSRange, whenUndoing: Bool, in textView: NSTextView) {
+            textView.undoManager?.registerUndo(withTarget: textView) { textView in
+                if textView.undoManager?.isUndoing == whenUndoing { textView.setSelectedRange(selection) }
+                keepSelection(selection, whenUndoing: whenUndoing, in: textView)
+            }
         }
 
         func textDidChange(_ notification: Notification) {
