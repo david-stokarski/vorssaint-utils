@@ -5,9 +5,9 @@ import AppKit
 import QuartzCore
 import SwiftUI
 
-// Fork: Claude at work shows Claude's own loader, four dots that swirl round
-// a square, drawing in as they speed through each turn, instead of its mark
-// breathing. Like the mark, it is native layer motion: no SwiftUI frames.
+// Fork: Claude at work shows Claude's own loader, four dots on a slow loop
+// of moves (see NotchClaudeSwirl), instead of its mark breathing. Like the
+// mark, it is native layer motion: no SwiftUI frames.
 
 struct NotchClaudeLoader: View {
     var size: CGFloat
@@ -36,17 +36,13 @@ final class NotchClaudeLoaderView: NSView {
     private var tint: NSColor = .orange
     private var stopped = false
     private var visibilityObserver: NSObjectProtocol?
-    private static let spinKey = "claude.swirl"
-    private static let drawKey = "claude.draw"
+    private static let motionKey = "claude.loop"
 
-    /// One turn, in seconds.
-    static let period: CFTimeInterval = 1.3
-    /// Dot diameter and the dots' distance from the centre, as shares of the
-    /// loader's size.
-    static let dotShare: CGFloat = 0.3
-    static let spreadShare: CGFloat = 0.27
-    /// How far in the dots draw at the fastest point of a turn.
-    static let drawIn: CGFloat = 0.62
+    /// Dot diameter and the square's half-width, as shares of the size.
+    static let dotShare: CGFloat = 0.26
+    static let spreadShare: CGFloat = 0.25
+    /// Samples per second of the loop handed to Core Animation.
+    static let samplesPerSecond = 40.0
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -106,11 +102,10 @@ final class NotchClaudeLoaderView: NSView {
         updateMotion()
     }
 
-    /// The draw-in keyframes hold positions for one size, so a new size
-    /// starts the motion over.
+    /// The keyframes hold positions for one size, so a new size starts the
+    /// loop over.
     private func restartMotion() {
-        orbit.removeAnimation(forKey: Self.spinKey)
-        for dot in dots { dot.removeAnimation(forKey: Self.drawKey) }
+        for dot in dots { dot.removeAnimation(forKey: Self.motionKey) }
     }
 
     override func viewDidHide() { super.viewDidHide(); updateMotion() }
@@ -136,42 +131,42 @@ final class NotchClaudeLoaderView: NSView {
     private func updateMotion() {
         let moving = !stopped && !isHiddenOrHasHiddenAncestor && window?.isVisible == true
             && window?.occlusionState.contains(.visible) == true
-        guard moving else {
-            orbit.removeAnimation(forKey: Self.spinKey)
-            for dot in dots { dot.removeAnimation(forKey: Self.drawKey) }
+        guard moving, size > 0 else {
+            restartMotion()
             return
         }
         // Layout and snapshot updates keep the phase the dots are in.
-        guard orbit.animation(forKey: Self.spinKey) == nil else { return }
+        guard dots.first?.animation(forKey: Self.motionKey) == nil else { return }
         let now = orbit.convertTime(CACurrentMediaTime(), from: nil)
-
-        // A quarter turn per beat, quick in the middle and settling at each
-        // corner, so the square reads as swirling rather than spinning.
-        let spin = CAKeyframeAnimation(keyPath: "transform.rotation.z")
-        spin.values = (0...4).map { -CGFloat($0) * .pi / 2 }
-        spin.keyTimes = (0...4).map { NSNumber(value: Double($0) / 4) }
-        spin.timingFunctions = Array(repeating: CAMediaTimingFunction(controlPoints: 0.65, 0, 0.35, 1), count: 4)
-        spin.duration = Self.period
-        spin.repeatCount = .infinity
-        spin.beginTime = now
-        orbit.add(spin, forKey: Self.spinKey)
-
-        // The dots draw toward the centre as they move, and open out again
-        // at the corners; only their places move, never their size.
+        let period = NotchClaudeSwirl.period
+        let count = max(8, Int(period * Self.samplesPerSecond))
+        let times = (0...count).map { NSNumber(value: Double($0) / Double(count)) }
+        let spread = size * Self.spreadShare
         let centre = CGPoint(x: size / 2, y: size / 2)
-        for dot in dots {
-            let corner = dot.position
-            let drawn = CGPoint(x: centre.x + (corner.x - centre.x) * Self.drawIn,
-                                y: centre.y + (corner.y - centre.y) * Self.drawIn)
-            let draw = CAKeyframeAnimation(keyPath: "position")
-            draw.values = [corner, drawn, corner].map { NSValue(point: $0) }
-            draw.keyTimes = [0, 0.5, 1]
-            draw.timingFunctions = [CAMediaTimingFunction(name: .easeInEaseOut),
-                                    CAMediaTimingFunction(name: .easeInEaseOut)]
-            draw.duration = Self.period / 4
-            draw.repeatCount = .infinity
-            draw.beginTime = now
-            dot.add(draw, forKey: Self.drawKey)
+        for (index, dot) in dots.enumerated() {
+            let poses = (0...count).map { NotchClaudeSwirl.pose(dot: index, at: Double($0) / Double(count)) }
+            func track(_ keyPath: String, _ values: [Any]) -> CAKeyframeAnimation {
+                let animation = CAKeyframeAnimation(keyPath: keyPath)
+                animation.values = values
+                animation.keyTimes = times
+                animation.calculationMode = .linear
+                return animation
+            }
+            let group = CAAnimationGroup()
+            group.animations = [
+                track("position", poses.map {
+                    NSValue(point: CGPoint(x: centre.x + CGFloat($0.x) * spread,
+                                           y: centre.y + CGFloat($0.y) * spread))
+                }),
+                track("transform.scale", poses.map { $0.scale }),
+                track("opacity", poses.map { $0.opacity }),
+                // The dot passing behind draws under the others.
+                track("zPosition", poses.map { -$0.depth * 10 }),
+            ]
+            group.duration = period
+            group.repeatCount = .infinity
+            group.beginTime = now
+            dot.add(group, forKey: Self.motionKey)
         }
     }
 }
