@@ -1,0 +1,39 @@
+name: Fork CI
+
+# Fork only. Upstream's CI also builds with Swift 6.0.3 on the macOS 15 SDK,
+# which this fork's macOS 26 features (dictation, on-device polish, Liquid
+# Glass) cannot, so upstream's workflow is disabled here and this one builds
+# on macOS 26 alone.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build:
+    name: Build, selftest and test
+    if: github.repository == 'david-stokarski/vorssaint-utils'
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Build
+        run: ./build.sh
+
+      - name: Selftest
+        run: ./build/Vorssaint --selftest
+
+      - name: Unit tests
+        run: ./build.sh --test

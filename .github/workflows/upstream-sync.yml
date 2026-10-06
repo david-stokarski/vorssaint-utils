@@ -1,0 +1,149 @@
+name: Upstream sync
+
+# Fork only. Every six hours, vorssaint/vorssaint-utils main is brought into
+# one rolling pull request against this fork's main, named `upstream-sync`:
+#
+#   merges cleanly   -> the merge itself is the branch; it is built, selftested
+#                       and unit tested here and the result goes in the PR
+#   conflicts        -> the branch is upstream as it is, and the PR lists the
+#                       files that need resolving by hand
+#   history rewrite  -> upstream force-pushed and the fork's last merge is no
+#                       longer in its history; the PR says a rebase is needed
+#
+# Nothing is merged without a review. Merge the PR with "Create a merge
+# commit": a squash or rebase drops upstream's commits from this history, and
+# the next sync would bring every one of them back as new.
+#
+# Upstream lands dozens of commits a day, mostly straight to main, so the PR
+# is one that keeps up rather than one per upstream change.
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: https://github.com/vorssaint/vorssaint-utils.git
+  BRANCH: upstream-sync
+
+jobs:
+  sync:
+    if: github.repository == 'david-stokarski/vorssaint-utils'
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge upstream
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM"
+          git fetch --no-tags upstream main
+          upstream=$(git rev-parse upstream/main)
+          echo "upstream=$upstream" >> "$GITHUB_OUTPUT"
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "state=current" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Every sync merge records the upstream commit it took. When that
+          # commit is gone from upstream, upstream rewrote its history.
+          last=$(git log --format=%B HEAD | sed -n 's/^Upstream-Commit: *\([0-9a-f]\{40\}\).*/\1/p' | head -1)
+          if [ -n "$last" ] && ! git merge-base --is-ancestor "$last" upstream/main; then
+            echo "state=rewritten" >> "$GITHUB_OUTPUT"
+            git checkout -B "$BRANCH" upstream/main
+            exit 0
+          fi
+          count=$(git rev-list --count HEAD..upstream/main)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          git log --no-merges --format='- %h %s' HEAD..upstream/main | head -300 > "$RUNNER_TEMP/commits.md"
+          git checkout -B "$BRANCH"
+          if git merge --no-ff --no-edit -m "Merge upstream/main ($count commits)" \
+               -m "Upstream-Commit: $upstream" upstream/main; then
+            echo "state=clean" >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only --diff-filter=U | sed 's/^/- /' > "$RUNNER_TEMP/conflicts.md"
+            git merge --abort
+            git checkout -B "$BRANCH" upstream/main
+            echo "state=conflicts" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and test the merge
+        id: test
+        if: steps.merge.outputs.state == 'clean'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./build.sh 2>&1 | tail -20
+          ./build/Vorssaint --selftest
+          ./build.sh --test 2>&1 | tee "$RUNNER_TEMP/test.log" | tail -40
+
+      - name: Open or update the pull request
+        if: steps.merge.outputs.state != 'current'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE: ${{ steps.merge.outputs.state }}
+          TESTS: ${{ steps.test.outcome }}
+          COUNT: ${{ steps.merge.outputs.count }}
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          git push --force origin "$BRANCH"
+          body="$RUNNER_TEMP/body.md"
+          short=${UPSTREAM_SHA:0:8}
+          case "$STATE" in
+            clean)
+              if [ "$TESTS" = "success" ]; then
+                title="Sync upstream: $COUNT commits (tests pass)"
+                status="Merges cleanly, and the build, selftest and unit tests pass on the merge."
+              else
+                title="Sync upstream: $COUNT commits (tests FAIL)"
+                status="Merges cleanly, but the build or tests fail on the merge. See the [run]($RUN_URL)."
+              fi
+              ;;
+            conflicts)
+              title="Sync upstream: $COUNT commits (conflicts)"
+              status="Doesn't merge cleanly. This branch is upstream as it is; resolve these files locally with \`git merge upstream/main\` on main:"
+              ;;
+            rewritten)
+              title="Sync upstream: upstream rewrote its history"
+              status="Upstream force-pushed main and the fork's last sync is no longer in its history. Replay the fork's own commits onto upstream's new history (\`git rebase --onto <rewritten copy of the last synced commit> <last synced commit>\`), then merge upstream. This branch is upstream as it is."
+              ;;
+          esac
+          {
+            echo "Brings [vorssaint/vorssaint-utils](https://github.com/vorssaint/vorssaint-utils) main up to \`$short\` into this fork."
+            echo
+            echo "**$status**"
+            if [ "$STATE" = "conflicts" ]; then echo; cat "$RUNNER_TEMP/conflicts.md"; fi
+            if [ "$STATE" = "clean" ] && [ "$TESTS" != "success" ] && [ -f "$RUNNER_TEMP/test.log" ]; then
+              echo; echo '```'; grep -E "FAIL|  - |error:" "$RUNNER_TEMP/test.log" | head -30; echo '```'
+            fi
+            echo
+            echo "Merge with **Create a merge commit**, not squash or rebase, so upstream's history stays in the fork."
+            if [ -f "$RUNNER_TEMP/commits.md" ]; then
+              echo
+              echo "<details><summary>Upstream commits</summary>"
+              echo
+              cat "$RUNNER_TEMP/commits.md"
+              echo
+              echo "</details>"
+            fi
+          } > "$body"
+          existing=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --title "$title" --body-file "$body"
+          else
+            gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$body"
+          fi
