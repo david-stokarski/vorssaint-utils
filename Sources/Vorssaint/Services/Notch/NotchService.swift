@@ -820,7 +820,24 @@ final class NotchService: ObservableObject {
         result.requiresFullWidthHeader = selected == .captures && captureActions != nil
             && !showingSections && !showingAppPanel && selectedMetric == nil
         result.headerTitleWidth = headerTitleWidth
+        result.widthOverride = headerFitWidth  // Fork
         return result
+    }
+
+    /// Fork: the width a tabbed page lays its header out at. Home has its own
+    /// width, its widgets side by side. On a display with a camera the page
+    /// widens, by up to 100 points, so its tabs sit beside the camera, built
+    /// into the notch, instead of dropping under it.
+    private var headerFitWidth: CGFloat? {
+        guard NotchStyle.isTabbed(), !showingSections else { return nil }
+        let chosen = geometry.expandedWidth
+        var width = showingHome
+            ? geometry.homeSize(widgets: NotchHomeWidget.current(modules: modules).count).width : chosen
+        if geometry.isNotched, geometry.floatingGap == nil {
+            let needed = (geometry.cameraWidth + 2 * (headerTitleWidth + NotchLayout.horizontalInset)).rounded(.up)
+            if needed > width, needed - width <= 100 { width = min(needed, geometry.screen.width - 24) }
+        }
+        return width == chosen ? nil : width
     }
     /// The open header's title and the button before it, as the header draws
     /// them. Choosing a section shows only its search beside the camera, which

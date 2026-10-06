@@ -125,7 +125,8 @@ enum NotchSilhouette: String, CaseIterable {
 enum NotchSize: String, CaseIterable {
     case compact, spacious, custom
 
-    static let widthRange = 360.0...600.0
+    // Fork: wide enough for the tabs to fit beside a laptop's camera.
+    static let widthRange = 360.0...680.0
     static let heightRange = 260.0...640.0
     static let defaultWidth = 440.0
     static let defaultHeight = 480.0
@@ -1703,6 +1704,9 @@ struct NotchGeometry: Equatable {
     var requiresFullWidthHeader = false
     /// The open page's title with the button before it, as the header draws them.
     var headerTitleWidth: CGFloat = 0
+    /// Fork: a page wider than the chosen width (Home with its widgets side by
+    /// side) lays its header out for the width it really has.
+    var widthOverride: CGFloat?
     private var allowsActivityFooter = true
     private var minimumCompactWidth: CGFloat = 0
     /// Narrower wings than this are dropped rather than drawn cramped.
@@ -2056,6 +2060,7 @@ struct NotchGeometry: Equatable {
     }
     var expanded: CGSize { expandedSize(module: .controls) }
     var expandedWidth: CGFloat {
+        if let widthOverride { return widthOverride }  // Fork
         let preferred = NotchLayout.preferredWidth(layout, custom: customWidth)
         return min(max(preferred, cameraWidth + 36), screen.width - 24 - NotchQuickAccessLayout.gutter * 2)
     }

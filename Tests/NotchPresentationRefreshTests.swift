@@ -168,6 +168,7 @@ enum NotchPresentationRefreshContract {
         var selected = NotchModule.timer
         var captureID: UUID?
         var captureActions: Bool?
+        var headerFitWidth: CGFloat? { nil }  // Fork
         var captureContent: Bool?
         var captureContentHeight: CGFloat?
         var captureFallback: (() -> Void)?
