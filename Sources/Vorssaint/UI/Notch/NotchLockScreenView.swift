@@ -14,6 +14,8 @@ final class NotchLockScreenModel: ObservableObject {
         var downloads = false
         var countdown = false
         var timeLeft = false
+        /// Fork: the player stays up, paused or remembered, with nothing playing.
+        var remembers = false
     }
 
     @Published var gates = Gates()
@@ -24,7 +26,8 @@ final class NotchLockScreenModel: ObservableObject {
 
     func showsMusic(_ playback: NotchPlayback?) -> Bool {
         gates.music && playback.map {
-            NotchLockScreenSupport.showsMusic(isPlaying: $0.isPlaying, playedWhileLocked: playedWhileLocked)
+            gates.remembers  // Fork
+                || NotchLockScreenSupport.showsMusic(isPlaying: $0.isPlaying, playedWhileLocked: playedWhileLocked)
         } == true
     }
 }
@@ -154,6 +157,7 @@ struct NotchLockScreenPlayer: View {
     @ObservedObject var model: NotchLockScreenModel
     let size: CGSize
     @ObservedObject private var music = NotchMusicService.shared
+    @ObservedObject private var remembered = NotchLastPlayedStore.shared  // Fork
     @ObservedObject private var l10n = L10n.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// What a tap on play or pause asked for, shown at once as the island's
@@ -163,11 +167,16 @@ struct NotchLockScreenPlayer: View {
     private var accent: Color { music.artworkTint?.color ?? .white }
 
     var body: some View {
-        let shown = model.showsMusic(music.playback)
+        // Fork: with nothing playing, the last song waits paused.
+        let playing = model.showsMusic(music.playback) ? music.playback : nil
+        let current = playing ?? (model.gates.music && model.gates.remembers
+                                  ? remembered.last?.playback() : nil)
+        let shown = current != nil
         ZStack {
-            if shown, let playback = music.playback {
+            if let playback = current {
                 ViewThatFits(in: .vertical) {
-                    player(playback, artwork: 112)
+                    player(playback, artwork: 112, lyrics: true)
+                    player(playback, artwork: 84, lyrics: true)
                     player(playback, artwork: 84)
                     compact(playback)
                 }
@@ -190,7 +199,7 @@ struct NotchLockScreenPlayer: View {
         }
     }
 
-    private func player(_ playback: NotchPlayback, artwork: CGFloat) -> some View {
+    private func player(_ playback: NotchPlayback, artwork: CGFloat, lyrics: Bool = false) -> some View {
         VStack(spacing: 0) {
             cover(size: artwork, playback: playback)
                 .padding(.bottom, 14)
@@ -204,6 +213,7 @@ struct NotchLockScreenPlayer: View {
                     .lineLimit(1)
                     .padding(.top, 2)
             }
+            if lyrics { NotchLockScreenLyrics(playback: playback) }  // Fork
             NotchMusicTimeline(playback: playback, service: music, tint: accent)
                 .padding(.top, 16)
             transport(playback)
@@ -234,8 +244,11 @@ struct NotchLockScreenPlayer: View {
         .pane()
     }
 
+    /// Fork: a remembered song has no player behind it yet.
+    private func isRemembered(_ playback: NotchPlayback) -> Bool { playback.commandContext == nil && music.playback == nil }
+
     private func cover(size: CGFloat, playback: NotchPlayback) -> some View {
-        NotchArtwork(image: music.artwork, size: size)
+        NotchArtwork(image: isRemembered(playback) ? remembered.artwork : music.artwork, size: size)
             .shadow(color: (music.artworkTint?.color ?? .black).opacity(0.5), radius: size * 0.28, y: size * 0.1)
             .scaleEffect(playback.isPlaying || reduceMotion ? 1 : 0.92)
             .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: playback.isPlaying)
@@ -243,7 +256,32 @@ struct NotchLockScreenPlayer: View {
 
     /// The player's own buttons, never a permission prompt: a request made
     /// here would open behind the lock screen, where no one can answer it.
+    @ViewBuilder
     private func transport(_ playback: NotchPlayback) -> some View {
+        if isRemembered(playback) {
+            // Fork: Play opens the song's player if needed and starts it.
+            Button { remembered.resume() } label: {
+                ZStack {
+                    if remembered.resuming {
+                        ProgressView().controlSize(.small).tint(.white)
+                    } else {
+                        Image(systemName: "play.fill").font(.system(size: 30, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(.white)
+                .frame(width: 48, height: 44)
+                .contentShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(NotchButtonStyle(cornerRadius: 14))
+            .disabled(remembered.resuming)
+            .accessibilityLabel(text.mediaPlayPause)
+            .frame(height: 46)
+        } else {
+            liveTransport(playback)
+        }
+    }
+
+    private func liveTransport(_ playback: NotchPlayback) -> some View {
         HStack(spacing: 46) {
             if !music.lacksTrackSkipping(.previous) {
                 button("backward.fill", size: 22, title: text.mediaPrevious, command: .previous, playback: playback)

@@ -121,6 +121,11 @@ enum NotchMusicCommandContract {
         static let shared = Reader()
         final class Reader { func playbackChanged(_ playback: NotchPlayback?) {} }
     }
+    /// Fork: the lock screen's memory of the last song.
+    enum NotchLastPlayedStore {
+        static let shared = Notes()
+        final class Notes { func note(_ playback: NotchPlayback?) {} }
+    }
     final class Scheduler {
         var jobs: [() -> Void] = []
         func async(execute action: @escaping () -> Void) { jobs.append(action) }

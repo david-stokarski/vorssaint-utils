@@ -62,6 +62,7 @@ struct NotchSettings: View {
     @AppStorage(DefaultsKey.notchControlOrder) private var controlOrder = ""
     @AppStorage(DefaultsKey.notchShowInCaptures) private var showInCaptures = true
     @AppStorage(DefaultsKey.notchLockScreen) private var lockScreen = false
+    @AppStorage(DefaultsKey.notchLockScreenRemembersMusic) private var lockScreenRemembers = true  // Fork
     @AppStorage(DefaultsKey.notchLockSounds) private var lockSounds = false
     @AppStorage(DefaultsKey.notchSize) private var size = NotchSize.spacious.rawValue
     @AppStorage(DefaultsKey.notchOutlineEnabled) private var outlineEnabled = false
@@ -562,6 +563,11 @@ struct NotchSettings: View {
             SettingsCard(title: locked.title) {
                 switchRow("lock.display", locked.show, caption: locked.showHint, isOn: $lockScreen)
                 switchRow("speaker.wave.2", locked.sounds, caption: locked.soundsHint, isOn: $lockSounds)
+                // Fork: the player stays on the lock screen with the last song.
+                switchRow("music.note", "Keep the last song",
+                          caption: "The player stays on the lock screen with nothing playing, showing the last song and its lyrics. Play picks it up again.",
+                          isOn: $lockScreenRemembers)
+                    .disabled(!lockScreen)
             }
         }
     }

@@ -1903,6 +1903,7 @@ enum Defaults {
         .merging(CommandBarAnimation.registeredDefaults) { current, _ in current }
         .merging(ClipboardCommandBar.registeredDefaults) { current, _ in current }
         .merging(NotchLyricsTiming.registeredDefaults) { current, _ in current }
+        .merging(NotchLastPlayedSupport.registeredDefaults) { current, _ in current }
 
     static func register() {
         let defaults = UserDefaults.standard

@@ -26,6 +26,16 @@ enum NotchDevRemote {
             case "dictation-end": DictationService.shared.endPreview()
             case "commandbar": CommandBarService.shared.show()
             case "clipboard": ClipboardHistoryService.shared.toggleHistoryWindow()
+            case "lockscreen-player": LockScreenPlayerPreview.show()
+            case "lockscreen-player-remembered":
+                NotchMusicService.shared.stop()
+                LockScreenPlayerPreview.show()
+            case "lyrics-state":
+                let lyrics = NotchLyricsService.shared
+                let line = "state=\(lyrics.state) lines=\(lyrics.lyrics?.lines.count ?? -1) "
+                    + "playback=\(NotchMusicService.shared.playback != nil) enabled=\(NotchLyricsSupport.isEnabled())\n"
+                try? line.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("vorssaint-lyrics-state.txt"),
+                                atomically: true, encoding: .utf8)
             case "commandbar-guides":
                 CommandBarService.shared.show()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
@@ -54,6 +64,32 @@ enum NotchDevRemote {
                 if let module = NotchModule(rawValue: raw) { service.open(module, pinned: true) }
             }
         }
+    }
+}
+#endif
+
+#if VORSSAINT_DEVELOPMENT
+import AppKit
+import SwiftUI
+
+/// Developer builds only: the lock screen's player in an ordinary window, so
+/// its layout can be seen without locking the Mac.
+enum LockScreenPlayerPreview {
+    private static var window: NSWindow?
+
+    static func show() {
+        let model = NotchLockScreenModel()
+        model.gates = NotchLockScreenModel.Gates(music: true, remembers: true)
+        let size = CGSize(width: NotchLockScreenLayout.playerWidth, height: 470)
+        let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: [.titled, .closable],
+                              backing: .buffered, defer: false)
+        window.title = "Lock screen player"
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: NotchLockScreenPlayer(model: model, size: size)
+            .background(LinearGradient(colors: [.indigo, .black], startPoint: .top, endPoint: .bottom)))
+        window.center()
+        window.orderFrontRegardless()
+        self.window = window
     }
 }
 #endif

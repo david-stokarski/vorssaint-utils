@@ -107,7 +107,8 @@ final class NotchLockScreenService {
             music: NotchLockScreenSupport.showsMusic(), timer: NotchTimerSupport.isEnabled(),
             agents: NotchAgentSupport.showsLiveActivity(),
             downloads: NotchSupport.routes(.download), countdown: NotchCalendarSupport.showsCountdown(),
-            timeLeft: NotchCalendarSupport.showsTimeLeft())
+            timeLeft: NotchCalendarSupport.showsTimeLeft(),
+            remembers: NotchLastPlayedSupport.isEnabled())  // Fork
         if model.gates != gates { model.gates = gates }
         var scene: [NotchLockScreenPanel] = []
         // Without the Music section there is no player to show or to click.
@@ -184,6 +185,7 @@ final class NotchLockScreenService {
             AgentUsageService.shared.pause()
         }
         playbackSubscription = nil
+        if !scene.isEmpty { NotchLyricsService.shared.hide() }  // Fork: the player's lyrics go with it
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         screenObserver = nil
         padlockWork?.cancel()
