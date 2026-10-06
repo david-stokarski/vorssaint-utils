@@ -1113,7 +1113,7 @@ final class CommandBarService: ObservableObject {
             UserDefaults.standard.string(forKey: DefaultsKey.commandBarUsage))
         shortcutCache = rowShortcuts
         compactMode = UserDefaults.standard.bool(forKey: DefaultsKey.commandBarCompactMode)
-        hasCustomPosition = positionOffset != .zero
+        hasCustomPosition = positionOffset != .zero || CommandBarPlacement.stored() != nil  // Fork
         reloadFileSearchCaches()
     }
 
@@ -3218,8 +3218,9 @@ final class CommandBarService: ObservableObject {
         let screen = NSScreen.pointerVisibleFrame
         panelScreen = screen
         let offset = positionOffset
-        let origin = CommandBarPreferences.clampedPanelOrigin(
-            size: size, in: screen, offset: offset)
+        // Fork: a spot chosen by dragging is a share of the display.
+        let origin = CommandBarPlacement.stored()?.origin(size: size, in: screen)
+            ?? CommandBarPreferences.clampedPanelOrigin(size: size, in: screen, offset: offset)
         panel.setFrame(NSRect(origin: origin, size: size),
                        display: true,
                        animate: animated)
@@ -3254,7 +3255,17 @@ final class CommandBarService: ObservableObject {
         } else {
             UserDefaults.standard.set(encoded, forKey: DefaultsKey.commandBarPositionOffset)
         }
+        // Fork: also as a share of the display, which is what opening reads.
+        let placement = CommandBarPlacement.of(panel.frame, in: screen)
+        if placement == CommandBarPlacement.of(
+            NSRect(origin: CommandBarPlacement.standard.origin(size: panel.frame.size, in: screen),
+                   size: panel.frame.size), in: screen) {
+            UserDefaults.standard.removeObject(forKey: DefaultsKey.commandBarPlacement)
+        } else {
+            UserDefaults.standard.set(placement.encoded, forKey: DefaultsKey.commandBarPlacement)
+        }
         hasCustomPosition = !encoded.isEmpty
+            || UserDefaults.standard.string(forKey: DefaultsKey.commandBarPlacement) != nil
     }
 
     /// The way back: a double-click on the mark, or the button in Settings,
@@ -3262,6 +3273,7 @@ final class CommandBarService: ObservableObject {
     /// short slide it took on the way there.
     func resetPanelPosition() {
         UserDefaults.standard.removeObject(forKey: DefaultsKey.commandBarPositionOffset)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.commandBarPlacement)  // Fork
         hasCustomPosition = false
         guard let panel, panel.isVisible, presentation == .window else { return }
         position(panel, animated: true)

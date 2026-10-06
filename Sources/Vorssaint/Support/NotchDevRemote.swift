@@ -25,6 +25,14 @@ enum NotchDevRemote {
                 DictationService.shared.startPreview(text: (1...24).map { "Sentence \($0) of a long dictation that keeps going so the oldest lines scroll away." }.joined(separator: " "))
             case "dictation-end": DictationService.shared.endPreview()
             case "commandbar": CommandBarService.shared.show()
+            case "commandbar-guides":
+                CommandBarService.shared.show()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    guard let bar = NSApp.windows.first(where: { $0.isVisible && $0.title == "Vorssaint" && $0.level == .floating })
+                    else { return }
+                    CommandBarDragController.shared.previewSnap(window: bar)
+                }
+            case "commandbar-guides-end": CommandBarDragController.shared.endPreview()
             case "aichat": AIChatService.shared.show()
             case "settings-workspaces":
                 SettingsRouter.shared.request(FeatureSettingsDestination(.workspaces), targetFeature: nil, sidebarFeature: nil)

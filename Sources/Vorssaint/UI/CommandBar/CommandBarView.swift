@@ -51,10 +51,19 @@ struct CommandBarView: View {
     /// SwiftUI gesture, whose translation is read in a coordinate space
     /// that moves with the window and jitters under its own feet.
     private struct DragHandle: NSViewRepresentable {
-        func makeNSView(context: Context) -> HandleView { HandleView() }
+        /// The mark shows a hand; the bar's background stays an arrow, as it
+        /// lies under rows and the field too.
+        var showsHand = true
+
+        func makeNSView(context: Context) -> HandleView {
+            let view = HandleView()
+            view.showsHand = showsHand
+            return view
+        }
         func updateNSView(_ view: HandleView, context: Context) {}
 
         final class HandleView: NSView {
+            var showsHand = true
             private var moveObserver: NSObjectProtocol?
             private var saveTask: DispatchWorkItem?
 
@@ -69,7 +78,7 @@ struct CommandBarView: View {
                 // Cursor rects, not a pushed NSCursor: the system hands the
                 // arrow back on its own the moment the pointer leaves, even
                 // if the bar hides mid-hover.
-                addCursorRect(bounds, cursor: .openHand)
+                if showsHand { addCursorRect(bounds, cursor: .openHand) }
             }
 
             override func mouseDown(with event: NSEvent) {
@@ -78,11 +87,11 @@ struct CommandBarView: View {
                     return
                 }
                 guard let window else { return }
-                NSCursor.closedHand.set()
-                observeMovement(of: window)
-                window.performDrag(with: event)
-                scheduleSave()
-                NSCursor.openHand.set()
+                // Fork: a drag that snaps to the display's thirds and middle,
+                // with the guides drawn while it lasts.
+                if CommandBarDragController.shared.track(from: event, window: window) {
+                    CommandBarService.shared.finishPanelDrag()
+                }
             }
 
             private func observeMovement(of window: NSWindow) {
@@ -190,6 +199,8 @@ struct CommandBarView: View {
         }
         .frame(width: Self.width)
         .environment(\.colorScheme, shownAs == .window ? colorScheme : .dark)
+        // Fork: any spot without a control of its own moves the bar.
+        .background { if shownAs == .window { DragHandle(showsHand: false) } }
         .background(backdrop)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .onAppear {
