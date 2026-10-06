@@ -434,6 +434,9 @@ struct CommandBarView: View {
             return String(format: text.argumentRangeFormat, range.lowerBound, range.upperBound)
         }
         if case .naming = service.mode { return text.aliasPlaceholder }
+        if case .search = service.mode, service.activeCategory == .clipboard {
+            return "Search clipboard history"  // Fork
+        }
         return text.searchPlaceholder
     }
 
@@ -577,7 +580,68 @@ struct CommandBarView: View {
             .padding(.bottom, 3)
     }
 
+    @ViewBuilder
     private func row(_ entry: CommandBarEntry, index: Int) -> some View {
+        // Fork: the clipboard list is one compact line per item.
+        if service.activeCategory == .clipboard, ClipboardCommandBar.isClipboardRow(entry.id) {
+            clipboardRow(entry, index: index)
+        } else {
+            standardRow(entry, index: index)
+        }
+    }
+
+    /// Fork: icon, the copied text on one truncated line, and how long ago.
+    private func clipboardRow(_ entry: CommandBarEntry, index: Int) -> some View {
+        let isSelected = index == service.selectedIndex
+        let copiedAt = ClipboardCommandBar.entry(forRowID: entry.id)?.copiedAt
+        return Button {
+            service.run(entry, fromClick: true)
+        } label: {
+            HStack(spacing: 8) {
+                iconContent(entry)
+                    .scaleEffect(0.62)
+                    .frame(width: 18, height: 18)
+                    .foregroundStyle(.secondary)
+                let offsets = service.highlightOffsets(for: entry)
+                Text(offsets.isEmpty ? AttributedString(entry.title)
+                                     : highlighted(entry.title, offsets: offsets))
+                    .font(.system(size: 12.5))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if service.commandIsHeld, index < 9 {
+                    Text("⌘\(index + 1)")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.accentColor)
+                } else if let copiedAt {
+                    Text(ClipboardCommandBar.age(of: copiedAt))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                }
+                Image(systemName: "return")
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .opacity(isSelected ? 1 : 0)
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.14) : .clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            if hovering { service.selectFromHover(index) }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel(entry))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func standardRow(_ entry: CommandBarEntry, index: Int) -> some View {
         let isSelected = index == service.selectedIndex
         return Button {
             // By identity, not by position: a background load can rebuild the

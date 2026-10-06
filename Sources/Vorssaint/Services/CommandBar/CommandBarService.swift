@@ -337,6 +337,18 @@ final class CommandBarService: ObservableObject {
         show(promptingFor: nil)
     }
 
+    /// Fork: opens on one category's list (the clipboard shortcut), or
+    /// closes the bar when it is already showing that list.
+    func toggle(category: CommandBarSource) {
+        if isVisible, activeCategory == category {
+            hide()
+            return
+        }
+        if !isVisible { show() }
+        query = ""
+        setCategory(category)
+    }
+
     private func show(promptingFor stableKey: String?) {
         guard AppFeature.commandBar.isAvailable else { return }
         let panel = ensurePanel()
@@ -345,6 +357,7 @@ final class CommandBarService: ObservableObject {
         // for the field instead of reaching the app in front.
         let reopening = isVisible
         if !reopening { claimKeyboard(with: panel) }
+        ClipboardPasteTarget.prepare()  // Fork
         if AppFeature.textSnippets.isAvailable {
             TextSnippetService.shared.setCommandBarVisible(true)
         }
@@ -2709,6 +2722,11 @@ final class CommandBarService: ObservableObject {
     /// clipboard, wait for a clean keyboard and press ⌘V for the person.
     private func paste(_ entry: ClipboardHistoryEntry) {
         hide()
+        // Fork: paste only into a focused text field; anywhere else, copy.
+        if AXIsProcessTrusted(), !ClipboardPasteTarget.focusAcceptsText() {
+            ClipboardPasteTarget.copy(entry)
+            return
+        }
         if NSWorkspace.shared.frontmostApplication?.processIdentifier
             == ProcessInfo.processInfo.processIdentifier {
             NSSound.beep()

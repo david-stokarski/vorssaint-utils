@@ -19,6 +19,7 @@ struct ClipboardSettings: View {
     @AppStorage(DefaultsKey.clipboardHistoryMenuBarPreviewLength)
     private var menuBarPreviewLength = Defaults.defaultClipboardMenuBarPreviewLength
     @AppStorage(DefaultsKey.panelUtilityClipboard) private var showInPanel = true
+    @AppStorage(DefaultsKey.clipboardInCommandBar) private var inCommandBar = true  // Fork
     @AppStorage(DefaultsKey.finderPasteImageAsFile) private var pasteImageAsFile = false
     @AppStorage(DefaultsKey.clipboardAutoClearOnDelay) private var autoClearOnDelay = false
     @AppStorage(DefaultsKey.clipboardAutoClearDelay)
@@ -178,6 +179,12 @@ struct ClipboardSettings: View {
                     .foregroundStyle(.orange)
             }
             Text(text.shortcutCaption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            // Fork: the history opens as a list in the Command Bar.
+            Toggle("Open in the Command Bar", isOn: $inCommandBar)
+                .disabled(!AppFeature.commandBar.isAvailable)
+            Text("The shortcut opens the Command Bar on its Clipboard list, and the island drops its clipboard tab. Picking an item pastes it into the focused text field, or copies it when there isn't one.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Button {

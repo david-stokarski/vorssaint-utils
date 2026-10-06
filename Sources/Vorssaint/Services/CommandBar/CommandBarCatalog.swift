@@ -387,7 +387,16 @@ enum CommandBarCatalog {
                 shortcut: keepsHistory ? roleShortcut(.clipboard) : nil,
                 trouble: canUseHistory ? nil
                     : .needsSetup(featureTitle: clipboard.title, page: .clipboard),
-                run: { _ in afterBeat(0.1) { ClipboardHistoryService.shared.showHistoryWindow() } }))
+                // Fork: with the history in the bar, the row opens its list here.
+                keepsBarOpen: ClipboardCommandBar.routes(),
+                run: { _ in
+                    if ClipboardCommandBar.routes() {
+                        CommandBarService.shared.query = ""
+                        CommandBarService.shared.setCategory(.clipboard)
+                    } else {
+                        afterBeat(0.1) { ClipboardHistoryService.shared.showHistoryWindow() }
+                    }
+                }))
             entries.append(CommandBarEntry(
                 id: "action.clipboardClearRecent",
                 title: clipboard.clearRecent,
