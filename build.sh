@@ -256,6 +256,8 @@ if (( TEST )); then
         Sources/Vorssaint/Core/Defaults.swift
         Sources/Vorssaint/Core/DictationSupport.swift
         Sources/Vorssaint/Core/AIChatSupport.swift
+        Sources/Vorssaint/Core/AIChatEndpoints.swift
+        Sources/Vorssaint/Core/AIChatAttachments.swift
         Sources/Vorssaint/Core/WorkspaceSupport.swift
         Sources/Vorssaint/Core/SnapWheelSupport.swift
         Sources/Vorssaint/Core/AppIconSupport.swift

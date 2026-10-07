@@ -116,6 +116,7 @@ struct AIChatView: View {
 struct AIChatDetailView: View {
     @ObservedObject var service: AIChatService
     @FocusState private var composerFocused: Bool
+    @State private var dropTargeted = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -129,8 +130,35 @@ struct AIChatDetailView: View {
             composer
         }
         .background(Color(nsColor: .textBackgroundColor))
+        .overlay {
+            if dropTargeted {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    .background(Color.accentColor.opacity(0.06))
+                    .overlay(Label("Drop to attach", systemImage: "paperclip")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.accentColor))
+                    .padding(10)
+                    .allowsHitTesting(false)
+            }
+        }
+        .onDrop(of: AIChatDrop.types, isTargeted: $dropTargeted) { providers in
+            AIChatDrop.load(providers, into: service)
+            return true
+        }
+        .background(pasteCatcher)
         .onAppear { composerFocused = true }
         .onChange(of: service.focusRequest) { _, _ in composerFocused = true }
+    }
+
+    /// Command-V with an image or files on the pasteboard attaches them; with
+    /// text it pastes as usual into whatever field has the caret.
+    private var pasteCatcher: some View {
+        Button("", action: AIChatDrop.paste)
+        .keyboardShortcut("v", modifiers: .command)
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     // MARK: Header
@@ -195,10 +223,16 @@ struct AIChatDetailView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            if service.keyedProviders.isEmpty {
-                Button("Add an API Key…") { service.showsSettings = true }
+            if !service.hasSource {
+                Button("Add an API Key or a Local Model…") { service.showsSettings = true }
                     .padding(.top, 6)
             }
+            Text("Attach what you're looking at: the selection, a window or an area of the screen. Or drop files here.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+                .padding(.top, 4)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -207,41 +241,72 @@ struct AIChatDetailView: View {
     // MARK: Composer
 
     private var canSend: Bool {
-        !service.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !service.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !service.attachments.isEmpty
     }
 
-    private func send() {
-        if service.send(service.draft) { service.draft = "" }
+    private var appName: String {
+        AIChatContext.shared.lastApp?.localizedName ?? "the App in Front"
     }
 
     private var composer: some View {
         VStack(spacing: 6) {
-            HStack(alignment: .bottom, spacing: 8) {
-                TextField("Message \(service.selected?.model.displayName ?? "")",
-                          text: $service.draft, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13.5))
-                    .lineLimit(1...10)
-                    .focused($composerFocused)
-                    .onSubmit(send)
-                    .padding(.vertical, 4)
-                if service.isStreaming {
-                    Button(action: service.stop) {
-                        Image(systemName: "stop.circle.fill")
-                            .font(.system(size: 22))
+            if let notice = service.notice {
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                    Text(notice).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button {
+                        service.notice = nil
+                    } label: {
+                        Image(systemName: "xmark")
                     }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut(".", modifiers: .command)
-                    .help("Stop (⌘.)")
-                } else {
-                    Button(action: send) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(canSend ? Color.accentColor : Color.secondary.opacity(0.5))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!canSend)
+                    .buttonStyle(.borderless)
                 }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                if !service.attachments.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(service.attachments) { attachment in
+                                AIAttachmentChip(attachment: attachment) {
+                                    service.removeAttachment(attachment.id)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 1)
+                    }
+                }
+                HStack(alignment: .bottom, spacing: 8) {
+                    TextField("Message \(service.selected?.model.displayName ?? "")",
+                              text: $service.draft, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13.5))
+                        .lineLimit(1...10)
+                        .focused($composerFocused)
+                        .onSubmit(service.sendDraft)
+                        .padding(.vertical, 4)
+                    if service.isStreaming {
+                        Button(action: service.stop) {
+                            Image(systemName: "stop.circle.fill")
+                                .font(.system(size: 22))
+                        }
+                        .buttonStyle(.plain)
+                        .keyboardShortcut(".", modifiers: .command)
+                        .help("Stop (⌘.)")
+                    } else {
+                        Button(action: service.sendDraft) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundStyle(canSend ? Color.accentColor : Color.secondary.opacity(0.5))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canSend)
+                    }
+                }
+                attachBar
             }
             .padding(.leading, 14)
             .padding(.trailing, 8)
@@ -261,19 +326,63 @@ struct AIChatDetailView: View {
         .padding(.top, 6)
         .frame(maxWidth: .infinity)
     }
+
+    /// The ways to attach context, each with its own key.
+    private var attachBar: some View {
+        HStack(spacing: 2) {
+            attachButton("paperclip", help: "Attach Files… (⇧⌘A)", key: "a", modifiers: [.command, .shift]) {
+                chooseFiles()
+            }
+            attachButton("text.cursor", help: "Attach the Selection in \(appName) (⌥⌘1)", key: "1",
+                         modifiers: [.command, .option], action: service.attachSelection)
+            attachButton("macwindow", help: "Attach the Front Window of \(appName) (⌥⌘2)", key: "2",
+                         modifiers: [.command, .option], action: service.attachFrontWindow)
+            attachButton("rectangle.dashed", help: "Attach a Screenshot of an Area (⌥⌘3)", key: "3",
+                         modifiers: [.command, .option], action: service.attachArea)
+            if service.isAttaching {
+                ProgressView().controlSize(.mini).padding(.leading, 4)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, -4)
+    }
+
+    private func attachButton(_ symbol: String, help: String, key: KeyEquivalent,
+                              modifiers: EventModifiers, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .keyboardShortcut(key, modifiers: modifiers)
+        .disabled(service.isAttaching)
+        .help(help)
+    }
+
+    private func chooseFiles() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.prompt = "Attach"
+        panel.message = "Images, PDFs and text files"
+        guard panel.runModal() == .OK else { return }
+        service.attach(files: panel.urls)
+    }
 }
 
-/// The model a chat talks to, grouped by provider.
+/// The model a chat talks to, grouped by provider and endpoint.
 struct AIModelMenu: View {
     @ObservedObject var service: AIChatService
     let chat: AIChatConversation
 
     var body: some View {
-        let choices = service.choices(including: chat.model)
         Menu {
-            ForEach(AIProvider.allCases.filter { choices[$0] != nil }) { provider in
-                Section(provider.title) {
-                    ForEach(choices[provider] ?? []) { choice in
+            ForEach(service.groups(including: chat.model)) { group in
+                Section(group.title) {
+                    ForEach(group.choices) { choice in
                         Button {
                             service.setModel(choice, for: chat.id)
                         } label: {
@@ -295,7 +404,7 @@ struct AIModelMenu: View {
         } label: {
             HStack(spacing: 4) {
                 Text(chat.model.displayName)
-                Text(chat.model.provider.title).foregroundStyle(.secondary)
+                Text(service.sourceTitle(for: chat.model)).foregroundStyle(.secondary)
             }
             .font(.system(size: 12))
         }
@@ -313,16 +422,24 @@ struct AIChatMessageView: View {
 
     var body: some View {
         if message.role == .user {
-            HStack {
-                Spacer(minLength: 80)
-                Text(message.text)
-                    .font(.system(size: 13.5))
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 8)
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.16)))
+            VStack(alignment: .trailing, spacing: 6) {
+                if let attachments = message.attachments, !attachments.isEmpty {
+                    AIAttachmentStrip(attachments: attachments)
+                }
+                if !message.text.isEmpty {
+                    HStack {
+                        Spacer(minLength: 80)
+                        Text(message.text)
+                            .font(.system(size: 13.5))
+                            .textSelection(.enabled)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 8)
+                            .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.accentColor.opacity(0.16)))
+                    }
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 if message.text.isEmpty, isStreaming {

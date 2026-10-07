@@ -64,6 +64,18 @@ enum NotchDevRemote {
                 SettingsRouter.shared.request(FeatureSettingsDestination(.aiChat), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
             case "aichat-settings": AIChatService.shared.show(); AIChatService.shared.showsSettings = true
+            // Fork: AI Chat attachments and endpoints.
+            case "aichat-ask-selection": AIChatService.shared.askAboutSelection()
+            case "aichat-attach-selection": AIChatService.shared.show(); AIChatService.shared.attachSelection()
+            case "aichat-attach-window": AIChatService.shared.show(); AIChatService.shared.attachFrontWindow()
+            case "aichat-attach-area": AIChatService.shared.show(); AIChatService.shared.attachArea()
+            case "aichat-attach-sample": AIChatService.shared.show(); AIChatService.shared.attachDevSample()
+            case let raw where raw.hasPrefix("aichat-add-"):  // "aichat-add-ollama", "aichat-add-openRouter"
+                if let preset = AIEndpointPreset(rawValue: String(raw.dropFirst("aichat-add-".count))) {
+                    AIChatService.shared.show()
+                    AIChatService.shared.addEndpoint(preset)
+                    AIChatService.shared.showsSettings = true
+                }
             case let raw where raw.hasPrefix("aichat:"):
                 AIChatService.shared.ask(String(raw.dropFirst("aichat:".count)))
             case let raw where raw.hasPrefix("commandbar:"):
