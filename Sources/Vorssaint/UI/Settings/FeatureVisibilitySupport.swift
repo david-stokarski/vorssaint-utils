@@ -8,7 +8,7 @@ import Foundation
 /// below and the unit tests can reason about pages without pulling UI in.
 enum SettingsPage: Hashable {
     case general, features, energy, monitor
-    case mouse, switcher, dock, keyDebounce, superKey, cutPaste, autoQuit, quitProtection, cleaner, uninstaller, urlCleaner, homebrew, appUpdates, media, clipboard, windowLayout, shelf, quickTools, textSnippets, screenshot, radialMenu, commandBar, killProcess, portManager, dictation, aiChat, workspaces, notch, notchMascot
+    case mouse, switcher, dock, keyDebounce, superKey, cutPaste, autoQuit, quitProtection, cleaner, uninstaller, urlCleaner, homebrew, appUpdates, media, clipboard, windowLayout, shelf, quickTools, textSnippets, screenshot, radialMenu, commandBar, killProcess, portManager, dictation, aiChat, workspaces, snapWheel, notch, notchMascot
     case shortcuts, advanced, about, releaseNotes, support
 }
 
@@ -363,6 +363,7 @@ extension AppFeature {
         case .dictation: return FeatureSettingsDestination(.dictation)
         case .aiChat: return FeatureSettingsDestination(.aiChat)
         case .workspaces: return FeatureSettingsDestination(.workspaces)
+        case .snapWheel: return FeatureSettingsDestination(.snapWheel)
         case .homebrew: return FeatureSettingsDestination(.homebrew)
         case .appUpdates: return FeatureSettingsDestination(.appUpdates)
         case .screenshot:
@@ -425,6 +426,7 @@ enum FeatureVisibilitySupport {
         case .dictation: return [.dictation]
         case .aiChat: return [.aiChat]
         case .workspaces: return [.workspaces]
+        case .snapWheel: return [.snapWheel]
         case .keyDebounce: return [.keyboardDebounce]
         case .superKey: return [.superKey]
         case .textSnippets: return [.textSnippets]

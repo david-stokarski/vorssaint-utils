@@ -1058,6 +1058,7 @@ extension AppFeature {
         case .dictation: return DictationSupport.title
         case .aiChat: return AIChatSupport.title
         case .workspaces: return WorkspaceSupport.title
+        case .snapWheel: return SnapWheelSupport.title
         case .homebrew: return s.homebrewName
         case .appUpdates: return FeatureStrings.appUpdates(L10n.shared.language).pageTitle
         case .monitorCPU: return s.monitorShowCPU
@@ -1151,6 +1152,7 @@ extension AppFeature {
         case .dictation: return DictationSupport.hubDescription
         case .aiChat: return AIChatSupport.hubDescription
         case .workspaces: return WorkspaceSupport.hubDescription
+        case .snapWheel: return SnapWheelSupport.hubDescription
         case .homebrew: return hub.descHomebrew
         case .appUpdates: return FeatureStrings.appUpdates(L10n.shared.language).hubDescription
         case .monitorCPU: return hub.descMonitorCPU

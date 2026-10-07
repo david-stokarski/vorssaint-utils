@@ -257,6 +257,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/DictationSupport.swift
         Sources/Vorssaint/Core/AIChatSupport.swift
         Sources/Vorssaint/Core/WorkspaceSupport.swift
+        Sources/Vorssaint/Core/SnapWheelSupport.swift
         Sources/Vorssaint/Core/CommandBarPlacement.swift
         Sources/Vorssaint/Core/ClipboardCommandBarSupport.swift
         Sources/Vorssaint/Services/Notch/NotchLyricsTiming.swift

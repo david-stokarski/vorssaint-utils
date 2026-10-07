@@ -14,7 +14,7 @@ import Foundation
 /// primary control when no enable choice was saved before.
 enum AppFeature: String, CaseIterable {
     // Windows and Dock
-    case switcher, dockPreview, dockClick, windowMaximizer, windowLayout, autoQuit, spacesOrder, workspaces
+    case switcher, dockPreview, dockClick, windowMaximizer, windowLayout, autoQuit, spacesOrder, workspaces, snapWheel
     // Mouse and keyboard
     case scrollInverter, scrollHorizontal, focusFollowsMouse, smoothScroll, linearScroll, mouseAcceleration, mouseNavigation, mouseButtonShortcuts, middleClick,
          mouseClickDebounce, keyboardDebounce, textSnippets, superKey, quitWindowProtection
@@ -101,7 +101,7 @@ extension AppFeature {
 
     var group: FeatureGroup {
         switch self {
-        case .switcher, .dockPreview, .dockClick, .windowMaximizer, .windowLayout, .autoQuit, .spacesOrder, .workspaces:
+        case .switcher, .dockPreview, .dockClick, .windowMaximizer, .windowLayout, .autoQuit, .spacesOrder, .workspaces, .snapWheel:
             return .windowsDock
         case .scrollInverter, .scrollHorizontal, .focusFollowsMouse, .smoothScroll, .linearScroll, .mouseAcceleration, .mouseNavigation, .mouseButtonShortcuts, .middleClick,
              .keyboardDebounce, .textSnippets, .superKey, .quitWindowProtection, .mouseClickDebounce:
@@ -167,6 +167,7 @@ extension AppFeature {
         case .dictation: return "waveform.and.mic"
         case .aiChat: return "bubble.left.and.bubble.right"  // Fork
         case .workspaces: return "square.stack.3d.up"  // Fork
+        case .snapWheel: return "circle.circle"  // Fork
         case .musicBlock: return "music.note"
         case .keepAwake: return "moon.zzz.fill"
         case .brightness: return "display.2"
@@ -279,6 +280,7 @@ extension AppFeature {
         case .dictation: return [DefaultsKey.dictationShortcutEnabled]
         case .aiChat: return []  // Fork: on demand
         case .workspaces: return [DefaultsKey.workspacesEnabled]
+        case .snapWheel: return [DefaultsKey.snapWheelEnabled]  // Fork
         case .finderCutPaste: return [DefaultsKey.finderCutPasteEnabled,
                                       DefaultsKey.finderPasteImageAsFile]
         case .finderRename: return [DefaultsKey.finderRenameEnabled]
@@ -381,6 +383,7 @@ extension AppFeature {
         case .dictation: return [.microphone, .accessibility]
         case .aiChat: return []
         case .workspaces: return [.accessibility]
+        case .snapWheel: return [.accessibility]  // Fork
         case .keepAwake: return [.accessibility]
         case .brightness: return [.accessibility]
         case .cleaner: return [.fullDiskAccess, .filesAndFolders, .notifications]
@@ -495,7 +498,7 @@ extension AppFeature {
              .connectedDevices:
             return true
         case .focusFollowsMouse, .scrollHorizontal, .linearScroll, .diskImageInstaller, .audioPriority,
-             .wallpaper, .killProcess, .portManager, .fanControl, .notchMascot, .spacesOrder, .dictation, .aiChat, .workspaces:
+             .wallpaper, .killProcess, .portManager, .fanControl, .notchMascot, .spacesOrder, .dictation, .aiChat, .workspaces, .snapWheel:
             return false
         }
     }

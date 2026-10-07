@@ -51,6 +51,12 @@ enum NotchDevRemote {
             case "settings-workspaces":
                 SettingsRouter.shared.request(FeatureSettingsDestination(.workspaces), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
+            case "snapwheel-end": SnapWheelOverlay.shared.hide(placed: false)  // Fork
+            case let raw where raw.hasPrefix("snapwheel:"):  // Fork: "snapwheel:left" or "snapwheel:left:2"
+                SnapWheelOverlay.shared.devPreview(String(raw.dropFirst("snapwheel:".count)))
+            case "settings-snapwheel":
+                SettingsRouter.shared.request(FeatureSettingsDestination(.snapWheel), targetFeature: nil, sidebarFeature: nil)
+                (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
             case "settings-aichat":
                 SettingsRouter.shared.request(FeatureSettingsDestination(.aiChat), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()

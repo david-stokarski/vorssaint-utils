@@ -569,6 +569,7 @@ struct SettingsView: View {
         case .dictation: DictationSettings()
         case .aiChat: AIChatSettingsPage()
         case .workspaces: WorkspaceSettings()
+        case .snapWheel: SnapWheelSettings()
         case .urlCleaner: URLCleanerSettings()
         case .cleaner: CleanerSettings()
         case .homebrew: HomebrewSettings()

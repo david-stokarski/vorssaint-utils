@@ -3000,3 +3000,136 @@ private extension NSRect {
         return width * height
     }
 }
+
+// MARK: - Fork: Snap Wheel
+
+/// Fork: the window a Snap Wheel hold acts on. The wheel picks it once, when
+/// it shows, and every preview and the placement go through the same paths
+/// as Window Layout's shortcuts.
+struct SnapWheelWindow {
+    fileprivate let target: WindowLayoutTarget
+    fileprivate let app: NSRunningApplication?
+    /// AppKit coordinates.
+    let frame: NSRect
+    var windowID: CGWindowID { target.windowID }
+    var processID: pid_t { target.key.processID }
+}
+
+extension WindowLayoutService {
+    /// The focused window, or the one under `pointer` (AppKit coordinates).
+    func snapWheelWindow(_ choice: SnapWheelTargetChoice, pointer: CGPoint) -> SnapWheelWindow? {
+        guard AXIsProcessTrusted() else { return nil }
+        // The lookup below passes over a full-screen window to the next app
+        // in line; the wheel must not move some other app's window instead.
+        if let front = NSWorkspace.shared.frontmostApplication,
+           front.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+            let axApp = AXUIElementCreateApplication(front.processIdentifier)
+            AXUIElementSetMessagingTimeout(axApp, 0.35)
+            if let focused = windowAttribute(axApp, kAXFocusedWindowAttribute as String),
+               boolAttribute(focused, "AXFullScreen") {
+                return nil
+            }
+        }
+        if choice == .underPointer {
+            let quartz = CGPoint(x: pointer.x, y: menuBarScreenTopY - pointer.y)
+            if let found = gestureTarget(at: quartz, requiresResize: true),
+               let windowID = AXWindowResolver.windowID(for: found.window) {
+                let key = WindowLayoutWindowKey(
+                    processID: found.app.processIdentifier,
+                    processLaunchTime: found.app.launchDate?.timeIntervalSinceReferenceDate ?? 0,
+                    windowID: windowID)
+                let target = WindowLayoutTarget(window: found.window, key: key, frame: found.frame)
+                return SnapWheelWindow(target: target, app: found.app, frame: appKitFrame(fromAX: found.frame))
+            }
+        }
+        guard let target = focusedTarget(for: .leftHalf) else { return nil }
+        return SnapWheelWindow(target: target,
+                               app: NSRunningApplication(processIdentifier: target.key.processID),
+                               frame: appKitFrame(fromAX: target.frame))
+    }
+
+    /// The placement the window sits in now, when the last one it was given
+    /// still holds; the wheel's lists pick up after it.
+    func snapWheelCurrentPlacement(of window: SnapWheelWindow) -> String? {
+        guard let last = lastActions[window.target.key],
+              let screen = bestScreen(for: window.target.frame) else { return nil }
+        let rect = placement(for: last, current: window.target.frame, visibleFrame: screen.visibleFrame).rect
+        return accepted(actual: window.target.frame, targetRect: rect, action: last) ? last.rawValue : nil
+    }
+
+    /// Where `actionID` would put the window, in AppKit coordinates. Nil when
+    /// the action has no frame to show (minimize, hide, nothing to restore).
+    func snapWheelPreviewFrame(_ actionID: String, for window: SnapWheelWindow, screen: NSScreen) -> NSRect? {
+        guard let action = WindowLayoutAction(rawValue: actionID) else { return nil }
+        // Full screen and display moves start from the window's own display,
+        // as placing them does.
+        let source = bestScreen(for: window.target.frame) ?? screen
+        switch action {
+        case .fullScreen:
+            return source.frame
+        case .restore:
+            var history = frameHistory
+            return history.popPrevious(for: window.target.key, current: window.target.frame).map(appKitFrame(fromAX:))
+        case .previousDisplay, .nextDisplay:
+            guard let destination = snapWheelDestination(for: action, from: source) else { return nil }
+            return WindowLayoutGeometry.rectForDisplay(current: window.frame,
+                                                       sourceVisibleFrame: source.visibleFrame,
+                                                       destinationVisibleFrame: destination.visibleFrame).integral
+        default:
+            return placement(for: action, current: window.target.frame, visibleFrame: screen.visibleFrame).rect
+        }
+    }
+
+    func snapWheelApply(_ actionID: String, to window: SnapWheelWindow, screen: NSScreen) {
+        guard AXIsProcessTrusted() else { return }
+        switch actionID {
+        case SnapWheelActionID.minimize:
+            _ = minimize(target: window.target)
+            return
+        case SnapWheelActionID.hide:
+            window.app?.hide()
+            return
+        default:
+            break
+        }
+        guard let action = WindowLayoutAction(rawValue: actionID) else { return }
+        pruneWindowState(keeping: window.target.key)
+        let target = window.target
+        switch action {
+        case .fullScreen:
+            cancelSettle(for: target.windowID)
+            assistiveModeSuspensions.removeValue(forKey: target.windowID)?.resume()
+            let isFullScreen = boolAttribute(target.window, "AXFullScreen")
+            let flipped = (isFullScreen ? kCFBooleanFalse : kCFBooleanTrue) as CFTypeRef
+            if AXUIElementSetAttributeValue(target.window, "AXFullScreen" as CFString, flipped) == .success {
+                if isFullScreen { lastActions.removeValue(forKey: target.key) } else { lastActions[target.key] = .fullScreen }
+            }
+        case .restore:
+            guard let previous = frameHistory.popPrevious(for: target.key, current: target.frame) else { return }
+            if setFrame(previous, on: target.window, windowKey: target.key) {
+                lastActions.removeValue(forKey: target.key)
+            } else {
+                frameHistory.record(previous, for: target.key)
+            }
+        case .previousDisplay, .nextDisplay:
+            guard let source = bestScreen(for: target.frame),
+                  let destination = snapWheelDestination(for: action, from: source) else { return }
+            let rect = WindowLayoutGeometry.rectForDisplay(current: window.frame,
+                                                           sourceVisibleFrame: source.visibleFrame,
+                                                           destinationVisibleFrame: destination.visibleFrame)
+            frameHistory.record(target.frame, for: target.key)
+            if setFrame(axFrame(fromAppKit: rect), targetRect: rect, screenVisibleFrame: destination.visibleFrame,
+                        action: action, on: target.window, windowKey: target.key) {
+                lastActions[target.key] = action
+            } else {
+                frameHistory.discardLatest(for: target.key)
+            }
+        default:
+            _ = applyPlacement(action, to: target, visibleFrame: screen.visibleFrame, cyclesRepeatedAction: false)
+        }
+    }
+
+    private func snapWheelDestination(for action: WindowLayoutAction, from screen: NSScreen) -> NSScreen? {
+        adjacentScreen(to: screen, screens: NSScreen.screens, movingForward: action == .nextDisplay)
+    }
+}

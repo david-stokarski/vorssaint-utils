@@ -289,6 +289,11 @@ enum SettingsDirectory {
                                       title: WorkspaceSupport.title,
                                       icon: "square.stack.3d.up",
                                       keywords: ["workspaces", "virtual desktops", "spaces", "aerospace", "move window", "switch workspace"]),
+                SettingsDirectoryItem(page: .snapWheel,  // Fork
+                                      title: SnapWheelSupport.title,
+                                      icon: "circle.circle",
+                                      keywords: ["snap wheel", "loop", "radial", "snap window", "tile", "halves",
+                                                 "thirds", "control", "preview", "padding"]),
                 SettingsDirectoryItem(page: .autoQuit, title: s.autoQuitName, icon: "xmark.rectangle",
                                       keywords: [s.autoQuitEnable]),
                 SettingsDirectoryItem(page: .quitProtection,
