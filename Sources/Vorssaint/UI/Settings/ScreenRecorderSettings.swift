@@ -111,6 +111,8 @@ struct ScreenRecordingCaptureSettings: View {
                 }
             }
 
+            RecorderOverlaySettingsSection()  // Fork
+
             Section {
                 folderRow
                 DisclosureHeaderRow(isExpanded: $showsMoreOptions) {

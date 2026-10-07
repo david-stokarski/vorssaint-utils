@@ -1910,6 +1910,7 @@ enum Defaults {
         .merging(NotchLastPlayedSupport.registeredDefaults) { current, _ in current }
         .merging(NotchDisplayProfiles.registeredDefaults) { current, _ in current }
         .merging(MeetingSettings.registeredDefaults) { current, _ in current }  // Fork
+        .merging(RecorderOverlaySupport.registeredDefaults) { current, _ in current }  // Fork
 
     static func register() {
         let defaults = UserDefaults.standard

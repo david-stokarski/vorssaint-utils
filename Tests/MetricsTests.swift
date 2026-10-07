@@ -78,6 +78,7 @@ struct MetricsTests {
                 RecorderZoomAimingTests.run(suite)
                 RecorderExportSpeedTests.run(suite)
                 RecorderExportRenderingTests.run(suite)
+                RecorderOverlayTests.run(suite)  // Fork
             }),
             ("command-bar", { CommandBarFeatureTests.run(suite) }),
             ("notch", {

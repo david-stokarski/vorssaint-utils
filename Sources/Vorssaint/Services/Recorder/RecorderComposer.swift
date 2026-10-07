@@ -64,6 +64,8 @@ final class RecorderComposer {
         /// Areas kept unreadable and, for each frame, whether each one is on.
         let blurs: [RecorderBlurRegion]
         let blurCovers: [[Bool]]
+        /// Clicks, key captions and the camera bubble. Nil when none is drawn.
+        var overlays: RecorderOverlayPlan? = nil  // Fork
     }
 
     private let plan: Plan
@@ -71,9 +73,11 @@ final class RecorderComposer {
     /// so this is a handful of small images for the whole export.
     private let decodedShapes: [CGImage?]
     private let fallbackArrow: CGImage?
+    private let overlayRenderer: RecorderOverlayRenderer?  // Fork
 
     init(plan: Plan) {
         self.plan = plan
+        overlayRenderer = plan.overlays.map { RecorderOverlayRenderer(plan: $0, canvasSize: plan.canvasSize) }  // Fork
         decodedShapes = plan.showsPointer ? plan.pointerShapes.map { $0.image } : []
         // Only reached when the recording never managed to read a real
         // pointer image, which is the one case where a drawn arrow beats no
@@ -91,6 +95,7 @@ final class RecorderComposer {
         let index = frameIndex(for: seconds)
         var content = source.cropped(to: CGRect(origin: .zero, size: plan.sourceSize))
         content = blurred(content, at: seconds)
+        if let overlayRenderer { content = overlayRenderer.drawInRecording(content, index: index, composer: plan) }  // Fork
 
         let pointerWasOnScreen = plan.pointerVisible.indices.contains(index)
             ? plan.pointerVisible[index] : true
@@ -113,6 +118,7 @@ final class RecorderComposer {
         }
         content = drawImages(on: content, index: index)
         content = drawTexts(on: content, index: index)
+        if let overlayRenderer { content = overlayRenderer.drawOnCanvas(content, index: index) }  // Fork
         return content.cropped(to: CGRect(origin: .zero, size: plan.canvasSize))
     }
 

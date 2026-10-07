@@ -27,6 +27,7 @@ struct RecorderInspector: View {
 
     private enum Tab: String, CaseIterable {
         case look, pointer, zoom
+        case overlays  // Fork
     }
 
     var body: some View {
@@ -60,6 +61,8 @@ struct RecorderInspector: View {
                         }
                     case .zoom:
                         zoomSection
+                    case .overlays:  // Fork
+                        RecorderOverlayInspector(model: model)
                     }
                 }
             }
@@ -76,6 +79,7 @@ struct RecorderInspector: View {
             Text(strings.lookLabel).tag(Tab.look)
             Text(strings.pointerSectionLabel).tag(Tab.pointer)
             Text(strings.zoomSectionLabel).tag(Tab.zoom)
+            Text(RecorderOverlaySupport.title).tag(Tab.overlays)  // Fork
         }
         .pickerStyle(.segmented)
         .labelsHidden()

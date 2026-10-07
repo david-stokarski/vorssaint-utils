@@ -2096,6 +2096,7 @@ private struct RecorderSelectionAudioControls: View {
             Toggle(isOn: $options.microphone) {
                 Label(strings.microphoneTrackLabel, systemImage: "mic.fill")
             }
+            RecorderOverlayCaptureToggles(options: options)  // Fork
         }
         .toggleStyle(.button)
         .buttonStyle(.bordered)

@@ -10,7 +10,7 @@ You can review or change every grant in System Settings, under Privacy and Secur
 | Screen Recording | Yes | Window previews, screenshots, copy text from screen, magnified color picking and screen recordings |
 | System Audio Recording | Yes | Volume mixer, optional live equalizer and system audio capture for recordings |
 | Microphone | Yes | Your voice in a screen recording, only when you turn it on |
-| Camera | Yes | The camera preview mirror, floating or inside the notch |
+| Camera | Yes | The camera preview mirror, floating or inside the notch, and the optional camera bubble in screen recordings |
 | Calendars | Yes | Upcoming appointments in the notch |
 | Files and Folders | Yes | Monitoring downloads in a folder you choose |
 | Notifications | Yes | Keep awake, battery, Monitor and update alerts |
@@ -38,6 +38,10 @@ You can review or change every grant in System Settings, under Privacy and Secur
 - **Radial menu**, for wheel actions that press a key combo or a media key
   for you and for the optional side button trigger; opening apps, files and
   links with the keyboard shortcut alone needs nothing.
+- **Screen recorder**, for typing timing and the optional keystroke captions.
+  Captions default to shortcuts only, so plain typed text is never stored, and
+  no key is recorded while a password field holds secure input. Click
+  highlights need no permission.
 
 **If you say no.** These features stay off. Vorssaint sees the moment you grant the permission and brings them to life with no relaunch.
 
@@ -81,9 +85,11 @@ The color picker also uses this permission for Vorssaint's magnifier and keyboar
 
 **What uses it.** Camera preview, either in its floating mirror or inside the notch. The camera starts only from an explicit action and stops when the preview closes, its notch section is hidden, the feature is disabled or the Mac locks.
 
-**If you say no.** The preview window explains the state and offers the System Settings shortcut. Everything else in the app carries on as normal.
+The screen recorder, only when you turn on Camera before recording. The camera runs only while that recording does, shows a live bubble that is left out of the screen capture, and is saved as a separate track you can place, resize or remove in the editor.
 
-**Optional.** Yes. The image goes straight to the local preview. This feature does not save or upload camera frames. Visible notch content can still appear in a screenshot or recording when you include the notch in captures.
+**If you say no.** The preview window explains the state and offers the System Settings shortcut. Screen recordings carry on without the camera bubble. Everything else in the app carries on as normal.
+
+**Optional.** Yes. The image goes straight to the local preview. Camera preview does not save or upload camera frames. Visible notch content can still appear in a screenshot or recording when you include the notch in captures. A recording with Camera on keeps the camera track on your Mac with the recording, and it leaves your Mac only if you explicitly create a temporary link for the finished video.
 
 ## Calendars
 

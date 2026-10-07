@@ -4,6 +4,10 @@
 import AppKit
 
 SuperKeyMappingGuard.runIfRequestedAndExit()
+#if VORSSAINT_DEVELOPMENT
+// Fork: before the defaults are registered, so the probe touches no preferences.
+RecorderOverlayProbe.runIfRequestedAndExit()
+#endif
 Defaults.register()
 MouseAccelerationGuard.runIfRequestedAndExit()
 MouseAccelerationService.recoverPendingAtLaunch()

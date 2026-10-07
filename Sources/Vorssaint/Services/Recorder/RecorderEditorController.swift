@@ -67,6 +67,8 @@ final class RecorderEditorModel: ObservableObject, BackdropEditing {
     private(set) var audioSources: Set<RecorderAudioSource> = []
     private(set) var pointerTrack = RecorderPointerTrack()
     private(set) var typingTrack = RecorderTypingTrack()
+    /// Clicks, keys and the camera recorded beside the master.
+    private(set) var overlayInput = RecorderOverlayInput()  // Fork
     /// True when the recording carries a pointer track at all. Without one the
     /// pointer and zoom controls have nothing to act on and are hidden rather
     /// than shown doing nothing.
@@ -104,6 +106,7 @@ final class RecorderEditorModel: ObservableObject, BackdropEditing {
         player.isMuted = false
         pointerTrack = RecorderPointerTrack.decoded(try? Data(contentsOf: take.pointerURL))
         typingTrack = RecorderTypingTrack.decoded(try? Data(contentsOf: take.typingURL))
+        overlayInput = RecorderOverlayInput.tracks(in: take.folder)  // Fork
         loadEditPresets()
         loadBackdropPresets()
         observeTime()
@@ -139,6 +142,7 @@ final class RecorderEditorModel: ObservableObject, BackdropEditing {
             }
             let audioTracks = await RecorderAudioSource.tracks(in: self.sourceAsset)
             self.audioSources = Set(audioTracks.keys)
+            self.overlayInput.camera = await RecorderCameraFrameSource.Asset.load(self.take.cameraURL)  // Fork
             self.loadAudioWaveforms(audioTracks)
             self.document = self.document.sanitized(duration: self.duration)
             self.generateZoomsIfNeeded()
@@ -387,6 +391,7 @@ final class RecorderEditorModel: ObservableObject, BackdropEditing {
         let sourceSize = sourceSize
         let frameRate = sourceFrameRate
         let duration = duration
+        let overlays = overlayInput  // Fork
         previewTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 120_000_000)
             guard !Task.isCancelled, let self, let item = self.player.currentItem else { return }
@@ -394,7 +399,8 @@ final class RecorderEditorModel: ObservableObject, BackdropEditing {
                                                        track: track,
                                                        sourceSize: sourceSize,
                                                        frameRate: frameRate,
-                                                       duration: duration) else {
+                                                       duration: duration,
+                                                       overlays: overlays) else {  // Fork
                 item.videoComposition = nil
                 return
             }

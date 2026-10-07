@@ -1436,6 +1436,8 @@ enum FeatureCatalogTests {
                "the recorder uses microphone access only when that optional source is on")
         suite.expect(activeSet(.camera) == [.cameraPreview],
                "the camera preview is the only on-demand camera user")
+        suite.expect(activeSet(.camera, on: [DefaultsKey.recorderCamera]) == [.cameraPreview, .screenRecorder],
+               "the recorder uses the camera only while its bubble is chosen")  // Fork
         suite.expect(activeSet(.camera, available: Set(AppFeature.allCases).subtracting([.cameraPreview])) == [],
                "the camera reads as unused once the preview is off in the hub")
         suite.expect(AppFeature.cameraPreview.permissions == [.camera]

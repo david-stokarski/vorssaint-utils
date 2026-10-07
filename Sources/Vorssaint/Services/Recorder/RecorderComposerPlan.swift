@@ -23,7 +23,8 @@ extension RecorderComposer {
                          sourceSize: CGSize,
                          frameRate: Int,
                          duration: Double,
-                         outputScale: CGFloat = 1) -> Plan? {
+                         outputScale: CGFloat = 1,
+                         overlays: RecorderOverlayInput = RecorderOverlayInput()) -> Plan? {  // Fork
         guard sourceSize.width > 0, sourceSize.height > 0, duration > 0 else { return nil }
 
         let style = document.resolvedBackdrop
@@ -52,8 +53,11 @@ extension RecorderComposer {
         let texts = RecorderTextOverlay.normalized(document.texts, duration: duration)
         let images = RecorderImageOverlay.normalized(document.images, duration: duration)
         let blurs = RecorderBlurRegion.normalized(document.blurs, duration: duration)
+        // Fork: overlays only count when the take recorded something to draw.
+        let hasOverlays = !overlays.isEmpty
+            || (document.overlays.clicks.pointerEffect != .none && !track.samples.isEmpty)
         guard showsPointer || !segments.isEmpty || needsCanvas || hasCuts || !texts.isEmpty
-            || !images.isEmpty || !blurs.isEmpty
+            || !images.isEmpty || !blurs.isEmpty || hasOverlays
         else { return nil }
 
         // Everything the pointer track knows is in the RECORDING's own time,
@@ -223,6 +227,8 @@ extension RecorderComposer {
             ? cardMask(canvas: canvas, card: card, corner: corner)
             : nil
 
+        let overlayPlan = RecorderOverlayPlan.make(settings: document.overlays, input: overlays,  // Fork
+                                                   sourceTimes: sourceTimes, hasPointer: !track.samples.isEmpty)
         return Plan(sourceSize: RecorderSupport.evenSize(sourceSize),
                     canvasSize: canvas,
                     cardRect: card,
@@ -248,7 +254,8 @@ extension RecorderComposer {
                         * CGFloat(track.displayScale)
                         * CGFloat(max(1, track.systemScale))
                         * CGFloat(RecorderSupport.sanitizedPointerSize(document.pointerSize)),
-                    showsClickRing: document.showsClickRing,
+                    // Fork: the overlay's click highlights replace the pointer's own ring.
+                    showsClickRing: document.showsClickRing && (overlayPlan?.presses.isEmpty ?? true),
                     plate: plate,
                     mask: mask,
                     texts: texts,
@@ -257,7 +264,8 @@ extension RecorderComposer {
                     imageSprites: imageSprites,
                     imageOpacity: imageOpacity,
                     blurs: blurs,
-                    blurCovers: blurCovers)
+                    blurCovers: blurCovers,
+                    overlays: overlayPlan)  // Fork
     }
 
     // MARK: - Plate
