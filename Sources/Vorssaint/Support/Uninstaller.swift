@@ -42,6 +42,11 @@ enum Uninstaller {
                   ? "UNINSTALL: Space rearranging restored"
                   : "UNINSTALL: Space arrangement restoration could not be confirmed")
         }
+        // Fork: removing the Charge Limit daemon needs an administrator, and
+        // this path has no dialog to ask with; Tools/uninstall.sh removes it.
+        if BatteryChargeService.isHelperInstalled {
+            print("UNINSTALL: battery charge helper still installed")
+        }
         do {
             try SMAppService.mainApp.unregister()
             print("UNINSTALL: login item unregistered")

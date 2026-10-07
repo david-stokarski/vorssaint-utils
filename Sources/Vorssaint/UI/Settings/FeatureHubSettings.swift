@@ -1061,6 +1061,7 @@ extension AppFeature {
         case .snapWheel: return SnapWheelSupport.title
         case .selectionActions: return SelectionActionsSupport.title  // Fork
         case .appIcons: return AppIconSupport.title
+        case .batteryCharge: return BatteryChargeSupport.title  // Fork
         case .homebrew: return s.homebrewName
         case .appUpdates: return FeatureStrings.appUpdates(L10n.shared.language).pageTitle
         case .monitorCPU: return s.monitorShowCPU
@@ -1157,6 +1158,7 @@ extension AppFeature {
         case .snapWheel: return SnapWheelSupport.hubDescription
         case .selectionActions: return SelectionActionsSupport.hubDescription  // Fork
         case .appIcons: return AppIconSupport.hubDescription
+        case .batteryCharge: return BatteryChargeSupport.hubDescription  // Fork
         case .homebrew: return hub.descHomebrew
         case .appUpdates: return FeatureStrings.appUpdates(L10n.shared.language).hubDescription
         case .monitorCPU: return hub.descMonitorCPU

@@ -24,7 +24,7 @@ enum AppFeature: String, CaseIterable {
     // Sound
     case mixer, soundOutputSwitcher, audioPriority, micMute, musicBlock, dictation
     // Energy and display
-    case keepAwake, brightness, extraBrightness, bluetoothSleep
+    case keepAwake, brightness, extraBrightness, bluetoothSleep, batteryCharge  // Fork: batteryCharge
     // Tools
     case quickLauncher, quickToggles, colorPicker, screenOCR, cleaningMode, mediaTools,
          cleaner, uninstaller, homebrew, appUpdates, screenshot, cameraPreview, radialMenu, scratchpad,
@@ -112,7 +112,7 @@ extension AppFeature {
             return .clipboardFiles
         case .mixer, .soundOutputSwitcher, .audioPriority, .micMute, .musicBlock, .dictation:
             return .sound
-        case .keepAwake, .brightness, .extraBrightness, .bluetoothSleep:
+        case .keepAwake, .brightness, .extraBrightness, .bluetoothSleep, .batteryCharge:
             return .energyDisplay
         case .quickLauncher, .quickToggles, .colorPicker, .screenOCR, .cleaningMode, .mediaTools,
              .cleaner, .uninstaller, .homebrew, .appUpdates, .screenshot, .cameraPreview, .radialMenu,
@@ -172,6 +172,7 @@ extension AppFeature {
         case .workspaces: return "square.stack.3d.up"  // Fork
         case .snapWheel: return "circle.circle"  // Fork
         case .selectionActions: return "text.cursor"  // Fork
+        case .batteryCharge: return "battery.75percent"  // Fork
         case .musicBlock: return "music.note"
         case .keepAwake: return "moon.zzz.fill"
         case .brightness: return "display.2"
@@ -287,6 +288,7 @@ extension AppFeature {
         case .workspaces: return [DefaultsKey.workspacesEnabled]
         case .snapWheel: return [DefaultsKey.snapWheelEnabled]  // Fork
         case .selectionActions: return [DefaultsKey.selectionActionsEnabled]  // Fork
+        case .batteryCharge: return [DefaultsKey.batteryChargeEnabled]  // Fork
         case .finderCutPaste: return [DefaultsKey.finderCutPasteEnabled,
                                       DefaultsKey.finderPasteImageAsFile]
         case .finderRename: return [DefaultsKey.finderRenameEnabled]
@@ -396,6 +398,8 @@ extension AppFeature {
         case .snapWheel: return [.accessibility]  // Fork
         // Fork: reads the selection and watches clicks and keys to dismiss.
         case .selectionActions: return [.accessibility]
+        // Fork: the daemon does the work as root; the app reads files only.
+        case .batteryCharge: return []
         case .keepAwake: return [.accessibility]
         case .brightness: return [.accessibility]
         case .cleaner: return [.fullDiskAccess, .filesAndFolders, .notifications]
@@ -512,7 +516,7 @@ extension AppFeature {
             return true
         case .focusFollowsMouse, .scrollHorizontal, .linearScroll, .diskImageInstaller, .audioPriority,
              .wallpaper, .killProcess, .portManager, .fanControl, .notchMascot, .spacesOrder, .dictation, .aiChat, .workspaces, .snapWheel, .appIcons,
-             .selectionActions:  // Fork
+             .selectionActions, .batteryCharge:  // Fork
             return false
         }
     }

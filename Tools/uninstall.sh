@@ -212,6 +212,16 @@ if (( ${#found_rules} )); then
     osascript -e "do shell script \"rm -f $found_rules\" with administrator privileges with prompt \"Vorssaint uninstaller\"" || true
 fi
 
+# Fork: the Charge Limit daemon. Stopping it makes it restore the charger,
+# and running its binary with --restore does it once more before the files go.
+BATTERY_LABEL="$BUNDLE.battery"
+BATTERY_HELPER="/Library/PrivilegedHelperTools/$BATTERY_LABEL"
+BATTERY_PLIST="/Library/LaunchDaemons/$BATTERY_LABEL.plist"
+if [[ -e "$BATTERY_PLIST" || -e "$BATTERY_HELPER" ]]; then
+    echo "▸ Removing the battery charge helper (asks for your admin password)…"
+    osascript -e "do shell script \"(/bin/launchctl bootout system/$BATTERY_LABEL 2>/dev/null || true) ; ([ -x '$BATTERY_HELPER' ] && '$BATTERY_HELPER' --restore >/dev/null 2>&1 || true) ; /bin/rm -f '$BATTERY_PLIST' '$BATTERY_HELPER' ; /bin/rm -rf '/Library/Application Support/$BATTERY_LABEL'\" with administrator privileges with prompt \"Vorssaint uninstaller\"" || true
+fi
+
 # `--uninstall` restores sleep, but it runs before the app has an
 # NSApplication and so cannot raise the password dialog the in-app uninstall
 # falls back to. A restore that needed one therefore reaches here as a setting

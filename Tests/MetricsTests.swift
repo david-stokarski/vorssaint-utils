@@ -118,6 +118,7 @@ struct MetricsTests {
                 NotchLastPlayedTests.run(suite)  // Fork
                 NotchDisplayProfilesTests.run(suite)  // Fork
             }),
+            ("battery-charge", { BatteryChargeSupportTests.run(suite) }),  // Fork
             ("settings", {
                 SettingsFeatureTests.run(suite)
                 SettingsWindowTests.run { suite.expect($0, $1) }

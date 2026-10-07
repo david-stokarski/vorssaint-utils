@@ -572,6 +572,7 @@ struct SettingsView: View {
         case .snapWheel: SnapWheelSettings()
         case .selectionActions: SelectionActionsSettings()  // Fork
         case .appIcons: AppIconSettings()
+        case .batteryCharge: BatteryChargeSettings()  // Fork
         case .urlCleaner: URLCleanerSettings()
         case .cleaner: CleanerSettings()
         case .homebrew: HomebrewSettings()

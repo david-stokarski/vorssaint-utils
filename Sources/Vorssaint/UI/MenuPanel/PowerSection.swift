@@ -50,6 +50,7 @@ struct PowerSection: View {
                         }
                     }
                 }
+                if AppFeature.batteryCharge.isAvailable { BatteryChargePanelRow() }  // Fork
             }
             .panelCard()
         }
