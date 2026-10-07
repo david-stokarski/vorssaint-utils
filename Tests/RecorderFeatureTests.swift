@@ -68,7 +68,7 @@ enum RecorderFeatureTests {
         suite.expect(AppFeature.screenRecorder.group == .tools
                 && AppFeature.screenRecorder.enabledKeys.isEmpty
                 && AppFeature.screenRecorder.permissions
-                    == [.screenRecording, .accessibility, .audioCapture, .microphone],
+                    == [.screenRecording, .accessibility, .audioCapture, .microphone, .camera],  // Fork
                "the recorder keeps its optional capture permissions contextual")
         suite.expect(AppFeature.screenRecorder.energyProfile == .idle,
                "the recorder costs nothing between recordings")

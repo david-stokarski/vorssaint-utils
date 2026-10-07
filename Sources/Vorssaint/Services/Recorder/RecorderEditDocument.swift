@@ -52,6 +52,9 @@ struct RecorderEditDocument: Codable, Equatable {
     var keepsMicrophone: Bool
     var systemAudioGain: Double
     var microphoneGain: Double
+    /// Clicks, key captions and the camera bubble. Older documents get the
+    /// defaults, which draw nothing on a take that recorded none of them.
+    var overlays: RecorderOverlaySettings  // Fork
 
     init(trimStart: Double = 0,
          trimEnd: Double = 0,
@@ -77,7 +80,8 @@ struct RecorderEditDocument: Codable, Equatable {
          blurs: [RecorderBlurRegion] = [],
          keepsMicrophone: Bool = true,
          systemAudioGain: Double = 1,
-         microphoneGain: Double = 1) {
+         microphoneGain: Double = 1,
+         overlays: RecorderOverlaySettings = RecorderOverlaySettings()) {  // Fork
         self.trimStart = trimStart
         self.trimEnd = trimEnd
         self.quality = quality
@@ -103,6 +107,7 @@ struct RecorderEditDocument: Codable, Equatable {
         self.keepsMicrophone = keepsMicrophone
         self.systemAudioGain = systemAudioGain
         self.microphoneGain = microphoneGain
+        self.overlays = overlays  // Fork
     }
 
     /// A document written before these fields existed still opens: every one
@@ -139,6 +144,8 @@ struct RecorderEditDocument: Codable, Equatable {
         keepsMicrophone = try container.decodeIfPresent(Bool.self, forKey: .keepsMicrophone) ?? true
         systemAudioGain = try container.decodeIfPresent(Double.self, forKey: .systemAudioGain) ?? 1
         microphoneGain = try container.decodeIfPresent(Double.self, forKey: .microphoneGain) ?? 1
+        overlays = (try? container.decodeIfPresent(RecorderOverlaySettings.self, forKey: .overlays))  // Fork
+            ?? RecorderOverlaySettings()
     }
 
     // MARK: - Timeline
@@ -289,6 +296,7 @@ struct RecorderEditDocument: Codable, Equatable {
             || texts != other.texts
             || images != other.images
             || blurs != other.blurs
+            || overlays != other.overlays  // Fork
     }
 
     /// Whether the finished video would run differently, which is what forces
@@ -340,6 +348,7 @@ struct RecorderEditDocument: Codable, Equatable {
         document.texts = RecorderTextOverlay.normalized(texts, duration: duration)
         document.images = RecorderImageOverlay.normalized(images, duration: duration)
         document.blurs = RecorderBlurRegion.normalized(blurs, duration: duration)
+        document.overlays = overlays.sanitized()  // Fork
         return document
     }
 
@@ -391,6 +400,8 @@ struct RecorderEditPreset: Codable, Equatable, Identifiable {
     let zoomAmount: Double
     /// Absent in older presets, which leave the recording's pictures alone.
     var images: [RecorderImageOverlay]?
+    /// Absent in older presets, which leave the overlays' look alone.
+    var overlays: RecorderOverlaySettings?  // Fork
 
     init(id: UUID = UUID(), name: String, document: RecorderEditDocument) {
         self.id = id
@@ -404,6 +415,7 @@ struct RecorderEditPreset: Codable, Equatable, Identifiable {
         zoomEnabled = document.zoomEnabled
         zoomAmount = document.zoomAmount
         images = document.images
+        overlays = document.overlays  // Fork
     }
 
     func applying(to document: RecorderEditDocument) -> RecorderEditDocument {
@@ -417,6 +429,7 @@ struct RecorderEditPreset: Codable, Equatable, Identifiable {
         next.zoomEnabled = zoomEnabled
         next.zoomAmount = zoomAmount
         if let images { next.images = images }
+        if let overlays { next.overlays = overlays }  // Fork
         return next
     }
 }

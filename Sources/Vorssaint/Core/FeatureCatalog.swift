@@ -379,7 +379,8 @@ extension AppFeature {
         // The sound of the Mac is read through an audio grant of its own.
         // Microphone access stays contextual, and Accessibility only keeps
         // typing timing.
-        case .screenRecorder: return [.screenRecording, .accessibility, .audioCapture, .microphone]
+        // Fork: the camera only for the optional bubble.
+        case .screenRecorder: return [.screenRecording, .accessibility, .audioCapture, .microphone, .camera]
         case .cameraPreview: return [.camera]
         // Records the microphone and pastes at the caret.
         case .dictation: return [.microphone, .accessibility]
@@ -594,6 +595,8 @@ extension AppFeature {
                 return boolFor(DefaultsKey.recorderSystemAudio)
             case (.screenRecorder, .microphone):
                 return boolFor(DefaultsKey.recorderMicrophone)
+            case (.screenRecorder, .camera):  // Fork
+                return boolFor(DefaultsKey.recorderCamera)
             default:
                 return true
             }

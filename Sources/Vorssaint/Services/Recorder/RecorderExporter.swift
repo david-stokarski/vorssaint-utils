@@ -236,12 +236,15 @@ final class RecorderExporter {
         // The export preset is folded into the canvas the composer draws, so
         // the background is rendered at the size it ships at instead of being
         // resampled afterwards.
+        // Fork: clicks, keys and the camera recorded beside the master.
+        let overlays = await RecorderOverlayInput.load(from: pointerURL.deletingLastPathComponent())
         let plan = RecorderComposer.makePlan(document: document,
                                              track: track,
                                              sourceSize: sourceSize,
                                              frameRate: outputFrameRate,
                                              duration: duration,
-                                             outputScale: outputScale)
+                                             outputScale: outputScale,
+                                             overlays: overlays)  // Fork
         let composer = plan.map { RecorderComposer(plan: $0) }
         let outputSize = composer?.canvasSize
             ?? sharingPlan?.size
@@ -581,11 +584,13 @@ final class RecorderExporter {
         // a smoothed pointer are in it too.
         let frameRate = Int(((try? await videoTrack.load(.nominalFrameRate)) ?? 60).rounded())
         let track = RecorderPointerTrack.decoded(try? Data(contentsOf: pointerURL))
+        let overlays = await RecorderOverlayInput.load(from: pointerURL.deletingLastPathComponent())  // Fork
         let plan = RecorderComposer.makePlan(document: document,
                                              track: track,
                                              sourceSize: sourceSize,
                                              frameRate: RecorderSupport.sanitizedFrameRate(frameRate),
-                                             duration: duration)
+                                             duration: duration,
+                                             overlays: overlays)  // Fork
         let composer = plan.map { RecorderComposer(plan: $0) }
         let canvas = composer?.canvasSize ?? RecorderSupport.evenSize(sourceSize)
         let size = RecorderSupport.gifOutputSize(source: canvas, size: document.resolvedGIFSize)

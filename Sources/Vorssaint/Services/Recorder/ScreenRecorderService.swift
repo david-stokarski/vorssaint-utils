@@ -14,10 +14,23 @@ final class RecorderSelectionAudioOptions: ObservableObject {
     @Published var microphone: Bool {
         didSet { UserDefaults.standard.set(microphone, forKey: DefaultsKey.recorderMicrophone) }
     }
+    // Fork: the overlays a recording captures, remembered the same way.
+    @Published var showsClicks: Bool {
+        didSet { UserDefaults.standard.set(showsClicks, forKey: DefaultsKey.recorderShowClicks) }
+    }
+    @Published var showsKeystrokes: Bool {
+        didSet { UserDefaults.standard.set(showsKeystrokes, forKey: DefaultsKey.recorderShowKeystrokes) }
+    }
+    @Published var camera: Bool {
+        didSet { UserDefaults.standard.set(camera, forKey: DefaultsKey.recorderCamera) }
+    }
 
     init(defaults: UserDefaults = .standard) {
         systemAudio = defaults.bool(forKey: DefaultsKey.recorderSystemAudio)
         microphone = defaults.bool(forKey: DefaultsKey.recorderMicrophone)
+        showsClicks = defaults.bool(forKey: DefaultsKey.recorderShowClicks)  // Fork
+        showsKeystrokes = defaults.bool(forKey: DefaultsKey.recorderShowKeystrokes)  // Fork
+        camera = defaults.bool(forKey: DefaultsKey.recorderCamera)  // Fork
     }
 }
 
@@ -43,6 +56,7 @@ private final class RecorderSession: NSObject, RecorderCaptureEngineDelegate {
     private let streamHeard = RecorderAudioFlag()
     private let pointer: RecorderPointerSampler
     private let typing: RecorderTypingSampler
+    let overlays: RecorderOverlayCapture  // Fork
     private let writerQueue = DispatchQueue(label: "com.vorssaint.recorder.writer",
                                             qos: .userInitiated)
     private let startGate = RecorderStartGate()
@@ -72,6 +86,7 @@ private final class RecorderSession: NSObject, RecorderCaptureEngineDelegate {
         microphone = capturesMicrophone ? RecorderMicrophoneCapture() : nil
         pointer = RecorderPointerSampler(region: region, pauseClock: pauseClock)
         typing = RecorderTypingSampler(pauseClock: pauseClock)
+        overlays = RecorderOverlayCapture(take: take, region: region, pauseClock: pauseClock)  // Fork
         super.init()
         engine.delegate = self
         microphone?.onSample = { [weak self] sampleBuffer in
@@ -154,6 +169,7 @@ private final class RecorderSession: NSObject, RecorderCaptureEngineDelegate {
             pointer.start()
             typing.start()
         }
+        await MainActor.run { overlays.startSamplers() }  // Fork
         return nil
     }
 
@@ -177,7 +193,10 @@ private final class RecorderSession: NSObject, RecorderCaptureEngineDelegate {
         let end = CMClockGetTime(CMClockGetHostTimeClock())
         let ownsFinalization = startGate.cancelAndClaimStop()
         await startGate.waitUntilFinished()
-        guard ownsFinalization else { return false }
+        guard ownsFinalization else {
+            await overlays.discard()  // Fork
+            return false
+        }
         let tap = systemAudioTap
         async let tapStop: Void = { if let tap { await tap.stop() } }()
         if let microphone {
@@ -198,8 +217,10 @@ private final class RecorderSession: NSObject, RecorderCaptureEngineDelegate {
                 forKey: DefaultsKey.recorderSystemAudioTapVerified)
         }
         let (track, typingTrack) = await MainActor.run { (pointer.stop(), typing.stop()) }
+        let overlayTracks = await overlays.stop(at: end)  // Fork
         writerQueue.sync {}
         let written = await writer.finish(at: end)
+        if written { overlays.write(overlayTracks) }  // Fork
         if written, !track.isEmpty {
             try? track.encoded().write(to: take.pointerURL, options: .atomic)
         }
@@ -393,6 +414,16 @@ final class ScreenRecorderService: ObservableObject {
                                   wantsMicrophone: Bool,
                                   generation: Int) {
         guard pendingStartIsAuthorized(generation) else { return }
+        // Fork: the camera bubble asks for the camera first, as the microphone does.
+        if RecorderCameraPermission.requestIfNeeded(
+            wanted: UserDefaults.standard.bool(forKey: DefaultsKey.recorderCamera), completion: { [weak self] in
+                guard let self, self.pendingStartIsAuthorized(generation) else { return }
+                self.isAwaitingMicrophone = false
+                self.prepareCountdown(for: region, wantsMicrophone: wantsMicrophone, generation: generation)
+            }) {
+            isAwaitingMicrophone = true
+            return
+        }
         guard wantsMicrophone else {
             startCountdown(for: region, generation: generation)
             return
@@ -486,6 +517,7 @@ final class ScreenRecorderService: ObservableObject {
             QuickToolHUD.show(icon: "mic.slash", message: self.strings.microphoneUnavailableHUD)
         }
         self.session = session
+        session.overlays.prepare()  // Fork: the camera bubble, before the filter is built
 
         // The indicator goes up BEFORE the stream is asked to start, because
         // the capture filter names the windows it leaves out and can only name
@@ -516,6 +548,7 @@ final class ScreenRecorderService: ObservableObject {
                 .protectedWindowIDsForCapture(honoursVisibilityPreference: false)
                 .map(Int.init))
             chrome.formUnion(indicator.excludedWindowNumbers)
+            chrome.formUnion(session.overlays.excludedWindowNumbers)  // Fork
             if let number = QuickToolHUD.currentWindowNumber { chrome.insert(number) }
             let failure = await session.start(frameRate: frameRate,
                                               capturesSystemAudio: capturesSystemAudio,
@@ -526,6 +559,7 @@ final class ScreenRecorderService: ObservableObject {
                 self.session = nil
                 self.indicator?.hide()
                 self.indicator = nil
+                await session.overlays.discard()  // Fork
                 RecorderTakeStore.shared.delete(take)
                 self.report(failure)
                 return

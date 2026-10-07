@@ -396,6 +396,11 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Recorder/RecorderImageOverlay.swift
         Sources/Vorssaint/Services/Recorder/RecorderBlurRegion.swift
         Sources/Vorssaint/Services/Recorder/RecorderEditDocument.swift
+        Sources/Vorssaint/Services/Recorder/RecorderOverlaySupport.swift
+        Sources/Vorssaint/Services/Recorder/RecorderClickTrack.swift
+        Sources/Vorssaint/Services/Recorder/RecorderKeystrokeTrack.swift
+        Sources/Vorssaint/Services/Recorder/RecorderCameraTrack.swift
+        Sources/Vorssaint/Services/Recorder/RecorderOverlayRenderer.swift
         Sources/Vorssaint/Core/AppInfo.swift
         Sources/Vorssaint/Core/GlobalShortcut.swift
         Sources/Vorssaint/Core/SymbolicHotKeys.swift

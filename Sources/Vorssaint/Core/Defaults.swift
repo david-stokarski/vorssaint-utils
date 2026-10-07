@@ -1907,6 +1907,7 @@ enum Defaults {
         .merging(NotchLyricsTiming.registeredDefaults) { current, _ in current }
         .merging(NotchLastPlayedSupport.registeredDefaults) { current, _ in current }
         .merging(NotchDisplayProfiles.registeredDefaults) { current, _ in current }
+        .merging(RecorderOverlaySupport.registeredDefaults) { current, _ in current }  // Fork
 
     static func register() {
         let defaults = UserDefaults.standard

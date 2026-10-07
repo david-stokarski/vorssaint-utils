@@ -105,6 +105,9 @@ private struct NotchRecordingAudioOptions: View {
                 .focused(focusedControl, equals: .systemAudio)
             Toggle(FeatureStrings.recorder(l10n.language).microphoneTrackLabel, isOn: $options.microphone)
                 .focused(focusedControl, equals: .microphone)
+            RecorderOverlayCaptureToggles(options: options)  // Fork
+                .toggleStyle(.button)
+                .tint(nil)
         }
         .toggleStyle(.switch)
         .tint(.green)
