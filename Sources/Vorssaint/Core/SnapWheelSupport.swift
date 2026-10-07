@@ -41,6 +41,14 @@ extension DefaultsKey {
     static let snapWheelHaptics = "snapWheelHaptics"
     static let snapWheelTarget = "snapWheelTarget"
     static let snapWheelScreen = "snapWheelScreen"
+    /// 0 relaxed … 1 twitchy: how little movement shows the ring and picks.
+    static let snapWheelSensitivity = "snapWheelSensitivity"
+    /// A pointer that rests and moves on starts over from where it rested.
+    static let snapWheelRecenter = "snapWheelRecenter"
+    /// Seconds of stillness that count as resting.
+    static let snapWheelRestDelay = "snapWheelRestDelay"
+    /// A big circle drawn while holding picks the center.
+    static let snapWheelCircle = "snapWheelCircle"
 }
 
 // MARK: - Trigger
@@ -333,6 +341,13 @@ struct SnapWheelCycle {
         return actions[index]
     }
 
+    /// Picks `index` of the slot's list outright, as a circle picks the first.
+    mutating func select(_ slot: SnapWheelSlot, index: Int, actions: [String]) -> String? {
+        guard actions.indices.contains(index) else { return nil }
+        chosen[slot] = index
+        return actions[index]
+    }
+
     func position(in slot: SnapWheelSlot) -> Int? { chosen[slot] }
 }
 
@@ -350,7 +365,8 @@ enum SnapWheelGeometry {
     }
 
     /// AppKit coordinates (y up).
-    static func slot(from origin: CGPoint, to point: CGPoint, directionalDistance: CGFloat) -> SnapWheelSlot? {
+    static func slot(from origin: CGPoint, to point: CGPoint, directionalDistance: CGFloat,
+                     showDistance: CGFloat = showDistance) -> SnapWheelSlot? {
         let dx = point.x - origin.x, dy = point.y - origin.y
         let distance = hypot(dx, dy)
         guard distance >= showDistance else { return nil }
@@ -387,6 +403,147 @@ enum SnapWheelGeometry {
         let dx = min(max(0, padding), max(0, rect.width / 2 - 20))
         let dy = min(max(0, padding), max(0, rect.height / 2 - 20))
         return rect.insetBy(dx: dx, dy: dy)
+    }
+}
+
+// MARK: - Feel
+
+/// How much movement the wheel needs, and whether a rest starts it over.
+struct SnapWheelFeel: Equatable {
+    var sensitivity: Double = 0.7
+    var recenters = true
+    var restDelay: TimeInterval = 0.3
+    var circles = true
+
+    static let restDelayRange: ClosedRange<Double> = 0.15...1.0
+
+    /// Points of movement before the ring shows: 12 relaxed, 4 twitchy.
+    var showDistance: CGFloat { CGFloat(12 - 8 * min(max(sensitivity, 0), 1)) }
+
+    /// Points from the center to pick a direction. Relaxed it is the ring's
+    /// hole and a bit more; twitchy, under half of it.
+    func directionalDistance(size: CGFloat, thickness: CGFloat) -> CGFloat {
+        let hole = max(22, size / 2 - thickness)
+        let factor = 1.15 - 0.75 * min(max(sensitivity, 0), 1)
+        return max(showDistance + 6, hole * CGFloat(factor))
+    }
+
+    static func current(in defaults: UserDefaults = .standard) -> SnapWheelFeel {
+        var feel = SnapWheelFeel()
+        if let value = defaults.object(forKey: DefaultsKey.snapWheelSensitivity) as? Double, value.isFinite {
+            feel.sensitivity = min(max(value, 0), 1)
+        }
+        feel.recenters = defaults.object(forKey: DefaultsKey.snapWheelRecenter) as? Bool ?? true
+        feel.circles = defaults.object(forKey: DefaultsKey.snapWheelCircle) as? Bool ?? true
+        if let value = defaults.object(forKey: DefaultsKey.snapWheelRestDelay) as? Double, value.isFinite {
+            feel.restDelay = min(max(value, restDelayRange.lowerBound), restDelayRange.upperBound)
+        }
+        return feel
+    }
+}
+
+/// Where the wheel measures from. A pointer that stops for `restDelay` and
+/// then moves on makes the place it stopped the new center, so a hand that
+/// was still travelling when the key went down, or that paused to look,
+/// picks from where it is now. A few points of tremor are not movement.
+struct SnapWheelAnchor: Equatable {
+    private(set) var origin: CGPoint
+    private(set) var resting: CGPoint
+    private(set) var lastMovedAt: TimeInterval
+    /// Set once the center has moved during this hold.
+    private(set) var hasMoved = false
+    static let tremor: CGFloat = 1.5
+
+    init(origin: CGPoint, at time: TimeInterval) {
+        self.origin = origin
+        resting = origin
+        lastMovedAt = time
+    }
+
+    /// Makes `point` the center now, as after a circle: the choice made
+    /// stays until a direction is picked from here.
+    mutating func restart(at point: CGPoint, time: TimeInterval) {
+        origin = point
+        resting = point
+        lastMovedAt = time
+        hasMoved = true
+    }
+
+    /// Records the pointer at `point`; true when the center moved.
+    mutating func move(to point: CGPoint, at time: TimeInterval, restDelay: TimeInterval) -> Bool {
+        guard hypot(point.x - resting.x, point.y - resting.y) > Self.tremor else { return false }
+        let restedHere = time - lastMovedAt >= restDelay && resting != origin
+        if restedHere {
+            origin = resting
+            hasMoved = true
+        }
+        resting = point
+        lastMovedAt = time
+        return restedHere
+    }
+}
+
+/// Notices a big circle drawn with the pointer: the recent path winds most
+/// of a full turn around its own middle, far enough out and round enough.
+/// Measuring the winding around the middle, rather than adding up every
+/// change of heading, shrugs off a wobbly hand and an uneven loop. A line,
+/// a zigzag or a U passes close to its middle or turns too little; a small
+/// or flat loop is too small or too far from round.
+struct SnapWheelCircle: Equatable {
+    /// The smallest radius, in points, that counts (a loop about 70 across).
+    static let minimumRadius: CGFloat = 35
+    /// Most of a turn: hands rarely close the loop exactly.
+    static let turnNeeded = Double.pi * 2 * 0.83
+    /// How far back the path is looked at.
+    private static let span: TimeInterval = 1.6
+    private static let pause: TimeInterval = 0.35
+    private static let spacing: CGFloat = 2
+
+    private var points: [CGPoint] = []
+    private var times: [TimeInterval] = []
+    private(set) var winding: Double = 0
+
+    /// Well into a loop: what the pointer points at is not a choice yet.
+    var isCircling: Bool { abs(winding) > .pi * 0.75 }
+
+    mutating func reset() { self = SnapWheelCircle() }
+
+    /// Adds a pointer position; true when it completes a circle.
+    mutating func add(_ point: CGPoint, at time: TimeInterval) -> Bool {
+        if let last = points.last {
+            guard hypot(point.x - last.x, point.y - last.y) >= Self.spacing else { return false }
+            if time - times[times.count - 1] > Self.pause { reset() }
+        }
+        points.append(point)
+        times.append(time)
+        while let first = times.first, time - first > Self.span {
+            points.removeFirst()
+            times.removeFirst()
+        }
+        winding = 0
+        guard points.count >= 10 else { return false }
+
+        let count = CGFloat(points.count)
+        let center = CGPoint(x: points.reduce(0) { $0 + $1.x } / count, y: points.reduce(0) { $0 + $1.y } / count)
+        var radii = points.map { hypot($0.x - center.x, $0.y - center.y) }
+        radii.sort()
+        let low = radii[radii.count / 10], high = radii[radii.count * 9 / 10]
+        guard radii[radii.count / 2] >= Self.minimumRadius, low >= high * 0.4 else { return false }
+
+        var total = 0.0
+        var previous = atan2(Double(points[0].y - center.y), Double(points[0].x - center.x))
+        for point in points.dropFirst() {
+            let angle = atan2(Double(point.y - center.y), Double(point.x - center.x))
+            var delta = angle - previous
+            while delta > .pi { delta -= 2 * .pi }
+            while delta < -.pi { delta += 2 * .pi }
+            total += delta
+            previous = angle
+        }
+        winding = total
+        guard abs(total) >= Self.turnNeeded else { return false }
+        reset()
+        return true
     }
 }
 
@@ -493,6 +650,10 @@ enum SnapWheelSupport {
         DefaultsKey.snapWheelHaptics: true,
         DefaultsKey.snapWheelTarget: SnapWheelTargetChoice.focused.rawValue,
         DefaultsKey.snapWheelScreen: SnapWheelScreenChoice.pointer.rawValue,
+        DefaultsKey.snapWheelSensitivity: 0.7,
+        DefaultsKey.snapWheelRecenter: true,
+        DefaultsKey.snapWheelRestDelay: 0.3,
+        DefaultsKey.snapWheelCircle: true,
     ]
 
     static func hex(red: Double, green: Double, blue: Double) -> String {

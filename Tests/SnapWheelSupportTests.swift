@@ -16,6 +16,94 @@ enum SnapWheelSupportTests {
         cycle(suite)
         slots(suite)
         loopImport(suite)
+        feel(suite)
+    }
+
+    private static func feel(_ suite: TestSuite) {
+        let relaxed = SnapWheelFeel(sensitivity: 0, recenters: true, restDelay: 0.3)
+        let twitchy = SnapWheelFeel(sensitivity: 1, recenters: true, restDelay: 0.3)
+        suite.expect(twitchy.showDistance < relaxed.showDistance, "twitchy shows the ring sooner")
+        suite.expect(twitchy.directionalDistance(size: 100, thickness: 10)
+                        < relaxed.directionalDistance(size: 100, thickness: 10) / 2,
+                     "twitchy picks a direction with under half the movement")
+        suite.expect(twitchy.directionalDistance(size: 100, thickness: 10) > twitchy.showDistance,
+                     "the center is still reachable before a direction")
+        let flick = CGPoint(x: 20, y: 0)
+        suite.expect(SnapWheelGeometry.slot(from: .zero, to: flick,
+                                            directionalDistance: twitchy.directionalDistance(size: 100, thickness: 10),
+                                            showDistance: twitchy.showDistance) == .right,
+                     "a 20-point flick picks a direction when twitchy")
+        suite.expect(SnapWheelGeometry.slot(from: .zero, to: flick,
+                                            directionalDistance: relaxed.directionalDistance(size: 100, thickness: 10),
+                                            showDistance: relaxed.showDistance) == .center,
+                     "and is still the center when relaxed")
+
+        var anchor = SnapWheelAnchor(origin: .zero, at: 0)
+        suite.expect(!anchor.move(to: CGPoint(x: 30, y: 0), at: 0.05, restDelay: 0.3), "moving on keeps the center")
+        suite.expect(!anchor.move(to: CGPoint(x: 60, y: 0), at: 0.10, restDelay: 0.3), "still moving")
+        suite.expect(!anchor.move(to: CGPoint(x: 61, y: 0.5), at: 0.80, restDelay: 0.3), "a tremor is not movement")
+        suite.expect(anchor.move(to: CGPoint(x: 60, y: 30), at: 0.90, restDelay: 0.3),
+                     "moving on after a rest starts over")
+        suite.expect(anchor.origin == CGPoint(x: 60, y: 0) && anchor.hasMoved, "from where the pointer rested")
+        var still = SnapWheelAnchor(origin: .zero, at: 0)
+        suite.expect(!still.move(to: CGPoint(x: 0, y: 40), at: 2, restDelay: 0.3),
+                     "resting where the hold began changes nothing")
+
+        // Circles.
+        func draw(_ points: [CGPoint], step: TimeInterval = 0.01) -> Int {
+            var circle = SnapWheelCircle()
+            var found = 0
+            for (index, point) in points.enumerated() where circle.add(point, at: Double(index) * step) { found += 1 }
+            return found
+        }
+        func loop(radius: CGFloat, turns: Double = 1.05, clockwise: Bool = false, squash: CGFloat = 1) -> [CGPoint] {
+            let count = Int(120 * turns)
+            return (0...count).map { i in
+                let angle = Double(i) / 120 * 2 * .pi * (clockwise ? -1 : 1)
+                return CGPoint(x: 500 + radius * CGFloat(cos(angle)), y: 400 + radius * squash * CGFloat(sin(angle)))
+            }
+        }
+        suite.expect(draw(loop(radius: 80)) == 1, "a big circle is noticed")
+        suite.expect(draw(loop(radius: 80, clockwise: true)) == 1, "either way round")
+        suite.expect(draw(loop(radius: 80, turns: 2.1)) == 2, "two circles are two")
+        suite.expect(draw(loop(radius: 25)) == 0, "a small loop is not")
+        // A hand-drawn loop: wobbling radius, uneven speed, a little short of closing.
+        var seed: UInt64 = 7
+        let wobbly: [CGPoint] = (0...95).map { i in
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            let noise = CGFloat(Int(seed >> 59) - 16) * 0.6
+            let angle = Double(i) / 108 * 2 * .pi + 0.3 * sin(Double(i) / 9)
+            let radius = 60 + 12 * CGFloat(sin(Double(i) / 7)) + noise
+            return CGPoint(x: 500 + radius * CGFloat(cos(angle)), y: 400 + radius * 0.8 * CGFloat(sin(angle)))
+        }
+        suite.expect(draw(wobbly) == 1, "a wobbly, uneven, not quite closed loop is noticed")
+        var cycle = SnapWheelCycle()
+        _ = cycle.enter(.center, actions: ["maximize", "center"], windowPlacement: "maximize")
+        suite.expect(cycle.select(.center, index: 0, actions: ["maximize", "center"]) == "maximize",
+                     "a circle picks the first placement even on a maximized window")
+        suite.expect(draw(loop(radius: 120, squash: 0.25)) == 0, "a flat loop is not")
+        suite.expect(draw(loop(radius: 80, turns: 0.7)) == 0, "two thirds of a circle is not")
+        suite.expect(draw(loop(radius: 80), step: 0.5) == 0, "a circle drawn with pauses is not")
+        suite.expect(draw((0...200).map { CGPoint(x: CGFloat($0) * 3, y: 0) }) == 0, "a straight line is not")
+        suite.expect(draw((0...200).map { CGPoint(x: CGFloat($0) * 3, y: $0 % 10 < 5 ? 0 : 30) }) == 0,
+                     "a zigzag is not")
+        let square: [CGPoint] = (0..<40).map { CGPoint(x: 400 + CGFloat($0) * 5, y: 300) }
+            + (0..<40).map { CGPoint(x: 600, y: 300 + CGFloat($0) * 5) }
+            + (0..<40).map { CGPoint(x: 600 - CGFloat($0) * 5, y: 500) }
+            + (0..<40).map { CGPoint(x: 400, y: 500 - CGFloat($0) * 5) }
+            + (0..<10).map { CGPoint(x: 400 + CGFloat($0) * 5, y: 300) }
+        suite.expect(draw(square) == 1, "a loop drawn as a rough square, closed, counts too")
+        var partial = SnapWheelCircle()
+        for (index, point) in loop(radius: 80, turns: 0.6).enumerated() { _ = partial.add(point, at: Double(index) * 0.01) }
+        suite.expect(partial.isCircling, "halfway round is circling, so the preview waits")
+
+        let defaults = UserDefaults(suiteName: "com.vorssaint.tests.snapwheel-feel")!
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.snapwheel-feel")
+        defer { defaults.removePersistentDomain(forName: "com.vorssaint.tests.snapwheel-feel") }
+        suite.expect(SnapWheelFeel.current(in: defaults) == SnapWheelFeel(), "on and fairly twitchy by default")
+        defaults.set(9.0, forKey: DefaultsKey.snapWheelRestDelay)
+        suite.expect(SnapWheelFeel.current(in: defaults).restDelay == SnapWheelFeel.restDelayRange.upperBound,
+                     "a stored delay is kept in range")
     }
 
     private static func trigger(_ suite: TestSuite) {

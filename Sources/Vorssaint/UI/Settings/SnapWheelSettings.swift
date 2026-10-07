@@ -35,6 +35,10 @@ struct SnapWheelSettings: View {
     @AppStorage(DefaultsKey.snapWheelHaptics) private var haptics = true
     @AppStorage(DefaultsKey.snapWheelTarget) private var target = SnapWheelTargetChoice.focused.rawValue
     @AppStorage(DefaultsKey.snapWheelScreen) private var screen = SnapWheelScreenChoice.pointer.rawValue
+    @AppStorage(DefaultsKey.snapWheelSensitivity) private var sensitivity = 0.7
+    @AppStorage(DefaultsKey.snapWheelRecenter) private var recenter = true
+    @AppStorage(DefaultsKey.snapWheelRestDelay) private var restDelay = 0.3
+    @AppStorage(DefaultsKey.snapWheelCircle) private var circles = true
     @AppStorage(DefaultsKey.windowLayoutWindowGap) private var windowGap = 0
     @AppStorage(DefaultsKey.windowLayoutScreenGap) private var screenGap = 0
     @State private var triggerMessage: String?
@@ -91,7 +95,10 @@ struct SnapWheelSettings: View {
             }
 
             Section {
-                SnapWheelLivePreview(appearance: appearance, slots: slots,
+                SnapWheelLivePreview(appearance: appearance,
+                                     feel: SnapWheelFeel(sensitivity: sensitivity, recenters: recenter,
+                                                         restDelay: restDelay),
+                                     slots: slots,
                                      windowGap: CGFloat(windowGap), screenGap: CGFloat(screenGap))
                     .frame(maxWidth: .infinity)
                     .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
@@ -133,18 +140,27 @@ struct SnapWheelSettings: View {
             }
 
             Section {
-                ForEach(SnapWheelSlot.allCases) { slot in
-                    SnapWheelSlotRow(slot: slot, actions: slots[slot] ?? [], language: l10n.language) { updated in
-                        var all = slots
-                        all[slot] = updated
-                        slotsRaw = SnapWheelSlots.encode(all)
+                LabeledContent("Sensitivity") {
+                    HStack(spacing: 8) {
+                        Text("Relaxed").font(.caption).foregroundStyle(.secondary)
+                        Slider(value: $sensitivity, in: 0...1)
+                        Text("Twitchy").font(.caption).foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: 300)
                 }
-                Button("Restore Default Directions") { slotsRaw = SnapWheelSlots.encode(SnapWheelSlots.defaults) }
+                Toggle("Start over where the pointer rests", isOn: $recenter)
+                if recenter {
+                    slider("Rest for", value: $restDelay, range: SnapWheelFeel.restDelayRange, step: 0.05,
+                           format: { String(format: "%.2f s", locale: .current, $0) })
+                }
+                Toggle("Draw a circle to pick the center", isOn: $circles)
             } header: {
-                Text("Directions")
+                Text("Feel")
             } footer: {
-                Text("Each direction can hold several placements. The first is picked when you point there, or the one after the window's current placement, so holding Left again goes from a half to a third. Click while holding to step through the rest.")
+                Text((recenter
+                      ? "Twitchy needs only a small flick to pick a direction. Pause for a moment while holding and the ring moves to the pointer, so the next flick picks from there."
+                      : "Twitchy needs only a small flick to pick a direction.")
+                     + (circles ? " A big circle drawn while holding picks \(centerTitle) and holds it; pause, then flick to choose something else." : ""))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
@@ -225,6 +241,22 @@ struct SnapWheelSettings: View {
                 Text("Behavior")
             }
 
+            Section {
+                ForEach(SnapWheelSlot.allCases) { slot in
+                    SnapWheelSlotRow(slot: slot, actions: slots[slot] ?? [], language: l10n.language) { updated in
+                        var all = slots
+                        all[slot] = updated
+                        slotsRaw = SnapWheelSlots.encode(all)
+                    }
+                }
+                Button("Restore Default Directions") { slotsRaw = SnapWheelSlots.encode(SnapWheelSlots.defaults) }
+            } header: {
+                Text("Directions")
+            } footer: {
+                Text("Each direction can hold several placements. The first is picked when you point there, or the one after the window's current placement, so holding Left again goes from a half to a third. Click while holding to step through the rest.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             if SnapWheelService.hasLoopPreferences, !service.waitsForLoop {
                 Section {
                     Button("Import Settings from Loop") { importLoop(quit: false) }
@@ -234,6 +266,12 @@ struct SnapWheelSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private var centerTitle: String {
+        let actions = slots[.center] ?? []
+        guard !actions.isEmpty else { return "nothing set" }
+        return SnapWheelActionCatalog.title(actions[0], language: l10n.language)
     }
 
     private var recorderTitle: String {
@@ -398,6 +436,7 @@ enum SnapWheelActionCatalog {
 /// direction the way the real hold does, measured from the ring's center.
 private struct SnapWheelLivePreview: View {
     let appearance: SnapWheelAppearance
+    let feel: SnapWheelFeel
     let slots: [SnapWheelSlot: [String]]
     let windowGap: CGFloat
     let screenGap: CGFloat
@@ -468,8 +507,9 @@ private struct SnapWheelLivePreview: View {
         let slot = point.flatMap { point in
             // Flip to y up, as the real hold measures.
             SnapWheelGeometry.slot(from: .zero, to: CGPoint(x: point.x - center.x, y: center.y - point.y),
-                                   directionalDistance: SnapWheelGeometry.directionalDistance(
-                                       size: appearance.size, thickness: appearance.ringThickness))
+                                   directionalDistance: feel.directionalDistance(
+                                       size: appearance.size, thickness: appearance.ringThickness),
+                                   showDistance: feel.showDistance)
         }
         guard slot != model.slot else { return }
         if point == nil { cycle = SnapWheelCycle() }

@@ -37,7 +37,17 @@ final class SnapWheelService: ObservableObject {
 
     private struct Session {
         let generation: Int
-        let origin: CGPoint
+        var anchor: SnapWheelAnchor
+        var origin: CGPoint { anchor.origin }
+        var circle = SnapWheelCircle()
+        /// A circle finished before the wheel had shown; it applies on showing.
+        var pendingCircle = false
+        /// The preview was held back for a circle in progress.
+        var heldPreview = false
+        /// A circle chose the center; it holds until the hand rests and
+        /// moves on, so the end of the loop cannot pick a side instead.
+        var circleLock = false
+        let feel: SnapWheelFeel
         var pointer: CGPoint
         let slots: [SnapWheelSlot: [String]]
         let appearance: SnapWheelAppearance
@@ -221,12 +231,14 @@ final class SnapWheelService: ObservableObject {
         let appearance = SnapWheelAppearance.current(in: defaults)
         sessionGeneration += 1
         let origin = NSEvent.mouseLocation
+        let feel = SnapWheelFeel.current(in: defaults)
         session = Session(generation: sessionGeneration,
-                          origin: origin,
+                          anchor: SnapWheelAnchor(origin: origin, at: ProcessInfo.processInfo.systemUptime),
+                          feel: feel,
                           pointer: origin,
                           slots: SnapWheelSlots.current(in: defaults),
                           appearance: appearance,
-                          directionalDistance: SnapWheelGeometry.directionalDistance(
+                          directionalDistance: feel.directionalDistance(
                               size: appearance.size, thickness: appearance.ringThickness))
         if !startSessionTap() {
             session = nil
@@ -345,15 +357,33 @@ final class SnapWheelService: ObservableObject {
         switch type {
         case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
             session.pointer = trackedPointer(for: event, previous: session.pointer)
+            // A pointer that rested and moves on starts over from where it rested.
+            let recentered = session.feel.recenters
+                && session.anchor.move(to: session.pointer, at: ProcessInfo.processInfo.systemUptime,
+                                       restDelay: session.feel.restDelay)
+            // A big circle picks the center.
+            let circled = session.feel.circles
+                && session.circle.add(session.pointer, at: ProcessInfo.processInfo.systemUptime)
+            if recentered { session.circleLock = false }
             self.session = session
+            if recentered, session.shown, session.appearance.placement == .pointer {
+                overlay.moveWheel(to: session.origin)
+            }
+            if circled {
+                if session.shown {
+                    completeCircle()
+                } else {
+                    self.session?.pendingCircle = true
+                }
+            }
             // A drag whose press the wheel took is the wheel's too.
             let draggingTaken = type != .mouseMoved
                 && session.takenButtons.contains(event.getIntegerValueField(.mouseEventButtonNumber))
             if session.shown {
-                updateSelection()
+                if !circled { updateSelection() }
             } else if !session.revealRequested,
                       hypot(session.pointer.x - session.origin.x, session.pointer.y - session.origin.y)
-                        >= SnapWheelGeometry.showDistance {
+                        >= session.feel.showDistance {
                 // Picking the window asks Accessibility, which can take a
                 // moment; the pointer must never wait for it.
                 self.session?.revealRequested = true
@@ -542,21 +572,61 @@ final class SnapWheelService: ObservableObject {
         guard let screen = session.screen else { return }
         overlay.show(origin: session.origin, screen: screen, appearance: session.appearance,
                      windowFrame: window?.frame, hasWindow: window != nil)
+        if self.session?.pendingCircle == true {
+            completeCircle()
+            return
+        }
         updateSelection()
     }
 
     private func updateSelection() {
-        guard var session, session.shown else { return }
+        guard var session, session.shown, !session.circleLock else { return }
         let slot = SnapWheelGeometry.slot(from: session.origin, to: session.pointer,
-                                          directionalDistance: session.directionalDistance)
+                                          directionalDistance: session.directionalDistance,
+                                          showDistance: session.feel.showDistance)
+        // Mid-circle the highlight follows the hand, but the preview waits:
+        // it would only flash every half of the screen in turn.
+        let circling = session.feel.circles && session.circle.isCircling
+        if !circling, session.heldPreview {
+            session.heldPreview = false
+            self.session = session
+            if slot == session.slot {
+                present(session, actions: session.slot.map { session.slots[$0] ?? [] } ?? [], haptic: false)
+                return
+            }
+        }
         guard slot != session.slot else { return }
+        // After a new center, the choice stays until a direction is picked
+        // from it: resting near it should not fall back to nothing or to
+        // the center's maximize.
+        if session.anchor.hasMoved, session.slot != nil, slot == nil || slot == .center { return }
         session.slot = slot
         let actions = slot.map { session.slots[$0] ?? [] } ?? []
         let actionID = slot.flatMap { session.cycle.enter($0, actions: actions, windowPlacement: session.windowPlacement) }
         let changed = actionID != session.actionID
         session.actionID = actionID
+        if circling { session.heldPreview = true }
         self.session = session
-        present(session, actions: actions, haptic: changed && actionID != nil)
+        present(session, actions: actions, haptic: changed && actionID != nil && !circling, showsPreview: !circling)
+    }
+
+    /// A circle was drawn: the center's first placement is chosen and held,
+    /// and the ring moves to where the circle ended.
+    private func completeCircle() {
+        guard var session, session.shown else { return }
+        let actions = session.slots[.center] ?? []
+        guard !actions.isEmpty else { return }
+        // Always the first of the list (fill the screen, as set up), whatever
+        // the window wears now: a circle means one thing.
+        session.slot = .center
+        session.actionID = session.cycle.select(.center, index: 0, actions: actions)
+        session.circleLock = true
+        session.anchor.restart(at: session.pointer, time: ProcessInfo.processInfo.systemUptime)
+        session.heldPreview = false
+        session.pendingCircle = false
+        self.session = session
+        if session.appearance.placement == .pointer { overlay.moveWheel(to: session.origin) }
+        present(session, actions: actions, haptic: true)
     }
 
     private func advanceCycle() {
@@ -568,9 +638,10 @@ final class SnapWheelService: ObservableObject {
         present(session, actions: actions, haptic: true)
     }
 
-    private func present(_ session: Session, actions: [String], haptic: Bool) {
+    private func present(_ session: Session, actions: [String], haptic: Bool, showsPreview: Bool = true) {
         let preview: NSRect? = {
-            guard let actionID = session.actionID, let window = session.window, let screen = session.screen
+            guard showsPreview, let actionID = session.actionID, let window = session.window,
+                  let screen = session.screen
             else { return nil }
             return WindowLayoutService.shared.snapWheelPreviewFrame(actionID, for: window, screen: screen)
         }()

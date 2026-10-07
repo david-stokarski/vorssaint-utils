@@ -168,6 +168,20 @@ final class SnapWheelOverlay {
         }
     }
 
+    /// Slides the ring to a new center.
+    func moveWheel(to center: CGPoint) {
+        guard let wheelPanel, wheelPanel.isVisible else { return }
+        wheelCenter = center
+        let side = wheelPanel.frame.width
+        let frame = CGRect(x: center.x - side / 2, y: center.y - side / 2, width: side, height: side)
+        guard model.appearance.animation != .instant else { return wheelPanel.setFrame(frame, display: true) }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.1
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.3, 1)
+            wheelPanel.animator().setFrame(frame, display: true)
+        }
+    }
+
     func hide(placed: Bool) {
         hideGeneration += 1
         let generation = hideGeneration
@@ -227,12 +241,12 @@ extension SnapWheelAnimation {
 
     /// The ring: its highlight turning and its center changing. It has a
     /// short way to go and has to keep up with a flick of the hand, so it
-    /// settles in about a tenth of a second.
+    /// settles in well under a tenth of a second.
     var ring: Animation? {
-        if reduceMotion, self != .instant { return .easeOut(duration: 0.08) }
+        if reduceMotion, self != .instant { return .easeOut(duration: 0.06) }
         switch self {
-        case .fluid: return .spring(response: 0.14, dampingFraction: 0.86)
-        case .snappy: return .spring(response: 0.09, dampingFraction: 0.95)
+        case .fluid: return .spring(response: 0.09, dampingFraction: 0.9)
+        case .snappy: return .spring(response: 0.06, dampingFraction: 0.96)
         case .instant: return nil
         }
     }
@@ -361,8 +375,8 @@ struct SnapWheelRingView: View {
                     .font(.system(size: min(26, inner * 0.36), weight: .semibold))
                     .foregroundStyle(model.hasWindow ? Color.white : Color.yellow)
                     // The system's replace effect takes about a third of a
-                    // second; tripled, the symbol keeps pace with the ring.
-                    .contentTransition(.symbolEffect(.replace, options: .speed(3)))
+                    // second; at five times the speed it keeps pace with the ring.
+                    .contentTransition(.symbolEffect(.replace, options: .speed(5)))
                 if let cycle = model.cycle, cycle.count > 1, inner >= 44 {
                     HStack(spacing: 3) {
                         ForEach(0..<min(cycle.count, 6), id: \.self) { index in
