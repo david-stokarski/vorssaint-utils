@@ -14,6 +14,7 @@ struct MonitorSettings: View {
     @ObservedObject private var features = FeatureRuntime.shared
 
     @AppStorage(DefaultsKey.menuBarCombineTemperatures) private var combineTemperatures = true
+    @AppStorage(DefaultsKey.menuBarBatteryIconOnly) private var batteryIconOnly = true  // Fork
     @AppStorage(DefaultsKey.menuBarSeparateMetrics) private var separateMetrics = false
     @AppStorage(DefaultsKey.menuBarMetricSpacing) private var metricSpacing = "standard"
     @AppStorage(DefaultsKey.menuBarMetricAppearance) private var metricAppearance = "values"
@@ -129,6 +130,11 @@ struct MonitorSettings: View {
                             caption: l10n.s.monitorCombineTemperaturesCaption) {
                     Toggle(l10n.s.monitorCombineTemperatures, isOn: $combineTemperatures).labelsHidden()
                 }
+            }
+            // Fork: the battery as a glyph whose fill is the charge.
+            SettingsRow(symbol: "battery.75percent", title: MenuBarBatteryGlyphSupport.title,
+                        caption: MenuBarBatteryGlyphSupport.caption) {
+                Toggle(MenuBarBatteryGlyphSupport.title, isOn: $batteryIconOnly).labelsHidden()
             }
             Divider()
             SettingsRow(symbol: "arrow.left.and.right", title: l10n.s.menuBarSpacingLabel) {

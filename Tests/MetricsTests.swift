@@ -120,6 +120,7 @@ struct MetricsTests {
                 NotchDisplayProfilesTests.run(suite)  // Fork
             }),
             ("battery-charge", { BatteryChargeSupportTests.run(suite) }),  // Fork
+            ("menu-bar-battery", { MenuBarBatteryGlyphTests.run(suite) }),  // Fork
             ("meetings", { MeetingLinkSupportTests.run(suite) }),  // Fork
             ("settings", {
                 SettingsFeatureTests.run(suite)

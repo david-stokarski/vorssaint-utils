@@ -361,6 +361,7 @@ final class StatusItemController {
     /// AFTER refresh() writes it — refresh() calls this at its end.
     private func updateIconAppearance() {
         guard let button = statusItem?.button else { return }
+        defer { if let statusItem { MenuBarTightLength.apply(to: statusItem) } }  // Fork: no padding
         let defaults = UserDefaults.standard
         let updateAvailable: Bool
         if case .available = UpdateService.shared.state {
@@ -513,10 +514,6 @@ final class StatusItemController {
         // status window even when the value is identical — and this runs on
         // every monitor tick and defaults change. Rounded metric strings
         // repeat most ticks, so skipping no-op writes skips that churn.
-        if statusItem.length != NSStatusItem.variableLength {
-            statusItem.length = NSStatusItem.variableLength
-        }
-
         if title.length == 0 {
             if button.attributedTitle.length != 0 {
                 button.attributedTitle = NSAttributedString(string: "")
@@ -622,9 +619,6 @@ final class StatusItemController {
 
             metricStatusItemFocus[group.id] = group.focusMetric
             let item = metricStatusItems[group.id] ?? installMetricStatusItem(for: group)
-            if item.length != NSStatusItem.variableLength {
-                item.length = NSStatusItem.variableLength
-            }
             guard let button = item.button else { continue }
 
             let full = NSMutableAttributedString(attributedString: title)
@@ -647,6 +641,7 @@ final class StatusItemController {
             if button.toolTip != group.title {
                 button.toolTip = group.title
             }
+            MenuBarTightLength.apply(to: item)  // Fork: no padding around the item
         }
     }
 
@@ -817,9 +812,7 @@ final class StatusItemController {
         let text = entry?.menuBarText(maxCharacters: maxCharacters) ?? ""
 
         let item = clipboardPreviewStatusItem ?? installClipboardPreviewStatusItem()
-        if item.length != NSStatusItem.variableLength {
-            item.length = NSStatusItem.variableLength
-        }
+        defer { MenuBarTightLength.apply(to: item) }  // Fork: no padding around the item
         if item.isVisible != (entry != nil) {
             item.isVisible = entry != nil
         }

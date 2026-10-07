@@ -275,6 +275,8 @@ if (( TEST )); then
         Sources/Vorssaint/Core/AppIconStyler.swift
         Sources/Vorssaint/Core/BatteryChargeSupport.swift
         Sources/Vorssaint/Core/BatteryChargePreferences.swift
+        Sources/Vorssaint/Core/MenuBarBatteryGlyphSupport.swift
+        Sources/Vorssaint/Core/MenuBarTightLengthSupport.swift
         Sources/Vorssaint/Core/MeetingLinkSupport.swift
         Sources/Vorssaint/Core/CommandBarPlacement.swift
         Sources/Vorssaint/Core/ClipboardCommandBarSupport.swift

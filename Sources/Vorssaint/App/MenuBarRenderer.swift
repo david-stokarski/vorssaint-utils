@@ -1077,6 +1077,10 @@ enum MenuBarRenderer {
                                           isCharging: Bool,
                                           externalConnected: Bool,
                                           style: MenuBarBlockStyle) -> NSImage {
+        if MenuBarBatteryGlyphSupport.isIconOnly() {  // Fork
+            return MenuBarBatteryGlyph.image(percent: percent, isCharging: isCharging,
+                                             externalConnected: externalConnected, readable: style == .readable)
+        }
         let clampedPercent = max(0, min(100, percent))
         let cacheKey = "battery|\(clampedPercent)|\(isCharging)|\(externalConnected)|\(style)" as NSString
         if let cached = blockImageCache.object(forKey: cacheKey) { return cached }

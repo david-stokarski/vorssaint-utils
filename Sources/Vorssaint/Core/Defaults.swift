@@ -1890,6 +1890,7 @@ enum Defaults {
         DefaultsKey.windowLayoutShortcutBottomRightSixth: WindowLayoutAction.clearedShortcutStorageValue,
         DefaultsKey.windowLayoutShortcutFullScreen: WindowLayoutAction.clearedShortcutStorageValue,
     ].merging(DictationSupport.registeredDefaults) { current, _ in current }  // Fork
+        .merging(MenuBarBatteryGlyphSupport.registeredDefaults) { current, _ in current }  // Fork
         .merging(NotchAnimationTuning.registeredDefaults) { current, _ in current }
         .merging(NotchHoverTuning.registeredDefaults) { current, _ in current }
         .merging(NotchClosedSize.registeredDefaults) { current, _ in current }

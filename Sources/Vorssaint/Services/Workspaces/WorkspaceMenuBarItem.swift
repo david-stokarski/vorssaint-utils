@@ -77,6 +77,7 @@ final class WorkspaceMenuBarItem: NSObject {
         guard next != squares || item.button?.image == nil else { return }
         squares = next
         item.button?.image = Self.image(for: next)
+        MenuBarTightLength.apply(to: item)  // no padding around the item
         item.button?.setAccessibilityLabel("Workspaces: " + next.map { $0.isActive ? "\($0.label), current" : $0.label }
             .joined(separator: ", "))
     }
