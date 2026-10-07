@@ -99,6 +99,12 @@ enum SelfUninstall {
                         stop(L10n.shared.s.advancedClearFailed, sleepRestored: true)
                         return
                     }
+                    // Fork: the Charge Limit daemon belongs to root and outlives
+                    // the bundle; it goes now, while the app can still ask.
+                    guard BatteryChargeService.removeForUninstall() else {
+                        stop(L10n.shared.s.advancedUninstallFailedBody, sleepRestored: true)
+                        return
+                    }
                     // The helper must be safely removed before permissions go;
                     // a failure here keeps the app's existing grants intact.
                     let fanHelperWasRegistered = FanControlService.hasRegisteredHelperForRemoval

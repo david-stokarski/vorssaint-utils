@@ -212,6 +212,11 @@ enum SettingsDirectory {
                                         (.bluetoothSleep, [FeatureStrings.bluetoothSleep(language).pageTitle,
                                                            FeatureStrings.bluetoothSleep(language).enable]),
                                        ]),
+                SettingsDirectoryItem(page: .batteryCharge,  // Fork
+                                      title: BatteryChargeSupport.title,
+                                      icon: "battery.75percent",
+                                      keywords: ["battery", "charge limit", "aldente", "80%", "sailing",
+                                                 "heat protection", "top up", "discharge", "magsafe"]),
                 SettingsDirectoryItem(page: .monitor, title: s.tabMonitor, icon: "chart.line.uptrend.xyaxis",
                                        keywords: [s.menuBarSpacingLabel, s.menuBarHideIconToggle],
                                        featureKeywords: [

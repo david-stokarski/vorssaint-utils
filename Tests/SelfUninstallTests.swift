@@ -14,6 +14,7 @@ enum SelfUninstallContract {
     static var tccResetAllowed = true
     static var fanHelperWasRegistered = true
     static var fanRegistrationRestored = true
+    static var batteryRemovalAllowed = true  // Fork
 
     enum DispatchQueue {
         static let main = Queue()
@@ -81,6 +82,14 @@ enum SelfUninstallContract {
             return fanRegistrationRestored
         }
     }
+    // Fork: the Charge Limit daemon. Silent unless its removal fails, so the
+    // upstream sequences above stay as they are.
+    enum BatteryChargeService {
+        static func removeForUninstall() -> Bool {
+            if !batteryRemovalAllowed { events.append("battery kept") }
+            return batteryRemovalAllowed
+        }
+    }
     enum FeatureStrings {
         struct FanStrings { let helperUnavailable = "fan unavailable" }
         static func fanControl(_ language: String) -> FanStrings { FanStrings() }
@@ -96,6 +105,7 @@ enum SelfUninstallContract {
             tccResetAllowed = true
             fanHelperWasRegistered = true
             fanRegistrationRestored = true
+            batteryRemovalAllowed = true
             SpacesOrderHold.restores = spacesRestore
         }
 
@@ -225,5 +235,15 @@ enum SelfUninstallContract {
         suite.expect(failure == "stopped"
                         && events == ["suspend", "spaces", "refresh permissions", "resume features", "resume brightness"],
                      "a failed Space restore stops a full uninstall before sleep, the rule or anything else is touched, found \(events)")
+
+        // Fork
+        reset(allowRule: true)
+        batteryRemovalAllowed = false
+        failure = nil
+        Host.uninstallCompletely { failure = $0 }
+        DispatchQueue.main.flush()
+        suite.expect(failure == "stopped"
+                        && events == ["suspend", "spaces", "sleep", "rule", "battery kept", "restore keep awake", "refresh permissions", "resume features", "resume brightness"],
+                     "a battery helper that could not be removed stops a full uninstall before the fan helper, permissions or files, found \(events)")
     }
 }

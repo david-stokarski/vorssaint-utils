@@ -8,7 +8,7 @@ import Foundation
 /// below and the unit tests can reason about pages without pulling UI in.
 enum SettingsPage: Hashable {
     case general, features, energy, monitor
-    case mouse, switcher, dock, keyDebounce, superKey, cutPaste, autoQuit, quitProtection, cleaner, uninstaller, urlCleaner, homebrew, appUpdates, media, clipboard, windowLayout, shelf, quickTools, textSnippets, screenshot, radialMenu, commandBar, killProcess, portManager, dictation, aiChat, workspaces, snapWheel, appIcons, notch, notchMascot
+    case mouse, switcher, dock, keyDebounce, superKey, cutPaste, autoQuit, quitProtection, cleaner, uninstaller, urlCleaner, homebrew, appUpdates, media, clipboard, windowLayout, shelf, quickTools, textSnippets, screenshot, radialMenu, commandBar, killProcess, portManager, dictation, aiChat, workspaces, snapWheel, appIcons, batteryCharge, notch, notchMascot
     case shortcuts, advanced, about, releaseNotes, support
 }
 
@@ -365,6 +365,7 @@ extension AppFeature {
         case .workspaces: return FeatureSettingsDestination(.workspaces)
         case .snapWheel: return FeatureSettingsDestination(.snapWheel)
         case .appIcons: return FeatureSettingsDestination(.appIcons)
+        case .batteryCharge: return FeatureSettingsDestination(.batteryCharge)  // Fork
         case .homebrew: return FeatureSettingsDestination(.homebrew)
         case .appUpdates: return FeatureSettingsDestination(.appUpdates)
         case .screenshot:
@@ -429,6 +430,7 @@ enum FeatureVisibilitySupport {
         case .workspaces: return [.workspaces]
         case .snapWheel: return [.snapWheel]
         case .appIcons: return [.appIcons]
+        case .batteryCharge: return [.batteryCharge]  // Fork
         case .keyDebounce: return [.keyboardDebounce]
         case .superKey: return [.superKey]
         case .textSnippets: return [.textSnippets]

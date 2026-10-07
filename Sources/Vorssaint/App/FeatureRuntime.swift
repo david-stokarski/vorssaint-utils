@@ -312,6 +312,7 @@ final class FeatureRuntime: ObservableObject {
         .workspaces: { WorkspaceService.shared.syncWithPreferences() },  // Fork
         .snapWheel: { SnapWheelService.shared.syncWithPreferences() },  // Fork
         .appIcons: { AppIconService.shared.syncWithPreferences() },  // Fork
+        .batteryCharge: { BatteryChargeService.shared.syncWithPreferences() },  // Fork
         .musicBlock: { MusicLaunchBlocker.shared.syncWithPreferences() },
         .keepAwake: {
             KeepAwakeManager.shared.syncWithFeatures()
@@ -430,6 +431,9 @@ extension AppFeature {
         case .fanControl:
             return FanControlHardware.hasControllableFan
                 ? nil : FeatureStrings.fanControl(L10n.shared.language).noFans
+        case .batteryCharge:  // Fork
+            return BatteryChargeHardware.isSupported
+                ? nil : "This Mac has no battery charger Vorssaint can control."
         default:
             return nil
         }

@@ -54,6 +54,9 @@ enum NotchDevRemote {
             case "snapwheel-end": SnapWheelOverlay.shared.hide(placed: false)  // Fork
             case let raw where raw.hasPrefix("snapwheel:"):  // Fork: "snapwheel:left" or "snapwheel:left:2"
                 SnapWheelOverlay.shared.devPreview(String(raw.dropFirst("snapwheel:".count)))
+            case "settings-batterycharge":  // Fork
+                SettingsRouter.shared.request(FeatureSettingsDestination(.batteryCharge), targetFeature: nil, sidebarFeature: nil)
+                (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
             case "settings-appicons":  // Fork
                 SettingsRouter.shared.request(FeatureSettingsDestination(.appIcons), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()

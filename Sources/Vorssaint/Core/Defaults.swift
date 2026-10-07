@@ -1901,6 +1901,7 @@ enum Defaults {
         .merging(WorkspaceSupport.registeredDefaults) { current, _ in current }
         .merging(SnapWheelSupport.registeredDefaults) { current, _ in current }
         .merging(AppIconSupport.registeredDefaults) { current, _ in current }
+        .merging(BatteryChargePreferences.registeredDefaults) { current, _ in current }  // Fork
         .merging(NotchActivityPairing.registeredDefaults) { current, _ in current }
         .merging(CommandBarAnimation.registeredDefaults) { current, _ in current }
         .merging(ClipboardCommandBar.registeredDefaults) { current, _ in current }

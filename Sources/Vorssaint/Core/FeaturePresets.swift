@@ -150,7 +150,8 @@ extension AppFeature {
              .bluetoothSleep, .keepAwake, .quickLauncher, .quickToggles, .colorPicker,
              .screenOCR, .cleaningMode, .mediaTools, .cleaner, .uninstaller, .homebrew, .screenshot,
              .cameraPreview, .scratchpad, .commandBar, .screenRecorder, .wallpaper, .fanControl,
-             .diskImageInstaller, .killProcess, .portManager, .dictation, .aiChat, .workspaces, .snapWheel, .appIcons:
+             .diskImageInstaller, .killProcess, .portManager, .dictation, .aiChat, .workspaces, .snapWheel, .appIcons,
+             .batteryCharge:  // Fork: the daemon does the work; the app polls only while shown
             return .idle
         case .appUpdates:
             // The list is on demand; only a background schedule keeps a timer.
