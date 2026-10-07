@@ -570,6 +570,7 @@ struct SettingsView: View {
         case .aiChat: AIChatSettingsPage()
         case .workspaces: WorkspaceSettings()
         case .snapWheel: SnapWheelSettings()
+        case .appIcons: AppIconSettings()
         case .urlCleaner: URLCleanerSettings()
         case .cleaner: CleanerSettings()
         case .homebrew: HomebrewSettings()

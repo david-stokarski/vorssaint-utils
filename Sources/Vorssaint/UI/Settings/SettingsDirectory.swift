@@ -355,6 +355,11 @@ enum SettingsDirectory {
                                                  FeatureStrings.whatsAppDownloads(language).fileTypes]),
                 SettingsDirectoryItem(page: .homebrew, title: s.homebrewName, icon: "shippingbox"),
                 SettingsDirectoryItem(page: .uninstaller, title: s.uninstallerName, icon: "trash"),
+                SettingsDirectoryItem(page: .appIcons,  // Fork
+                                      title: AppIconSupport.title,
+                                      icon: "app.dashed",
+                                      keywords: ["icon", "app icon", "replace icon", "replacicon", "dark icon",
+                                                 "custom icon", "dock icon"]),
                 SettingsDirectoryItem(page: .killProcess,
                                       title: FeatureStrings.killProcess(language).pageTitle,
                                       icon: "xmark.octagon",

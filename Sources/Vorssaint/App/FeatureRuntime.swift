@@ -311,6 +311,7 @@ final class FeatureRuntime: ObservableObject {
         .dictation: { DictationService.shared.syncWithPreferences() },
         .workspaces: { WorkspaceService.shared.syncWithPreferences() },  // Fork
         .snapWheel: { SnapWheelService.shared.syncWithPreferences() },  // Fork
+        .appIcons: { AppIconService.shared.syncWithPreferences() },  // Fork
         .musicBlock: { MusicLaunchBlocker.shared.syncWithPreferences() },
         .keepAwake: {
             KeepAwakeManager.shared.syncWithFeatures()
