@@ -35,7 +35,7 @@ enum SelectionAIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: return "Add an API key in AI Chat's settings first."
+        case .notConfigured: return "Set up a model in AI Chat's settings first."
         case .failed(let message): return message
         }
     }
@@ -47,11 +47,12 @@ enum SelectionAI {
     static var engine: SelectionAIEngine = AIChatSelectionEngine()
 }
 
-/// The default engine: AI Chat's default model, its saved key and its
-/// streaming request, one user turn, no history kept.
+/// The default engine: AI Chat's default model through `AIChatClient`, so
+/// every provider and endpoint AI Chat knows works here too. One user turn,
+/// no history kept.
 final class AIChatSelectionEngine: SelectionAIEngine {
     var isConfigured: Bool {
-        AIChatKeychain.hasKey(for: AIChatSupport.defaultModel().provider)
+        AIChatClient.setupProblem(for: AIChatSupport.defaultModel()) == nil
     }
 
     func complete(system: String, prompt: String) async throws -> String {
@@ -60,42 +61,25 @@ final class AIChatSelectionEngine: SelectionAIEngine {
 
     func stream(system: String, prompt: String, onText: @escaping @MainActor (String) -> Void) async throws -> String {
         let choice = AIChatSupport.defaultModel()
-        guard let key = AIChatKeychain.key(for: choice.provider) else { throw SelectionAIError.notConfigured }
-        let request = AIChatSupport.request(for: choice, apiKey: key, system: system,
-                                            messages: [AIChatMessage(role: .user, text: prompt)])
-        let (bytes, response) = try await URLSession.shared.bytes(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard status == 200 else {
-            var body = ""
-            for try await line in bytes.lines {
-                body += line + "\n"
-                if body.count > 20_000 { break }
-            }
-            throw SelectionAIError.failed(AIChatSupport.errorMessage(fromBody: body, status: status))
-        }
+        if let problem = AIChatClient.setupProblem(for: choice) { throw SelectionAIError.failed(problem) }
         var reply = ""
         var pending = ""
         var lastFlush = Date()
-        reading: for try await line in bytes.lines {
-            try Task.checkCancellation()
-            switch AIChatSupport.streamEvent(fromLine: line, provider: choice.provider) {
-            case .text(let text):
-                reply += text
-                pending += text
+        do {
+            for try await piece in AIChatClient.stream(system: system, prompt: prompt, model: choice) {
+                reply += piece
+                pending += piece
                 if Date().timeIntervalSince(lastFlush) > 0.05 {
                     let chunk = pending
                     pending = ""
                     lastFlush = Date()
                     await onText(chunk)
                 }
-            case .done:
-                break reading
-            case .failure(let message):
-                throw SelectionAIError.failed(message)
-            case nil:
-                continue
             }
+        } catch let failure as AIChatClient.Failure {
+            throw failure.kind == .notSetUp ? SelectionAIError.notConfigured : SelectionAIError.failed(failure.message)
         }
+        try Task.checkCancellation()
         if !pending.isEmpty { await onText(pending) }
         return reply
     }

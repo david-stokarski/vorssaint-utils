@@ -48,17 +48,19 @@ enum AppIconPrivileged {
         defer { AuthorizationFree(authorization, [.destroyRights]) }
 
         let status: OSStatus = kAuthorizationRightExecute.withCString { rightName in
-            prompt.withCString { promptText in
-                var right = AuthorizationItem(name: rightName, valueLength: 0, value: nil, flags: 0)
-                var promptItem = AuthorizationItem(name: kAuthorizationEnvironmentPrompt,
-                                                   valueLength: strlen(promptText),
-                                                   value: UnsafeMutableRawPointer(mutating: promptText), flags: 0)
-                return withUnsafeMutablePointer(to: &right) { rightPointer in
-                    withUnsafeMutablePointer(to: &promptItem) { promptPointer in
-                        var rights = AuthorizationRights(count: 1, items: rightPointer)
-                        var environment = AuthorizationEnvironment(count: 1, items: promptPointer)
-                        return AuthorizationCopyRights(authorization, &rights, &environment,
-                                                       [.interactionAllowed, .extendRights, .preAuthorize], nil)
+            kAuthorizationEnvironmentPrompt.withCString { promptName in
+                prompt.withCString { promptText in
+                    var right = AuthorizationItem(name: rightName, valueLength: 0, value: nil, flags: 0)
+                    var promptItem = AuthorizationItem(name: promptName,
+                                                       valueLength: strlen(promptText),
+                                                       value: UnsafeMutableRawPointer(mutating: promptText), flags: 0)
+                    return withUnsafeMutablePointer(to: &right) { rightPointer in
+                        withUnsafeMutablePointer(to: &promptItem) { promptPointer in
+                            var rights = AuthorizationRights(count: 1, items: rightPointer)
+                            var environment = AuthorizationEnvironment(count: 1, items: promptPointer)
+                            return AuthorizationCopyRights(authorization, &rights, &environment,
+                                                           [.interactionAllowed, .extendRights, .preAuthorize], nil)
+                        }
                     }
                 }
             }
