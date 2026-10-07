@@ -376,6 +376,12 @@ enum SettingsDirectory {
                                       title: AIChatSupport.title,
                                       icon: "bubble.left.and.bubble.right",
                                       keywords: ["ai", "chat", "assistant", "claude", "gpt", "openai", "anthropic", "llm", "api key"]),
+                SettingsDirectoryItem(page: .selectionActions,  // Fork
+                                      title: SelectionActionsSupport.title,
+                                      icon: "text.cursor",
+                                      keywords: ["selection", "popclip", "select text", "action bar", "change case",
+                                                 "uppercase", "translate", "rewrite", "grammar", "word count",
+                                                 "search", "explain"]),
             ]),
             (categories.utilities, [
                 SettingsDirectoryItem(page: .notch,

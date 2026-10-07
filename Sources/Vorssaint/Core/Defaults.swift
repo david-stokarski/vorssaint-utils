@@ -1900,6 +1900,7 @@ enum Defaults {
         .merging(AIChatSupport.registeredDefaults) { current, _ in current }
         .merging(WorkspaceSupport.registeredDefaults) { current, _ in current }
         .merging(SnapWheelSupport.registeredDefaults) { current, _ in current }
+        .merging(SelectionActionsSupport.registeredDefaults) { current, _ in current }  // Fork
         .merging(AppIconSupport.registeredDefaults) { current, _ in current }
         .merging(NotchActivityPairing.registeredDefaults) { current, _ in current }
         .merging(CommandBarAnimation.registeredDefaults) { current, _ in current }

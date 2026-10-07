@@ -57,6 +57,14 @@ enum NotchDevRemote {
             case "settings-appicons":  // Fork
                 SettingsRouter.shared.request(FeatureSettingsDestination(.appIcons), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
+            case "selection-bar-end": SelectionBarController.shared.hide()  // Fork
+            case let raw where raw.hasPrefix("selection-bar:"):  // Fork: "selection-bar:Some selected text"
+                SelectionBarController.shared.devPreview(String(raw.dropFirst("selection-bar:".count)))
+            case let raw where raw.hasPrefix("selection-result:"):  // Fork: the result view, canned reply
+                SelectionBarController.shared.devPreviewResult(String(raw.dropFirst("selection-result:".count)))
+            case "settings-selection":  // Fork
+                SettingsRouter.shared.request(FeatureSettingsDestination(.selectionActions), targetFeature: nil, sidebarFeature: nil)
+                (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
             case "settings-snapwheel":
                 SettingsRouter.shared.request(FeatureSettingsDestination(.snapWheel), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
