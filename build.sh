@@ -260,6 +260,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/SnapWheelSupport.swift
         Sources/Vorssaint/Core/AppIconSupport.swift
         Sources/Vorssaint/Core/AppIconStyler.swift
+        Sources/Vorssaint/Core/MeetingLinkSupport.swift
         Sources/Vorssaint/Core/CommandBarPlacement.swift
         Sources/Vorssaint/Core/ClipboardCommandBarSupport.swift
         Sources/Vorssaint/Services/Notch/NotchLyricsTiming.swift

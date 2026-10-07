@@ -209,11 +209,16 @@ struct NotchCalendarView: View {
                     VStack(alignment: .leading, spacing: 7) {
                         if selectedDay == nil { dayLabel(group.day, now: now) }
                         ForEach(group.events) { event in
+                            let joins = NotchMeetingJoinButton.shows(event, now: now)  // Fork
                             NotchCalendarEventRow(event: event, day: group.day, now: now,
                                                   isNext: event.id == next?.id, text: text,
                                                   countdown: countdownChoice(event, now: now),
-                                                  choose: { calendar.setCountdown($0, for: event) }) {
+                                                  choose: { calendar.setCountdown($0, for: event) },
+                                                  trailingInset: joins ? NotchMeetingJoinButton.width : 0) {
                                 openCalendar(showing: event)
+                            }
+                            .overlay(alignment: .topTrailing) {  // Fork: the meeting's Join
+                                if joins { NotchMeetingJoinButton(event: event, now: now).padding(9) }
                             }
                             .id(event.id)
                         }
@@ -318,6 +323,7 @@ private struct NotchCalendarEventRow: View {
     /// Whether the event counts down on its own; nil when it cannot.
     let countdown: Bool?
     let choose: (Bool) -> Void
+    var trailingInset: CGFloat = 0  // Fork: room for a meeting's Join
     let open: () -> Void
     @Environment(\.colorSchemeContrast) private var contrast
 
@@ -369,10 +375,13 @@ private struct NotchCalendarEventRow: View {
             Text(event.calendar)
                 .font(.system(size: 10)).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
             if !event.location.isEmpty {
-                Label(event.location, systemImage: "mappin")
+                // Fork: a location that is only the meeting's link reads as its provider.
+                Label(event.meeting.locationLabel(event.location),
+                      systemImage: event.meeting.link == nil ? "mappin" : "video")
                     .font(.system(size: 10)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
             }
         }
+        .padding(.trailing, trailingInset)  // Fork
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.leading, 12)
         .overlay(alignment: .leading) {

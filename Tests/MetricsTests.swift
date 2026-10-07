@@ -117,6 +117,7 @@ struct MetricsTests {
                 NotchLastPlayedTests.run(suite)  // Fork
                 NotchDisplayProfilesTests.run(suite)  // Fork
             }),
+            ("meetings", { MeetingLinkSupportTests.run(suite) }),  // Fork
             ("settings", {
                 SettingsFeatureTests.run(suite)
                 SettingsWindowTests.run { suite.expect($0, $1) }

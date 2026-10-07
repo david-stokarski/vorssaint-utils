@@ -344,8 +344,11 @@ struct NotchHomeCalendarWidget: View {
         } else {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(events.prefix(2)) { event in
-                    Button { service.select(.calendar) } label: { row(event) }
-                        .buttonStyle(NotchButtonStyle(cornerRadius: 8, lifts: false))
+                    HStack(spacing: 6) {
+                        Button { service.select(.calendar) } label: { row(event) }
+                            .buttonStyle(NotchButtonStyle(cornerRadius: 8, lifts: false))
+                        NotchMeetingJoinButton(event: event, now: now)
+                    }
                 }
                 if events.count > 2 {
                     Text("+\(events.count - 2) more")
@@ -366,7 +369,8 @@ struct NotchHomeCalendarWidget: View {
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                 Text(event.allDay ? "All day"
-                     : "\(event.start.formatted(date: .omitted, time: .shortened)) – \(event.end.formatted(date: .omitted, time: .shortened))")
+                     : "\(event.start.formatted(date: .omitted, time: .shortened)) – \(event.end.formatted(date: .omitted, time: .shortened))"
+                        + (event.meeting.link.map { " · " + $0.provider.shortName } ?? ""))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

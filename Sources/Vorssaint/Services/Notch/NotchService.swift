@@ -435,6 +435,7 @@ final class NotchService: ObservableObject {
     }
 
     var hasCalendarActivity: Bool {
+        if NotchMeetingIsland.showsActivity { return true }  // Fork: a meeting soon, with its Join
         let calendar = NotchCalendarService.shared
         guard let countdown = calendar.countdown,
               countdown.ongoing ? NotchCalendarSupport.showsTimeLeft()
@@ -626,7 +627,8 @@ final class NotchService: ObservableObject {
         let provisional = geometry.compactCalendarGeometry(wing: 0, paired: companion != nil)
         let inset = provisional.compactActivityEdgeInset(boxHeight: 9, radius: 0)
         if let companion {
-            let sides = max(inset + calendarClockWidth, companionMarkWidth(companion, in: provisional))
+            let sides = max(inset + calendarClockWidth + NotchMeetingIsland.pairedExtra(countdown),  // Fork
+                            companionMarkWidth(companion, in: provisional))
                 + NotchTimerSupport.stripCameraGap
             // A download keeps room for its percentage, as beside a timer.
             return companion == .downloads ? max(80, sides) : sides
@@ -643,8 +645,9 @@ final class NotchService: ObservableObject {
         // while the minutes count down.
         let clockSide = width("00:00", .monospacedDigitSystemFont(ofSize: 13, weight: .medium))
             + NotchCalendarSupport.stripClockSpacing
-            + width(NotchCalendarSupport.timeText(countdown, locale: language.formattingLocale()),
-                    .monospacedDigitSystemFont(ofSize: 11, weight: .medium))
+            + max(width(NotchCalendarSupport.timeText(countdown, locale: language.formattingLocale()),
+                        .monospacedDigitSystemFont(ofSize: 11, weight: .medium)),
+                  NotchMeetingIsland.joinWidth(countdown))  // Fork: a meeting's Join takes the time's place
         return inset + max(titleSide, clockSide)
     }
 
@@ -1003,6 +1006,9 @@ final class NotchService: ObservableObject {
             return layout.agentSurface(reading: reading, working: working, geometry: geometry)
         case .calendar:
             guard let countdown = NotchCalendarService.shared.countdown else { return geometry.restingSize(showsContent: false) }
+            if let meeting = layout.meetingSurface(countdown, companion: companion, workingAgents: working,  // Fork
+                                                   downloadPercent: download?.fraction != nil, geometry: geometry,
+                                                   language: language) { return meeting }
             if let companion {
                 return layout.calendarPairSurface(companion: companion, workingAgents: working,
                                                   downloadPercent: download?.fraction != nil, geometry: geometry,
@@ -1299,6 +1305,7 @@ final class NotchService: ObservableObject {
 
     /// Opens the Calendar page scrolled to the countdown's event.
     func openCountdownEvent() {
+        if joinsMeetingFromClick() { return }  // Fork: a click on a capsule's Join
         let calendar = NotchCalendarService.shared
         calendar.revealing = calendar.countdown?.event.id
         openActivity(.calendar)

@@ -28,7 +28,8 @@ private actor NotchCalendarReader {
                                       start: start, end: end, allDay: event.isAllDay,
                                       location: event.location ?? "", color: Self.tint(event.calendar),
                                       calendarItemIdentifier: event.calendarItemIdentifier,
-                                      recurring: recurring, countdownKey: countdownKey)
+                                      recurring: recurring, countdownKey: countdownKey,
+                                      meeting: MeetingEventReader.info(event))  // Fork
         }
     }
 
@@ -59,6 +60,10 @@ final class NotchCalendarService: NSObject, ObservableObject {
     @Published var revealing: String?
     /// Countdown keys of the events chosen from their menu.
     @Published private(set) var chosenCountdowns = Set<String>()
+    /// Fork: the week ahead whatever month the page shows, where meetings are found.
+    @Published private(set) var currentEvents: [NotchCalendarEvent] = []
+    /// Fork: the meeting the closed island shows with its Join.
+    @Published private(set) var meetingSoon: NotchCalendarEvent?
     private var reader: NotchCalendarReader?
     private var task: Task<Void, Never>?
     private var refreshTimer: Timer?
@@ -103,6 +108,7 @@ final class NotchCalendarService: NSObject, ObservableObject {
     }
 
     func syncWithPreferences() {
+        defer { MeetingAlertService.shared.syncWithPreferences() }  // Fork
         guard NotchCalendarSupport.isEnabled() else { stop(); return }
         let countdownEnabled = NotchCalendarSupport.showsCountdown()
         let timeLeftEnabled = NotchCalendarSupport.showsTimeLeft()
@@ -146,7 +152,7 @@ final class NotchCalendarService: NSObject, ObservableObject {
         generation = UUID()
         guard NotchCalendarSupport.isEnabled(), let reader else { stop(); return }
         guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else {
-            events = []; countdown = nil; loading = false
+            events = []; currentEvents = []; countdown = meetingCountdown(now: Date()); loading = false  // Fork
             return
         }
         let requested = generation
@@ -155,7 +161,8 @@ final class NotchCalendarService: NSObject, ObservableObject {
         let currentInterval = NotchCalendarSupport.readInterval(month: nil, now: now)
         let needsCurrentRead = NotchCalendarSupport.needsCurrentRead(
             visible: interval, current: currentInterval,
-            countdownEnabled: countdownEnabled || timeLeftEnabled || !chosenCountdowns.isEmpty)
+            countdownEnabled: countdownEnabled || timeLeftEnabled || !chosenCountdowns.isEmpty
+                || MeetingSettings.current().needsCurrentWeek)  // Fork
         let excluded = excludedCalendars
         loading = events.isEmpty
         task = Task { @MainActor [weak self] in
@@ -166,21 +173,25 @@ final class NotchCalendarService: NSObject, ObservableObject {
                   NotchCalendarSupport.isEnabled() else { return }
             let now = Date()
             guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else {
-                self.events = []; self.countdown = nil; self.loading = false; self.task = nil
+                self.events = []; self.currentEvents = []; self.countdown = self.meetingCountdown(now: now)  // Fork
+                self.loading = false; self.task = nil
                 return
             }
             self.events = NotchCalendarSupport.ordered(result)
             let currentEvents = needsCurrentRead ? NotchCalendarSupport.ordered(currentResult) : self.events
             self.updateChosenCountdowns(currentEvents, now: now)
-            self.countdown = NotchCalendarSupport.countdown(currentEvents, now: now, starts: self.countdownEnabled,
-                                                            ends: self.timeLeftEnabled, chosen: self.chosenCountdowns)
+            self.currentEvents = currentEvents  // Fork
+            self.countdown = self.meetingCountdown(now: now)  // Fork: a meeting soon shows with its Join
+                ?? NotchCalendarSupport.countdown(currentEvents, now: now, starts: self.countdownEnabled,
+                                                  ends: self.timeLeftEnabled, chosen: self.chosenCountdowns)
             self.loading = false
             self.task = nil
             let agendaRefresh = NotchCalendarSupport.nextRefresh(self.events, now: now)
             let countdownRefresh = NotchCalendarSupport.countdownTransition(
                 currentEvents, now: now, starts: self.countdownEnabled, ends: self.timeLeftEnabled,
                 chosen: self.chosenCountdowns)
-            let nextRefresh = min(agendaRefresh, countdownRefresh ?? agendaRefresh)
+            let nextRefresh = min(agendaRefresh, countdownRefresh ?? agendaRefresh,
+                                  self.meetingTransition(now: now) ?? agendaRefresh)  // Fork
             let timer = Timer(fireAt: nextRefresh,
                               interval: 0, target: self, selector: #selector(self.timedRefresh),
                               userInfo: nil, repeats: false)
@@ -218,5 +229,47 @@ final class NotchCalendarService: NSObject, ObservableObject {
         excludedCalendars = []
         if !chosenCountdowns.isEmpty { chosenCountdowns = [] }
         events = []; countdown = nil; loading = false
+        currentEvents = []; meetingSoon = nil  // Fork
+        MeetingAlertService.shared.stop()  // Fork
     }
+}
+
+// MARK: - Fork: meetings
+
+extension NotchCalendarService {
+    /// The countdown for the meeting the closed island shows with its Join,
+    /// noting which one it is; nil leaves the countdown to its own settings.
+    fileprivate func meetingCountdown(now: Date) -> NotchCalendarCountdown? {
+        let settings = MeetingSettings.current()
+        let found = settings.soonActivity
+            ? MeetingTiming.soonMeeting(currentEvents, now: now, lead: settings.soonLead) : nil
+#if VORSSAINT_DEVELOPMENT
+        let meeting = MeetingPreview.event ?? found
+#else
+        let meeting = found
+#endif
+        if meetingSoon != meeting { meetingSoon = meeting }
+        return meeting.map { NotchCalendarCountdown(event: $0, ongoing: $0.start <= now) }
+    }
+
+    fileprivate func meetingTransition(now: Date) -> Date? {
+        let settings = MeetingSettings.current()
+        return settings.soonActivity ? MeetingTiming.soonTransition(currentEvents, now: now, lead: settings.soonLead) : nil
+    }
+
+    /// The meeting options changed in Settings: read again while running.
+    func meetingSettingsChanged() {
+        if reader != nil { refresh() }
+        MeetingAlertService.shared.syncWithPreferences()
+    }
+
+#if VORSSAINT_DEVELOPMENT
+    /// Developer builds only: shows a made-up meeting `seconds` away in the
+    /// closed island, or under way for a negative value, until `nil`.
+    func previewMeeting(startingIn seconds: TimeInterval?) {
+        MeetingPreview.event = seconds.map { MeetingPreview.event(startingIn: $0) }
+        countdown = meetingCountdown(now: Date())
+        if MeetingPreview.event == nil { refresh() }
+    }
+#endif
 }
