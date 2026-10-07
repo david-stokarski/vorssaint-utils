@@ -602,7 +602,22 @@ struct NotchCapsuleCalendarStrip: View {
                         // and the title moves to the tooltip and VoiceOver.
                         HStack(spacing: CapsuleLayout.markGap(.calendar)) {
                             NotchCapsuleCompanionMark(companion: companion, geometry: geometry)
-                            Self.clockMark(countdown, now: context.date)
+                            if NotchMeetingIsland.meeting(for: countdown) != nil {  // Fork: the clock is the Join
+                                NotchMeetingPill(clock: remaining, ongoing: countdown.ongoing)
+                            } else {
+                                Self.clockMark(countdown, now: context.date)
+                            }
+                        }
+                    } else if NotchMeetingIsland.meeting(for: countdown) != nil {  // Fork: the Join takes the time's place
+                        HStack(spacing: CapsuleLayout.spacing) {
+                            Self.dot(countdown.event)
+                            Text(title).capsuleTitle().truncationMode(.tail)
+                            HStack(spacing: CapsuleLayout.markSpacing) {
+                                Self.clock(remaining, ongoing: countdown.ongoing)
+                                NotchMeetingPill(ongoing: countdown.ongoing)
+                            }
+                            .padding(.leading, CapsuleLayout.groupSpacing - CapsuleLayout.spacing)
+                            .layoutPriority(1)
                         }
                     } else {
                         HStack(spacing: CapsuleLayout.spacing) {

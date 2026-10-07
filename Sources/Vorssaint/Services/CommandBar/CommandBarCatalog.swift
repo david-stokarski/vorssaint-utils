@@ -449,6 +449,18 @@ enum CommandBarCatalog {
                 icon: .symbol("bubble.left.and.bubble.right"),
                 run: { _ in afterBeat { AIChatService.shared.show() } }))
         }
+        if AppFeature.notchCalendar.isAvailable, NotchCalendarSupport.isEnabled() {  // Fork
+            let meeting = MeetingJoiner.nextMeeting
+            entries.append(CommandBarEntry(
+                id: "action.joinNextMeeting",
+                title: MeetingStrings.joinNext,
+                subtitle: meeting.map { MeetingStrings.summary($0, now: Date(), locale: language.formattingLocale()) }
+                    ?? MeetingStrings.noMeeting,
+                keywords: "meeting join call video zoom meet teams webex huddle facetime next calendar",
+                icon: .symbol("video"),
+                shortcut: roleShortcut(.joinMeeting),
+                run: { _ in afterBeat { MeetingJoiner.joinNext() } }))
+        }
         if AppFeature.shelf.isAvailable {
             let enabled = UserDefaults.standard.bool(forKey: DefaultsKey.shelfEnabled)
             entries.append(CommandBarEntry(

@@ -56,6 +56,13 @@ enum NotchDevRemote {
                 SnapWheelOverlay.shared.devPreview(String(raw.dropFirst("snapwheel:".count)))
             case "settings-batterycharge":  // Fork
                 SettingsRouter.shared.request(FeatureSettingsDestination(.batteryCharge), targetFeature: nil, sidebarFeature: nil)
+            // Fork: meetings, with a made-up Zoom meeting whose Join opens nothing.
+            case "meeting-alert": MeetingAlertService.shared.showPreview()
+            case "meeting-soon": NotchCalendarService.shared.previewMeeting(startingIn: 3 * 60)
+            case "meeting-live": NotchCalendarService.shared.previewMeeting(startingIn: -5 * 60)
+            case "meeting-soon-end": NotchCalendarService.shared.previewMeeting(startingIn: nil)
+            case "settings-calendar":
+                SettingsRouter.shared.request(FeatureSettingsDestination(.notch), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
             case "settings-appicons":  // Fork
                 SettingsRouter.shared.request(FeatureSettingsDestination(.appIcons), targetFeature: nil, sidebarFeature: nil)

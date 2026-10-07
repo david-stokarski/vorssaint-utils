@@ -430,6 +430,7 @@ struct NotchSettings: View {
                       isOn: $calendarCountdown)
             switchRow("hourglass", calendar.timeLeft, caption: calendar.timeLeftHint, isOn: $calendarTimeLeft)
             if permissions.calendarAccess == .fullAccess { NotchCalendarSelection() }
+            NotchMeetingSettings()  // Fork
         case .timer:
             let activities = FeatureStrings.notchActivities(l10n.language)
             switchRow("eye.slash", activities.hideTimerCountdown,

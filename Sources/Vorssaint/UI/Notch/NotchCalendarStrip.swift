@@ -34,6 +34,10 @@ struct NotchCalendarStrip: View {
                     if let companion = service.compactCompanion, geometry.compactActivityWingWidth > 0 {
                         paired(countdown, companion: companion, title: displayTitle, remaining: remaining,
                                now: context.date)
+                    } else if let meeting = NotchMeetingIsland.meeting(for: countdown) {  // Fork
+                        NotchMeetingStripRow(service: service, countdown: countdown, meeting: meeting,
+                                             title: displayTitle, remaining: remaining, geometry: geometry,
+                                             usesFullRow: usesFullRow)
                     } else {
                         Button { service.openCountdownEvent() } label: {
                             Group {
@@ -133,8 +137,16 @@ struct NotchCalendarStrip: View {
             .accessibilityLabel(NotchCompanionMark.label(companion, language: l10n.language))
             .accessibilityHint(FeatureStrings.notch(l10n.language).open)
             Color.clear.frame(width: geometry.compactActivityCameraGap)
-            Button { service.openCountdownEvent() } label: {
-                Self.clockMark(countdown, remaining: remaining)
+            let meeting = NotchMeetingIsland.meeting(for: countdown)  // Fork: paired, the clock is the Join
+            Button { if let meeting { MeetingJoiner.join(meeting) } else { service.openCountdownEvent() } } label: {
+                Group {
+                    if meeting != nil {
+                        NotchMeetingPill(clock: remaining, ongoing: countdown.ongoing,
+                                         height: min(18, max(14, geometry.compactActivityContentHeight - 4)))
+                    } else {
+                        Self.clockMark(countdown, remaining: remaining)
+                    }
+                }
                     .padding(.trailing, footer ? rowInset : geometry.compactActivityEdgeInset(boxHeight: 9, radius: 0))
                     .frame(width: geometry.compactActivityWingWidth, height: geometry.compactActivityContentHeight,
                            alignment: .trailing)

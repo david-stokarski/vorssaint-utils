@@ -63,6 +63,7 @@ enum NotchDestinationContract {
     enum NotchCalendarService { static var shared = CountdownCalendar() }
 
     class State {
+        func joinsMeetingFromClick() -> Bool { false }  // Fork: only a floating capsule's Join joins
         var acceptsUserInteraction = true
         func collapse() { expanded = false }
         var hiddenInFullscreen = false
