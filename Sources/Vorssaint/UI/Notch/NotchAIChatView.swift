@@ -15,7 +15,7 @@ struct NotchAIChatView: View {
     var body: some View {
         VStack(spacing: 8) {
             toolbar
-            if service.keyedProviders.isEmpty {
+            if !service.hasSource {
                 setupState
             } else if let chat, !chat.messages.isEmpty {
                 transcript(chat)
@@ -96,13 +96,24 @@ struct NotchAIChatView: View {
         if message.role == .user {
             HStack {
                 Spacer(minLength: 60)
-                Text(message.text)
-                    .font(.system(size: 12))
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.28)))
+                VStack(alignment: .trailing, spacing: 3) {
+                    if let attachments = message.attachments, !attachments.isEmpty {
+                        Label(attachments.count == 1 ? attachments[0].title : "\(attachments.count) attachments",
+                              systemImage: "paperclip")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    if !message.text.isEmpty {
+                        Text(message.text)
+                    }
+                }
+                .font(.system(size: 12))
+                .textSelection(.enabled)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.28)))
             }
         } else {
             VStack(alignment: .leading, spacing: 4) {
@@ -148,7 +159,7 @@ struct NotchAIChatView: View {
             Image(systemName: "key")
                 .font(.system(size: 18, weight: .light))
                 .foregroundStyle(.secondary)
-            Text("Add an Anthropic or OpenAI API key to start chatting.")
+            Text("Add an API key or a local model to start chatting.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -179,7 +190,7 @@ struct NotchAIChatView: View {
                 .lineLimit(1...3)
                 .focused($focused)
                 .onSubmit(send)
-                .disabled(service.keyedProviders.isEmpty)
+                .disabled(!service.hasSource)
             if service.isStreaming {
                 Button(action: service.stop) {
                     Image(systemName: "stop.circle.fill").font(.system(size: 17))

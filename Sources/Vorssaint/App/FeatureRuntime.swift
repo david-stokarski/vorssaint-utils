@@ -313,6 +313,7 @@ final class FeatureRuntime: ObservableObject {
         .snapWheel: { SnapWheelService.shared.syncWithPreferences() },  // Fork
         .selectionActions: { SelectionActionsService.shared.syncWithPreferences() },  // Fork
         .appIcons: { AppIconService.shared.syncWithPreferences() },  // Fork
+        .aiChat: { AIChatSelectionHotkey.shared.syncWithPreferences() },  // Fork
         .musicBlock: { MusicLaunchBlocker.shared.syncWithPreferences() },
         .keepAwake: {
             KeepAwakeManager.shared.syncWithFeatures()

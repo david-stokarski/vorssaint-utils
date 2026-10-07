@@ -1265,6 +1265,7 @@ enum FeatureCatalogTests {
                && !AppFeature.screenshot.monitorsPermissionChanges
                && !AppFeature.screenRecorder.monitorsPermissionChanges
                && !AppFeature.notchWatch.monitorsPermissionChanges
+               && !AppFeature.aiChat.monitorsPermissionChanges
                && AppFeature.switcher.monitorsPermissionChanges
                && AppFeature.focusFollowsMouse.monitorsPermissionChanges
                && AppFeature.mouseNavigation.monitorsPermissionChanges,
@@ -1278,7 +1279,7 @@ enum FeatureCatalogTests {
                "Window Layout does not poll permissions when every snap zone is off")
 
         suite.expect(activeSet(.accessibility)
-                == [.windowLayout, .cleaningMode, .commandBar, .screenRecorder],
+                == [.windowLayout, .cleaningMode, .commandBar, .screenRecorder, .aiChat],
                "with nothing enabled only on-demand features use accessibility")
         func radialMenuUsesAccessibility(_ profile: RadialMenuProfile, legacyItems: [RadialMenuItem]) -> Bool {
             let stored = [DefaultsKey.radialMenuProfiles: RadialMenuSupport.encodeProfiles([profile]),
@@ -1356,11 +1357,11 @@ enum FeatureCatalogTests {
                "mixer without precise volume roller does not use accessibility")
 
         suite.expect(activeSet(.screenRecording, on: [DefaultsKey.switcherEnabled])
-                == [.switcher, .screenOCR, .screenshot, .screenRecorder],
-               "switcher with previews uses screen recording; OCR, screenshots and recordings are on demand")
+                == [.switcher, .screenOCR, .screenshot, .screenRecorder, .aiChat],
+               "switcher with previews uses screen recording; OCR, screenshots, recordings and AI Chat attachments are on demand")
         suite.expect(activeSet(.screenRecording,
                          on: [DefaultsKey.switcherEnabled, DefaultsKey.switcherSimpleMode])
-                == [.screenOCR, .screenshot, .screenRecorder],
+                == [.screenOCR, .screenshot, .screenRecorder, .aiChat],
                "simple-mode switcher stops using screen recording")
         suite.expect(activeSet(.screenRecording,
                          on: [DefaultsKey.switcherSimpleMode, DefaultsKey.dockPreviewEnabled])

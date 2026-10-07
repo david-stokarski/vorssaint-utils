@@ -83,7 +83,8 @@ extension AppFeature {
         // Watch asks when an area is chosen and checks on every reading. The
         // companion uses no permission at all.
         case .screenOCR, .cleaningMode, .screenshot, .commandBar, .screenRecorder, .wallpaper, .notchWatch,
-             .notchMascot:
+             .notchMascot,
+             .aiChat:  // Fork: asks when an attachment is made
             return false
         default:
             return true
@@ -386,7 +387,10 @@ extension AppFeature {
         case .cameraPreview: return [.camera]
         // Records the microphone and pastes at the caret.
         case .dictation: return [.microphone, .accessibility]
-        case .aiChat: return []
+        // Fork: attaching the selection of another app reads it through
+        // Accessibility; attaching a window or an area captures the screen.
+        // Both are asked for when that button is pressed, not before.
+        case .aiChat: return [.accessibility, .screenRecording]
         case .appIcons: return [.appManagement]  // Fork
         case .workspaces: return [.accessibility]
         case .snapWheel: return [.accessibility]  // Fork
@@ -418,7 +422,8 @@ extension AppFeature {
         switch self {
         case .keepAwake, .brightness, .radialMenu, .quickToggles, .cleaner,
              .uninstaller, .homebrew, .appUpdates, .mixer, .cameraPreview,
-             .micMute, .musicBlock, .notchWatch:
+             .micMute, .musicBlock, .notchWatch,
+             .aiChat:  // Fork: only for attachments, asked for when one is made
             return []
         default:
             return permissions.filter { $0 == .accessibility || $0 == .screenRecording }
