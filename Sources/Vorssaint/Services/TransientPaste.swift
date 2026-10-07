@@ -20,6 +20,7 @@ final class TransientPaste {
 
     @discardableResult
     func paste(_ text: String,
+               transient: Bool = false,  // Fork: marks both writes for clipboard managers
                willPostShortcut: (() -> Void)? = nil,
                didPostShortcut: (() -> Void)? = nil,
                didFail: (() -> Void)? = nil) -> Bool {
@@ -56,6 +57,7 @@ final class TransientPaste {
             }
 
             pasteboard.clearContents()
+            if transient { pasteboard.setData(Data(), forType: Self.transientType) }  // Fork
             guard pasteboard.setString(text, forType: .string) else {
                 if !snapshot.isEmpty { pasteboard.writeObjects(snapshot) }
                 DispatchQueue.main.async {
@@ -76,14 +78,17 @@ final class TransientPaste {
                     didFail: didFail
                 ) {
                     self.isPerforming = false
-                    self.scheduleRestore(snapshot: snapshot, changeCount: changeCount)
+                    self.scheduleRestore(snapshot: snapshot, changeCount: changeCount, transient: transient)
                 }
             }
         }
         return true
     }
 
-    private func scheduleRestore(snapshot: [NSPasteboardItem], changeCount: Int) {
+    /// Fork: the nspasteboard.org mark for content about to be put back.
+    static let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
+
+    private func scheduleRestore(snapshot: [NSPasteboardItem], changeCount: Int, transient: Bool = false) {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.restoreWork = nil
@@ -92,6 +97,7 @@ final class TransientPaste {
                 let pasteboard = NSPasteboard.general
                 guard pasteboard.changeCount == changeCount else { return }
                 pasteboard.clearContents()
+                if transient, let first = snapshot.first { first.setData(Data(), forType: Self.transientType) }  // Fork
                 if !snapshot.isEmpty { pasteboard.writeObjects(snapshot) }
                 let restoredCount = pasteboard.changeCount
                 DispatchQueue.main.async {

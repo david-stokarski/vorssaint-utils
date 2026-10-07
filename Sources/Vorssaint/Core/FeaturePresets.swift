@@ -152,6 +152,10 @@ extension AppFeature {
              .cameraPreview, .scratchpad, .commandBar, .screenRecorder, .wallpaper, .fanControl,
              .diskImageInstaller, .killProcess, .portManager, .dictation, .aiChat, .workspaces, .snapWheel, .appIcons:
             return .idle
+        // Fork: a passive monitor reads clicks while the bar follows the pointer.
+        case .selectionActions:
+            return UserDefaults.standard.string(forKey: DefaultsKey.selectionActionsTrigger)
+                == SelectionTriggerMode.shortcutOnly.rawValue ? .idle : .mouse
         case .appUpdates:
             // The list is on demand; only a background schedule keeps a timer.
             return AppUpdatesSupport.CheckFrequency.sanitized(

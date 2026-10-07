@@ -106,6 +106,7 @@ struct MetricsTests {
                 AIChatSupportTests.run(suite)  // Fork
                 WorkspaceSupportTests.run(suite)  // Fork
                 SnapWheelSupportTests.run(suite)  // Fork
+                SelectionActionsSupportTests.run(suite)  // Fork
                 AppIconSupportTests.run(suite)  // Fork
                 WorkspaceMenuBarTests.run(suite)  // Fork
                 CommandBarPlacementTests.run(suite)  // Fork
