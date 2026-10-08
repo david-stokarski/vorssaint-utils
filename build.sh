@@ -272,6 +272,9 @@ if (( TEST )); then
         Sources/Vorssaint/Core/SnapWheelSupport.swift
         Sources/Vorssaint/Core/SelectionActionsSupport.swift
         Sources/Vorssaint/Core/LiveWallpaperSupport.swift
+        Sources/Vorssaint/Core/TypingTestSupport.swift
+        Sources/Vorssaint/Core/TypingTestQuotes.swift
+        Sources/Vorssaint/Core/TypingTestCode.swift
         Sources/Vorssaint/Core/AppIconSupport.swift
         Sources/Vorssaint/Core/AppIconStyler.swift
         Sources/Vorssaint/Core/BatteryChargeSupport.swift

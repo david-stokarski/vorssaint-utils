@@ -8,7 +8,7 @@ import Foundation
 /// below and the unit tests can reason about pages without pulling UI in.
 enum SettingsPage: Hashable {
     case general, features, energy, monitor
-    case mouse, switcher, dock, keyDebounce, superKey, cutPaste, autoQuit, quitProtection, cleaner, uninstaller, urlCleaner, homebrew, appUpdates, media, clipboard, windowLayout, shelf, quickTools, textSnippets, screenshot, radialMenu, commandBar, killProcess, portManager, dictation, aiChat, workspaces, snapWheel, appIcons, selectionActions, batteryCharge, liveWallpaper, notch, notchMascot
+    case mouse, switcher, dock, keyDebounce, superKey, cutPaste, autoQuit, quitProtection, cleaner, uninstaller, urlCleaner, homebrew, appUpdates, media, clipboard, windowLayout, shelf, quickTools, textSnippets, screenshot, radialMenu, commandBar, killProcess, portManager, dictation, aiChat, workspaces, snapWheel, appIcons, selectionActions, batteryCharge, liveWallpaper, typingTest, notch, notchMascot
     case shortcuts, advanced, about, releaseNotes, support
 }
 
@@ -366,6 +366,7 @@ extension AppFeature {
         case .snapWheel: return FeatureSettingsDestination(.snapWheel)
         case .selectionActions: return FeatureSettingsDestination(.selectionActions)  // Fork
         case .liveWallpaper: return FeatureSettingsDestination(.liveWallpaper)  // Fork
+        case .typingTest: return FeatureSettingsDestination(.typingTest)  // Fork
         case .appIcons: return FeatureSettingsDestination(.appIcons)
         case .batteryCharge: return FeatureSettingsDestination(.batteryCharge)  // Fork
         case .homebrew: return FeatureSettingsDestination(.homebrew)
@@ -433,6 +434,7 @@ enum FeatureVisibilitySupport {
         case .snapWheel: return [.snapWheel]
         case .selectionActions: return [.selectionActions]  // Fork
         case .liveWallpaper: return [.liveWallpaper]  // Fork
+        case .typingTest: return [.typingTest]  // Fork
         case .appIcons: return [.appIcons]
         case .batteryCharge: return [.batteryCharge]  // Fork
         case .keyDebounce: return [.keyboardDebounce]

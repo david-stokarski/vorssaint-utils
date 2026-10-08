@@ -392,6 +392,11 @@ enum SettingsDirectory {
                                       icon: "sparkles.rectangle.stack",
                                       keywords: ["wallpaper", "live wallpaper", "dynamic wallpaper", "animated",
                                                  "background", "desktop", "lock screen", "black", "dark", "light"]),
+                SettingsDirectoryItem(page: .typingTest,  // Fork
+                                      title: TypingTestSupport.title,
+                                      icon: "keyboard",
+                                      keywords: ["typing", "typing test", "speed test", "wpm", "words per minute",
+                                                 "monkeytype", "accuracy", "keyboard practice"]),
             ]),
             (categories.utilities, [
                 SettingsDirectoryItem(page: .notch,

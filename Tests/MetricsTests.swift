@@ -121,6 +121,7 @@ struct MetricsTests {
             }),
             ("battery-charge", { BatteryChargeSupportTests.run(suite) }),  // Fork
             ("live-wallpaper", { LiveWallpaperSupportTests.run(suite) }),  // Fork
+            ("typing-test", { TypingTestSupportTests.run(suite) }),  // Fork
             ("menu-bar-battery", { MenuBarBatteryGlyphTests.run(suite) }),  // Fork
             ("meetings", { MeetingLinkSupportTests.run(suite) }),  // Fork
             ("settings", {

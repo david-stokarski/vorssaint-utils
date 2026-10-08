@@ -155,6 +155,8 @@ extension AppFeature {
             return .idle
         // Fork: a GPU frame thirty times a second while the desktop is in view.
         case .liveWallpaper: return .periodic
+        // Fork: a clock runs only while a test is typed.
+        case .typingTest: return .idle
         // Fork: a passive monitor reads clicks while the bar follows the pointer.
         case .selectionActions:
             return UserDefaults.standard.string(forKey: DefaultsKey.selectionActionsTrigger)

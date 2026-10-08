@@ -572,6 +572,7 @@ struct SettingsView: View {
         case .snapWheel: SnapWheelSettings()
         case .selectionActions: SelectionActionsSettings()  // Fork
         case .liveWallpaper: LiveWallpaperSettings()  // Fork
+        case .typingTest: TypingTestSettings()  // Fork
         case .appIcons: AppIconSettings()
         case .batteryCharge: BatteryChargeSettings()  // Fork
         case .urlCleaner: URLCleanerSettings()

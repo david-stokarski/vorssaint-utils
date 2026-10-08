@@ -316,6 +316,7 @@ final class FeatureRuntime: ObservableObject {
         .aiChat: { AIChatSelectionHotkey.shared.syncWithPreferences() },  // Fork
         .batteryCharge: { BatteryChargeService.shared.syncWithPreferences() },  // Fork
         .liveWallpaper: { LiveWallpaperService.shared.syncWithPreferences() },  // Fork
+        .typingTest: { TypingTestService.shared.syncWithPreferences() },  // Fork
         .musicBlock: { MusicLaunchBlocker.shared.syncWithPreferences() },
         .keepAwake: {
             KeepAwakeManager.shared.syncWithFeatures()

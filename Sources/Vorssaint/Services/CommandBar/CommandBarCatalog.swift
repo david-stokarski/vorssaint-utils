@@ -449,6 +449,15 @@ enum CommandBarCatalog {
                 icon: .symbol("bubble.left.and.bubble.right"),
                 run: { _ in afterBeat { AIChatService.shared.show() } }))
         }
+        if AppFeature.typingTest.isAvailable {  // Fork
+            entries.append(CommandBarEntry(
+                id: "action.typingTest",
+                title: TypingTestSupport.title,
+                subtitle: "Test your typing speed",
+                keywords: "typing test speed wpm words per minute monkeytype keyboard practice accuracy type",
+                icon: .symbol("keyboard"),
+                run: { _ in afterBeat { TypingTestService.shared.show() } }))
+        }
         if AppFeature.notchCalendar.isAvailable, NotchCalendarSupport.isEnabled() {  // Fork
             let meeting = MeetingJoiner.nextMeeting
             entries.append(CommandBarEntry(
