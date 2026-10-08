@@ -1060,6 +1060,7 @@ extension AppFeature {
         case .workspaces: return WorkspaceSupport.title
         case .snapWheel: return SnapWheelSupport.title
         case .selectionActions: return SelectionActionsSupport.title  // Fork
+        case .liveWallpaper: return LiveWallpaperSupport.title  // Fork
         case .appIcons: return AppIconSupport.title
         case .batteryCharge: return BatteryChargeSupport.title  // Fork
         case .homebrew: return s.homebrewName
@@ -1157,6 +1158,7 @@ extension AppFeature {
         case .workspaces: return WorkspaceSupport.hubDescription
         case .snapWheel: return SnapWheelSupport.hubDescription
         case .selectionActions: return SelectionActionsSupport.hubDescription  // Fork
+        case .liveWallpaper: return LiveWallpaperSupport.hubDescription  // Fork
         case .appIcons: return AppIconSupport.hubDescription
         case .batteryCharge: return BatteryChargeSupport.hubDescription  // Fork
         case .homebrew: return hub.descHomebrew

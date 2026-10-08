@@ -271,6 +271,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/WorkspaceSupport.swift
         Sources/Vorssaint/Core/SnapWheelSupport.swift
         Sources/Vorssaint/Core/SelectionActionsSupport.swift
+        Sources/Vorssaint/Core/LiveWallpaperSupport.swift
         Sources/Vorssaint/Core/AppIconSupport.swift
         Sources/Vorssaint/Core/AppIconStyler.swift
         Sources/Vorssaint/Core/BatteryChargeSupport.swift

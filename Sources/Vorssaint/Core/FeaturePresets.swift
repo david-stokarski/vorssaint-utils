@@ -153,6 +153,8 @@ extension AppFeature {
              .diskImageInstaller, .killProcess, .portManager, .dictation, .aiChat, .workspaces, .snapWheel, .appIcons,
              .batteryCharge:  // Fork: the daemon does the work; the app polls only while shown
             return .idle
+        // Fork: a GPU frame thirty times a second while the desktop is in view.
+        case .liveWallpaper: return .periodic
         // Fork: a passive monitor reads clicks while the bar follows the pointer.
         case .selectionActions:
             return UserDefaults.standard.string(forKey: DefaultsKey.selectionActionsTrigger)

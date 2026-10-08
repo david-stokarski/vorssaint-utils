@@ -64,6 +64,9 @@ enum NotchDevRemote {
             case "settings-calendar":
                 SettingsRouter.shared.request(FeatureSettingsDestination(.notch), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
+            case "settings-livewallpaper":  // Fork
+                SettingsRouter.shared.request(FeatureSettingsDestination(.liveWallpaper), targetFeature: nil, sidebarFeature: nil)
+                (NSApp.delegate as? AppDelegate)?.openSettingsWindow()
             case "settings-appicons":  // Fork
                 SettingsRouter.shared.request(FeatureSettingsDestination(.appIcons), targetFeature: nil, sidebarFeature: nil)
                 (NSApp.delegate as? AppDelegate)?.openSettingsWindow()

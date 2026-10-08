@@ -28,7 +28,8 @@ enum AppFeature: String, CaseIterable {
     // Tools
     case quickLauncher, quickToggles, colorPicker, screenOCR, cleaningMode, mediaTools,
          cleaner, uninstaller, homebrew, appUpdates, screenshot, cameraPreview, radialMenu, scratchpad,
-         commandBar, screenRecorder, wallpaper, killProcess, portManager, aiChat, appIcons, selectionActions
+         commandBar, screenRecorder, wallpaper, killProcess, portManager, aiChat, appIcons, selectionActions,
+         liveWallpaper  // Fork
     // Dynamic Island, then its extensions
     case notch, notchCalendar, notchNotifications, notchGestures, notchTimer, notchAccessories, notchLyrics,
          notchQueue, notchLiveEqualizer, notchDownloads, notchAgents, notchWatch, notchMascot
@@ -117,7 +118,7 @@ extension AppFeature {
         case .quickLauncher, .quickToggles, .colorPicker, .screenOCR, .cleaningMode, .mediaTools,
              .cleaner, .uninstaller, .homebrew, .appUpdates, .screenshot, .cameraPreview, .radialMenu,
              .scratchpad, .commandBar, .screenRecorder, .wallpaper, .killProcess, .portManager, .aiChat, .appIcons,
-             .selectionActions:  // Fork
+             .selectionActions, .liveWallpaper:  // Fork
             return .tools
         case .notch, .notchCalendar, .notchNotifications, .notchGestures, .notchTimer, .notchAccessories,
              .notchLyrics, .notchQueue, .notchLiveEqualizer, .notchDownloads, .notchAgents, .notchWatch,
@@ -172,6 +173,7 @@ extension AppFeature {
         case .workspaces: return "square.stack.3d.up"  // Fork
         case .snapWheel: return "circle.circle"  // Fork
         case .selectionActions: return "text.cursor"  // Fork
+        case .liveWallpaper: return "sparkles.rectangle.stack"  // Fork
         case .batteryCharge: return "battery.75percent"  // Fork
         case .musicBlock: return "music.note"
         case .keepAwake: return "moon.zzz.fill"
@@ -288,6 +290,7 @@ extension AppFeature {
         case .workspaces: return [DefaultsKey.workspacesEnabled]
         case .snapWheel: return [DefaultsKey.snapWheelEnabled]  // Fork
         case .selectionActions: return [DefaultsKey.selectionActionsEnabled]  // Fork
+        case .liveWallpaper: return [DefaultsKey.liveWallpaperEnabled]  // Fork
         case .batteryCharge: return [DefaultsKey.batteryChargeEnabled]  // Fork
         case .finderCutPaste: return [DefaultsKey.finderCutPasteEnabled,
                                       DefaultsKey.finderPasteImageAsFile]
@@ -399,6 +402,8 @@ extension AppFeature {
         case .snapWheel: return [.accessibility]  // Fork
         // Fork: reads the selection and watches clicks and keys to dismiss.
         case .selectionActions: return [.accessibility]
+        // Fork: windows behind the icons and over the lock screen ask for nothing.
+        case .liveWallpaper: return []
         // Fork: the daemon does the work as root; the app reads files only.
         case .batteryCharge: return []
         case .keepAwake: return [.accessibility]
@@ -517,7 +522,7 @@ extension AppFeature {
             return true
         case .focusFollowsMouse, .scrollHorizontal, .linearScroll, .diskImageInstaller, .audioPriority,
              .wallpaper, .killProcess, .portManager, .fanControl, .notchMascot, .spacesOrder, .dictation, .aiChat, .workspaces, .snapWheel, .appIcons,
-             .selectionActions, .batteryCharge:  // Fork
+             .selectionActions, .batteryCharge, .liveWallpaper:  // Fork
             return false
         }
     }

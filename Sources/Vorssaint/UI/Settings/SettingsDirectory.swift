@@ -387,6 +387,11 @@ enum SettingsDirectory {
                                       keywords: ["selection", "popclip", "select text", "action bar", "change case",
                                                  "uppercase", "translate", "rewrite", "grammar", "word count",
                                                  "search", "explain"]),
+                SettingsDirectoryItem(page: .liveWallpaper,  // Fork
+                                      title: LiveWallpaperSupport.title,
+                                      icon: "sparkles.rectangle.stack",
+                                      keywords: ["wallpaper", "live wallpaper", "dynamic wallpaper", "animated",
+                                                 "background", "desktop", "lock screen", "black", "dark", "light"]),
             ]),
             (categories.utilities, [
                 SettingsDirectoryItem(page: .notch,
