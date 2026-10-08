@@ -274,26 +274,15 @@ struct CommandBarSettings: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                // Fork: each shortcut is changed or removed right in its row.
+                let bindings = CommandBarRowShortcuts.decode(rowShortcutsRaw)
                 ForEach(boundRows, id: \.key) { entry in
-                    HStack {
-                        Text(entry.alias)
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Color.accentColor)
-                        Text(entry.title)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        Spacer()
-                        // A combination another app already holds never fires,
-                        // and a row showing a dead key is worse than no key.
-                        if service.refusedRowShortcutKeys.contains(entry.key) {
-                            Text(l10n.s.shortcutUnavailable)
-                                .font(.caption)
-                                .foregroundStyle(.orange)
+                    if let binding = bindings[entry.key] {
+                        CommandBarShortcutRow(key: entry.key, shortcut: binding) {
+                            Text(entry.title)
+                                .font(.system(size: 12))
+                                .lineLimit(1)
                         }
-                        Button(text.removeButton) { removeRowShortcut(entry.key) }
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
                     }
                 }
             } header: {
@@ -393,13 +382,6 @@ struct CommandBarSettings: View {
         CommandBarRowShortcuts.decode(rowShortcutsRaw)
             .map { NamedRow(key: $0.key, title: title(forKey: $0.key), alias: $0.value.displayString) }
             .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-    }
-
-    private func removeRowShortcut(_ key: String) {
-        var next = CommandBarRowShortcuts.decode(rowShortcutsRaw)
-        next.removeValue(forKey: key)
-        rowShortcutsRaw = CommandBarRowShortcuts.encode(next) ?? ""
-        CommandBarService.shared.syncWithPreferences()
     }
 
     private func save(_ link: CommandBarLink) {

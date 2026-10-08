@@ -38,24 +38,26 @@ struct CommandBarHyperKeySection: View {
                 }
                 if !permissions.accessibility { PermissionRow(kind: .accessibility) }
             }
-            Text("Holding the hyper key presses ⌃⌥⇧⌘ at once, shown as ✧ in shortcuts. Give an app a shortcut below by pressing the hyper key with a letter, so ✧A can open Chrome.")
+            Text("Holding the hyper key presses ⌃⌥⇧⌘ at once, shown as ✧ in shortcuts. Give an app a shortcut below by pressing the hyper key with a letter, so ✧A can open Chrome. Click a shortcut to change it, or ✕ to remove it.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             let apps = Self.appShortcuts(CommandBarRowShortcuts.decode(shortcutsRaw))
             if !apps.isEmpty {
                 ForEach(apps, id: \.key) { entry in
-                    HStack(spacing: 8) {
-                        if let icon = entry.icon {
-                            Image(nsImage: icon).resizable().frame(width: 18, height: 18)
+                    CommandBarShortcutRow(key: entry.key, shortcut: entry.binding) {
+                        HStack(spacing: 8) {
+                            if let icon = entry.icon {
+                                Image(nsImage: icon).resizable().frame(width: 18, height: 18)
+                            }
+                            Text(entry.name).lineLimit(1)
                         }
-                        Text(entry.name)
-                        Spacer()
-                        Text(entry.shortcut).monospaced().foregroundStyle(.secondary)
                     }
                 }
             }
-            Button("Edit App Shortcuts…", action: openAppShortcuts)
+            // Changing and removing happen in the rows above; the app list is
+            // where a new app gets one, with names and pins beside it.
+            Button("Add App Shortcut…", action: openAppShortcuts)
         } header: {
             Text("Hyper Key & App Shortcuts")
         }
@@ -85,6 +87,7 @@ struct CommandBarHyperKeySection: View {
         let name: String
         let icon: NSImage?
         let shortcut: String
+        let binding: GlobalShortcut
     }
 
     /// The shortcuts bound to apps, by name, with ⌃⌥⇧⌘ read as Hyper.
@@ -96,7 +99,7 @@ struct CommandBarHyperKeySection: View {
             let name = url.map { FileManager.default.displayName(atPath: $0.path).replacingOccurrences(of: ".app", with: "") }
                 ?? bundleID
             return AppShortcut(key: key, name: name, icon: url.map { NSWorkspace.shared.icon(forFile: $0.path) },
-                               shortcut: display(shortcut))
+                               shortcut: display(shortcut), binding: shortcut)
         }
         .sorted { $0.shortcut.localizedStandardCompare($1.shortcut) == .orderedAscending }
     }

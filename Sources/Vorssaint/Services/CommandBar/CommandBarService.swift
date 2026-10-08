@@ -3568,3 +3568,25 @@ final class CommandBarService: ObservableObject {
         }
     }
 }
+
+// MARK: - Fork: shortcuts edited in place on the settings page
+
+extension CommandBarService {
+    /// The row a stored binding belongs to, for the same checks the app
+    /// list runs before saving. Nil for an app no longer on this Mac.
+    func settingsEntry(forStableKey key: String) -> CommandBarEntry? {
+        ensureCatalogIndexed()
+        return entriesByStableKey[key] ?? appEntries.last { $0.stableKey == key }
+    }
+
+    /// Removes a binding by its key alone, so one whose app is gone can
+    /// still be cleared, along with any take-over of macOS it held.
+    func clearRowShortcut(forStableKey key: String) {
+        guard AppFeature.commandBar.isAvailable else { return }
+        SystemShortcutTakeover.setTakeOver(CommandBarRowShortcuts.takeOverKey(for: key), false)
+        let next = CommandBarRowShortcuts.setting(nil, for: key, in: rowShortcuts)
+        UserDefaults.standard.set(CommandBarRowShortcuts.encode(next), forKey: DefaultsKey.commandBarRowShortcuts)
+        syncRowHotkeys()
+        refreshAfterPreferenceChange()
+    }
+}
