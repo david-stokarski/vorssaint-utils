@@ -19,6 +19,7 @@ enum SettingsBackupSupport {
         var keys = Set(Defaults.registeredDefaults.keys)
         keys.formUnion(AppFeature.availabilityDefaults.keys)
         keys.formUnion(unregisteredPreferenceKeys)
+        keys.formUnion(forkPreferenceKeys)  // Fork
         keys.subtract(machineStateKeys)
         return keys
     }
@@ -30,7 +31,10 @@ enum SettingsBackupSupport {
     }
 
     static func keysToClear(whenImporting settings: [String: Any]) -> Set<String> {
-        let keys = exportKeys()
+        var keys = exportKeys()
+        // Fork: a backup written before the fork keys travelled must not
+        // erase this Mac's workspaces, wheel slots or app icons.
+        if settings[forkVersionKey] == nil { keys.subtract(forkPreferenceKeys) }
         guard omitsDynamicIslandSettings(settings) else { return keys }
         return keys.subtracting(dynamicIslandKeys(in: keys))
     }
@@ -190,6 +194,7 @@ enum SettingsBackupSupport {
     /// The file's content: an envelope with the format version, the app
     /// version that wrote it, and the filtered settings.
     static func payload(appVersion: String,
+                        appIconImages: [String: Data] = [:],
                         valueFor: (String) -> Any?) -> [String: Any] {
         var settings: [String: Any] = [:]
         for key in exportKeys() {
@@ -201,11 +206,14 @@ enum SettingsBackupSupport {
         settings = portableMediaSettings(settings)
         settings = portableMouseExceptions(settings)
         settings = portableWindowLayoutIgnoredApps(settings)
-        return [
+        var envelope: [String: Any] = [
             formatVersionKey: formatVersion,
             appVersionKey: appVersion,
             settingsKey: settings,
+            forkVersionKey: forkVersion,
         ]
+        if !appIconImages.isEmpty { envelope[appIconImagesKey] = appIconImages }
+        return envelope
     }
 
     /// Validates an incoming file and returns only the keys this build knows
@@ -218,8 +226,51 @@ enum SettingsBackupSupport {
         else { return nil }
         let allowed = exportKeys()
         let filtered = settings.filter { allowed.contains($0.key) && valueLooksRight($0.key, $0.value) }
-        return portableNotchDisplay(portableWindowLayoutIgnoredApps(
+        var result = portableNotchDisplay(portableWindowLayoutIgnoredApps(
             portableMouseExceptions(portableMediaSettings(filtered))))
+        // Fork: markers ride along in the settings and are taken out again
+        // before anything is written to the preferences.
+        if payload[forkVersionKey] != nil {
+            result[forkVersionKey] = forkVersion
+        }
+        let images = sanitizedAppIconImages(payload[appIconImagesKey])
+        if !images.isEmpty { result[appIconImagesKey] = images }
+        return result
+    }
+
+    // MARK: - Fork
+
+    static let forkVersionKey = "vorssaintForkBackupVersion"
+    static let forkVersion = 1
+    /// [bundle identifier: PNG] of every app App Icons customized.
+    static let appIconImagesKey = "appIconImages"
+
+    /// Fork preferences stored without a registered default. Kept apart from
+    /// upstream's list so upstream merges stay clean.
+    static let forkPreferenceKeys: Set<String> = [
+        DefaultsKey.workspacesDefinitions,
+        DefaultsKey.snapWheelSlots,
+        DefaultsKey.notchTabs,
+        DefaultsKey.notchDisplayProfiles,
+        DefaultsKey.mouseNavigationBackSwipe,
+        DefaultsKey.mouseNavigationForwardSwipe,
+        DefaultsKey.mouseNavigationAppShortcuts,
+        DefaultsKey.commandBarPlacement,
+        DefaultsKey.commandBarMaterial,
+        DefaultsKey.commandBarTint,
+        DefaultsKey.appIconsRecords,
+    ]
+
+    /// Only PNGs keyed by a name App Icons would store them under travel in.
+    static func sanitizedAppIconImages(_ value: Any?) -> [String: Data] {
+        guard let images = value as? [String: Any] else { return [:] }
+        let png = Data([0x89, 0x50, 0x4E, 0x47])
+        return images.reduce(into: [:]) { out, entry in
+            guard !entry.key.isEmpty, entry.key.count <= 255,
+                  let data = entry.value as? Data, data.starts(with: png),
+                  data.count <= 8_000_000 else { return }
+            out[entry.key] = data
+        }
     }
 
     /// A display mode this version does not offer, such as one kept by an

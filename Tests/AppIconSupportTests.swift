@@ -14,6 +14,33 @@ enum AppIconSupportTests {
         reconcile(suite)
         commands(suite)
         styler(suite)
+        backup(suite)
+    }
+
+    /// Every fork setting travels in a settings backup, App Icons with its
+    /// pictures, and an older backup leaves the fork settings alone.
+    private static func backup(_ suite: TestSuite) {
+        let exported = SettingsBackupSupport.exportKeys()
+        suite.expect(exported.isSuperset(of: SettingsBackupSupport.forkPreferenceKeys),
+                     "workspaces, wheel slots, island tabs, mouse shortcuts and icons are exported")
+        let png = Data([0x89, 0x50, 0x4E, 0x47, 1, 2, 3])
+        let payload = SettingsBackupSupport.payload(
+            appVersion: "test", appIconImages: ["md.obsidian": png, "bad": Data([1, 2])]) { key in
+            key == DefaultsKey.workspacesDefinitions ? "[]" : nil
+        }
+        let restored = SettingsBackupSupport.sanitizedSettings(from: payload) ?? [:]
+        suite.expect(restored[DefaultsKey.workspacesDefinitions] as? String == "[]", "workspaces round-trip")
+        suite.expect(restored[SettingsBackupSupport.appIconImagesKey] as? [String: Data] == ["md.obsidian": png],
+                     "icon pictures round-trip and anything not a PNG is dropped")
+        suite.expect(SettingsBackupSupport.keysToClear(whenImporting: restored)
+                        .contains(DefaultsKey.snapWheelSlots),
+                     "a current backup replaces the wheel slots")
+        var older = payload
+        older.removeValue(forKey: SettingsBackupSupport.forkVersionKey)
+        let olderSettings = SettingsBackupSupport.sanitizedSettings(from: older) ?? [:]
+        suite.expect(SettingsBackupSupport.keysToClear(whenImporting: olderSettings)
+                        .isDisjoint(with: SettingsBackupSupport.forkPreferenceKeys),
+                     "an older backup keeps this Mac's fork settings")
     }
 
     private static func records(_ suite: TestSuite) {

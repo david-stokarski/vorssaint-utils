@@ -119,7 +119,9 @@ enum LockScreenPlayerPreview {
     static func show() {
         let model = NotchLockScreenModel()
         model.gates = NotchLockScreenModel.Gates(music: true, remembers: true)
-        let size = CGSize(width: NotchLockScreenLayout.playerWidth, height: 470)
+        // As tall as the room the main display's lock screen gives it.
+        let room = NSScreen.main.flatMap { NotchLockScreenLayout.playerFrame(in: $0.frame) }
+        let size = CGSize(width: NotchLockScreenLayout.playerWidth, height: room?.height ?? 470)
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: [.titled, .closable],
                               backing: .buffered, defer: false)
         window.title = "Lock screen player"

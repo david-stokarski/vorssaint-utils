@@ -378,6 +378,24 @@ final class AppIconService: ObservableObject {
         try? task.run()
     }
 
+    /// The stored picture of every customized app, for a settings backup.
+    func backupImages() -> [String: Data] {
+        AppIconSupport.records().reduce(into: [:]) { out, record in
+            out[record.bundleID] = try? Data(contentsOf: storeURL("icons").appendingPathComponent(record.iconFileName))
+        }
+    }
+
+    /// Puts a backup's pictures where `reconcile` looks for them; after the
+    /// relaunch it applies each one to its app.
+    func restoreBackupImages(_ images: [String: Data]) {
+        guard !images.isEmpty else { return }
+        let folder = storeURL("icons")
+        PrivateFileStore.createDirectory(at: folder)
+        for (bundleID, png) in images {
+            PrivateFileStore.write(png, to: folder.appendingPathComponent(AppIconSupport.fileName(for: bundleID)))
+        }
+    }
+
     private func storeURL(_ folder: String) -> URL {
         (PrivateFileStore.containerURL ?? FileManager.default.temporaryDirectory)
             .appendingPathComponent("App Icons", isDirectory: true)

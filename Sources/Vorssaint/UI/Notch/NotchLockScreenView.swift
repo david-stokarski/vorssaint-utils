@@ -172,16 +172,21 @@ struct NotchLockScreenPlayer: View {
         let current = playing ?? (model.gates.music && model.gates.remembers
                                   ? remembered.last?.playback() : nil)
         let shown = current != nil
-        ZStack {
+        // Fork: a third of the free room above the pane and two below, so it
+        // sits nearer the clock than the login controls.
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
             if let playback = current {
                 ViewThatFits(in: .vertical) {
-                    player(playback, artwork: 112, lyrics: true)
-                    player(playback, artwork: 84, lyrics: true)
-                    player(playback, artwork: 84)
+                    player(playback, artwork: 96, lyrics: true)
+                    player(playback, artwork: 72, lyrics: true)
+                    player(playback, artwork: 72)
                     compact(playback)
                 }
                 .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96)))
             }
+            Spacer(minLength: 0)
+            Spacer(minLength: 0)
         }
         .frame(width: size.width, height: size.height)
         .animation(reduceMotion ? nil : .smooth(duration: 0.5), value: shown)
@@ -202,20 +207,20 @@ struct NotchLockScreenPlayer: View {
     private func player(_ playback: NotchPlayback, artwork: CGFloat, lyrics: Bool = false) -> some View {
         VStack(spacing: 0) {
             cover(size: artwork, playback: playback)
-                .padding(.bottom, 14)
+                .padding(.bottom, 12)
             Text(playback.track.title ?? text.mediaNowPlaying)
-                .font(.system(size: 18, weight: .bold))
+                .font(.system(size: 16, weight: .bold))
                 .lineLimit(1)
             // Fork: the row is kept without an artist, so every song is one height.
             Text(playback.track.artist ?? playback.track.album ?? " ")
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white.opacity(0.72))
                 .lineLimit(1)
                 .padding(.top, 2)
             // Fork: lyrics, in a space that keeps one height either way.
             if lyrics, NotchLyricsSupport.isEnabled() { NotchLockScreenLyrics(playback: playback) }
             NotchMusicTimeline(playback: playback, service: music, tint: accent)
-                .padding(.top, 16)
+                .padding(.top, 12)
             transport(playback)
         }
         .pane()
@@ -226,12 +231,12 @@ struct NotchLockScreenPlayer: View {
     private func compact(_ playback: NotchPlayback) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                cover(size: 52, playback: playback)
+                cover(size: 46, playback: playback)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(playback.track.title ?? text.mediaNowPlaying)
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 15, weight: .bold))
                     if let artist = playback.track.artist ?? playback.track.album {
-                        Text(artist).font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.72))
+                        Text(artist).font(.system(size: 12, weight: .medium)).foregroundStyle(.white.opacity(0.72))
                     }
                 }
                 .lineLimit(1)
@@ -265,34 +270,34 @@ struct NotchLockScreenPlayer: View {
                     if remembered.resuming {
                         ProgressView().controlSize(.small).tint(.white)
                     } else {
-                        Image(systemName: "play.fill").font(.system(size: 30, weight: .semibold))
+                        Image(systemName: "play.fill").font(.system(size: 26, weight: .semibold))
                     }
                 }
                 .foregroundStyle(.white)
-                .frame(width: 48, height: 44)
+                .frame(width: 44, height: 40)
                 .contentShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(NotchButtonStyle(cornerRadius: 14))
             .disabled(remembered.resuming)
             .accessibilityLabel(text.mediaPlayPause)
-            .frame(height: 46)
+            .frame(height: 42)
         } else {
             liveTransport(playback)
         }
     }
 
     private func liveTransport(_ playback: NotchPlayback) -> some View {
-        HStack(spacing: 46) {
+        HStack(spacing: 38) {
             if !music.lacksTrackSkipping(.previous) {
-                button("backward.fill", size: 22, title: text.mediaPrevious, command: .previous, playback: playback)
+                button("backward.fill", size: 19, title: text.mediaPrevious, command: .previous, playback: playback)
             }
-            button((requestedPlaying ?? playback.isPlaying) ? "pause.fill" : "play.fill", size: 30,
+            button((requestedPlaying ?? playback.isPlaying) ? "pause.fill" : "play.fill", size: 26,
                    title: text.mediaPlayPause, command: .toggle, playback: playback)
             if !music.lacksTrackSkipping(.next) {
-                button("forward.fill", size: 22, title: text.mediaNext, command: .next, playback: playback)
+                button("forward.fill", size: 19, title: text.mediaNext, command: .next, playback: playback)
             }
         }
-        .frame(height: 46)
+        .frame(height: 42)
     }
 
     private func button(_ symbol: String, size: CGFloat, title: String, command: NotchMusicService.Command,
@@ -309,7 +314,7 @@ struct NotchLockScreenPlayer: View {
                 .foregroundStyle(.white)
                 .contentTransition(.symbolEffect(.replace))
                 .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: symbol)
-                .frame(width: 48, height: 44)
+                .frame(width: 44, height: 40)
                 .contentShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(NotchButtonStyle(cornerRadius: 14))
@@ -323,10 +328,10 @@ private extension View {
     func pane() -> some View {
         foregroundStyle(.white)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 26)
-            .padding(.vertical, 20)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
             .frame(width: NotchLockScreenLayout.paneWidth)
-            .modifier(NotchLockScreenGlass(cornerRadius: 34))
+            .modifier(NotchLockScreenGlass(cornerRadius: 30))
             .fixedSize(horizontal: false, vertical: true)
     }
 }

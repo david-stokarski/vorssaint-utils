@@ -23,7 +23,8 @@ enum SettingsBackup {
         // object(forKey:) sees through to registered defaults, so the file is
         // a complete snapshot: importing it reproduces this exact setup even
         // where the user never touched a control.
-        let payload = SettingsBackupSupport.payload(appVersion: AppInfo.version) {
+        let payload = SettingsBackupSupport.payload(appVersion: AppInfo.version,
+                                                    appIconImages: AppIconService.shared.backupImages()) {
             defaults.object(forKey: $0)
         }
         do {
@@ -72,8 +73,15 @@ enum SettingsBackup {
 
     /// Clears the exportable keys (unset ones fall back to their registered
     /// defaults), writes the file's values and relaunches.
-    static func applyAndRelaunch(settings: [String: Any]) {
+    static func applyAndRelaunch(settings incoming: [String: Any]) {
         ScratchpadService.shared.prepareForSettingsRestore()
+        // Fork: the markers and pictures are not preferences.
+        let keysToClear = SettingsBackupSupport.keysToClear(whenImporting: incoming)
+        var settings = incoming
+        settings.removeValue(forKey: SettingsBackupSupport.forkVersionKey)
+        if let images = settings.removeValue(forKey: SettingsBackupSupport.appIconImagesKey) as? [String: Data] {
+            AppIconService.shared.restoreBackupImages(images)
+        }
         let defaults = UserDefaults.standard
         let localRecorderPresets = defaults.data(forKey: DefaultsKey.recorderEditorPresets)
         let localWatermark = defaults.string(forKey: DefaultsKey.screenshotWatermarkStyle)
@@ -90,7 +98,7 @@ enum SettingsBackup {
         }
         let windowLayoutPaths = SettingsBackupSupport.pathIdentities(
             in: defaults.stringArray(forKey: DefaultsKey.windowLayoutIgnoredApps) ?? [])
-        for key in SettingsBackupSupport.keysToClear(whenImporting: settings) {
+        for key in keysToClear {
             defaults.removeObject(forKey: key)
         }
         for (key, value) in settings {

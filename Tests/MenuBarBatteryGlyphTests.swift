@@ -22,12 +22,12 @@ enum MenuBarBatteryGlyphTests {
         suite.expect(Glyph.fillWidth(percent: 100, innerWidth: 20) == 20, "a full battery fills the body")
         suite.expect(Glyph.fillWidth(percent: 150, innerWidth: 20) == 20, "the fill never overflows")
 
-        let defaults = UserDefaults(suiteName: "MenuBarBatteryGlyphTests")!
-        defaults.removePersistentDomain(forName: "MenuBarBatteryGlyphTests")
+        let defaults = UserDefaults(suiteName: "com.vorssaint.tests.menuBarBatteryGlyph")!
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.menuBarBatteryGlyph")
         suite.expect(Glyph.isIconOnly(defaults), "icon-only is the default")
         defaults.set(false, forKey: DefaultsKey.menuBarBatteryIconOnly)
         suite.expect(!Glyph.isIconOnly(defaults), "the percentage style can be chosen back")
-        defaults.removePersistentDomain(forName: "MenuBarBatteryGlyphTests")
+        defaults.removePersistentDomain(forName: "com.vorssaint.tests.menuBarBatteryGlyph")
         suite.expect(Defaults.registeredDefaults[DefaultsKey.menuBarBatteryIconOnly] as? Bool == true,
                      "the choice is registered, so settings backup carries it")
 
