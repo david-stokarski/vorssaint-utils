@@ -3175,7 +3175,8 @@ final class NotchService: ObservableObject {
                              cameraFit: NotchCameraFit.current(), silhouette: silhouette,
                              capsuleFit: NotchCapsuleFit.current(),
                              outline: UserDefaults.standard.bool(forKey: DefaultsKey.notchOutlineEnabled),
-                             barEdge: 1 / max(1, screen.backingScaleFactor))
+                             barEdge: 1 / max(1, screen.backingScaleFactor),
+                             drawnCameraWidth: NotchDrawnCamera.width())  // Fork
     }
 
     private func updateFullscreenVisibility(displayID: CGDirectDisplayID) {

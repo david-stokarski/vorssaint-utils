@@ -4,7 +4,9 @@
 import SwiftUI
 
 /// Fork: the line being sung, in the closed island. It changes only at the
-/// song's line boundaries, fading from one line to the next.
+/// song's line boundaries, fading from one line to the next, and a line too
+/// long for its room scrolls to its end the way the player's lyrics do,
+/// paced to finish before the next line.
 struct NotchCompactLyricLine: View {
     let lyrics: NotchLyrics
     let playback: NotchPlayback
@@ -15,19 +17,24 @@ struct NotchCompactLyricLine: View {
 
     var body: some View {
         TimelineView(.explicit(lyrics.changeDates(for: playback, offset: service.offset, from: .now))) { context in
-            let line = NotchCompactLyrics.line(lyrics, at: playback.position(at: context.date), offset: service.offset)
+            let position = playback.position(at: context.date)
+            let index = lyrics.activeIndex(at: position, offset: service.offset)
+            let line = NotchCompactLyrics.line(lyrics, at: position, offset: service.offset)
             ZStack(alignment: alignment) {
-                Text(line)
+                NotchMarqueeText(text: line,
+                                 remaining: index.flatMap {
+                                     NotchLyricMarquee.remaining(after: $0, times: lyrics.lines.map(\.time),
+                                                                 position: position, offset: service.offset,
+                                                                 rate: playback.isPlaying ? playback.rate : 0)
+                                 },
+                                 alignment: alignment)
                     .font(.system(size: size, weight: .semibold))
                     .foregroundStyle(.white.opacity(line == NotchCompactLyrics.rest ? 0.55 : 0.95))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .minimumScaleFactor(0.85)
-                    .id(line)
+                    .id(index ?? -1)
                     .transition(.opacity)
             }
             .frame(maxWidth: .infinity, alignment: alignment)
-            .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: line)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: index)
         }
         .clipped()
         .accessibilityHidden(true)

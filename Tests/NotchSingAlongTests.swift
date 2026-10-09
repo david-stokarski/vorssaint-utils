@@ -40,6 +40,22 @@ enum NotchSingAlongTests {
         let short = NotchLyrics(lines: [NotchLyricLine(time: 0, text: "Hi")], plain: "", instrumental: false)
         suite.expect(NotchCompactLyrics.width(short, in: range) == range.lowerBound, "a short song keeps the least room")
 
+        suite.expect(NotchDrawnCamera.width(in: defaults) == 0, "the drawn notch is automatic by default")
+        defaults.set(9999.0, forKey: DefaultsKey.notchDrawnCameraWidth)
+        suite.expect(NotchDrawnCamera.width(in: defaults) == CGFloat(NotchDrawnCamera.range.upperBound),
+                     "a chosen notch width stays in range")
+        suite.expect(NotchDisplayProfiles.keys.contains(DefaultsKey.notchDrawnCameraWidth), "each display keeps its own notch width")
+        let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        var automaticNotch = NotchGeometry(screen: screen, safeAreaTop: 0, cameraWidth: 0, silhouette: .notch)
+        var chosenNotch = NotchGeometry(screen: screen, safeAreaTop: 0, cameraWidth: 0, silhouette: .notch, drawnCameraWidth: 300)
+        suite.expect(chosenNotch.cameraWidth == 300, "a chosen width draws the notch that wide")
+        automaticNotch.lyricRoom = 400
+        chosenNotch.lyricRoom = 400
+        suite.expect(automaticNotch.musicCameraGap == 400, "an automatic notch widens for a sung line")
+        suite.expect(chosenNotch.musicCameraGap == 300, "a chosen width stays put, and the line scrolls")
+        let notched = NotchGeometry(screen: screen, safeAreaTop: 32, cameraWidth: 185, drawnCameraWidth: 300)
+        suite.expect(notched.cameraWidth == 185, "a real camera keeps its own width")
+
         let cost = AgentFormat.cost(0.42)
         suite.expect(NotchAgentCostFlash.detail(duration: "3m", cost: 0.42, flashes: true) == "\(cost) · 3m",
                      "a flash leads with the cost")

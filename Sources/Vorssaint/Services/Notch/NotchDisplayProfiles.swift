@@ -31,6 +31,7 @@ enum NotchDisplayProfiles {
         DefaultsKey.notchClosedExtraWidth, DefaultsKey.notchClosedExtraHeight,
         DefaultsKey.notchCameraFitWidth, DefaultsKey.notchCameraFitHeight,
         DefaultsKey.notchCapsuleFitWidth, DefaultsKey.notchCapsuleFitHeight, DefaultsKey.notchCapsuleFitDrop,
+        DefaultsKey.notchDrawnCameraWidth,
     ]
 
     /// The starting sizes for a kind of display, used once per new display.

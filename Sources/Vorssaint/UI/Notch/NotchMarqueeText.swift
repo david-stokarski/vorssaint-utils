@@ -10,6 +10,8 @@ struct NotchMarqueeText: View {
     let text: String
     /// Seconds the line has left on screen, to pace the scroll.
     var remaining: Double?
+    /// Where a line that fits sits; a line that scrolls starts at the leading edge.
+    var alignment: Alignment = .leading
     @State private var fullWidth: CGFloat = 0
     @State private var boxWidth: CGFloat = 0
     @State private var shift: CGFloat = 0
@@ -23,7 +25,7 @@ struct NotchMarqueeText: View {
             .lineLimit(1)
             .truncationMode(.tail)
             .opacity(reduceMotion || overflow <= 0.5 ? 1 : 0)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: alignment)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { boxWidth = $0 }
             .overlay(alignment: .leading) {
                 if !reduceMotion, overflow > 0.5 {

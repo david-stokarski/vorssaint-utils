@@ -512,10 +512,51 @@ struct NotchDisplayProfileCard: View {
                     .labelsHidden().toggleStyle(.switch)
                     .onChange(of: enabled) { _, _ in NotchService.shared.syncWithPreferences() }
             }
+            NotchDrawnCameraWidthRow(displayName: displayName)
         }
     }
 
     private var displayName: String {
         NSScreen.screens.first { $0.notchProfileKey == active }?.localizedName ?? "this display"
+    }
+}
+
+/// Fork: the width of the camera gap the hanging island draws on a display
+/// without a camera, kept per display with the island's other sizes.
+private struct NotchDrawnCameraWidthRow: View {
+    let displayName: String
+    @AppStorage(DefaultsKey.notchDrawnCameraWidth) private var width = 0.0
+    @AppStorage(DefaultsKey.notchSilhouette) private var silhouette = NotchSilhouette.capsule.rawValue
+
+    /// A real camera keeps its own width, and a capsule has no gap to size.
+    private var applies: Bool {
+        let screen = NSScreen.screens.first { $0.notchProfileKey == UserDefaults.standard.string(forKey: DefaultsKey.notchDisplayProfileActive) }
+            ?? NSScreen.main
+        let notched = (screen?.safeAreaInsets.top ?? 0) > 0
+        return !notched && (NotchSilhouette(rawValue: silhouette) ?? .capsule) == .notch
+    }
+
+    var body: some View {
+        let automatic = Binding(get: { width <= 0 }, set: { width = $0 ? 0 : 200 })
+        let chosen = Binding(get: { min(NotchDrawnCamera.range.upperBound, max(NotchDrawnCamera.range.lowerBound, width)) },
+                             set: { width = $0 })
+        SettingsRow(symbol: "rectangle.topthird.inset.filled", title: "Notch width",
+                    caption: applies
+                        ? (automatic.wrappedValue
+                            ? "The notch drawn on \(displayName) follows the menu bar's height and widens to fit the song's lyrics."
+                            : "The notch drawn on \(displayName) keeps this width; longer lyric lines scroll through it.")
+                        : "Only for the notch-shaped island on a display without a camera. A real camera keeps its own width.") {
+            Toggle("Automatic", isOn: automatic).toggleStyle(.checkbox)
+        }
+        .disabled(!applies)
+        if applies, !automatic.wrappedValue {
+            HStack(spacing: 10) {
+                Slider(value: chosen, in: NotchDrawnCamera.range, step: NotchDrawnCamera.step) { Text("Notch width") }
+                    .labelsHidden()
+                Text("\(Int(chosen.wrappedValue)) pt").monospacedDigit().foregroundStyle(.secondary)
+                    .frame(width: 52, alignment: .trailing)
+            }
+            .padding(.leading, settingsRowTextInset)
+        }
     }
 }

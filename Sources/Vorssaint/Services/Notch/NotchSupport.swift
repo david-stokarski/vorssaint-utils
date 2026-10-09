@@ -1712,14 +1712,16 @@ struct NotchGeometry: Equatable {
     /// Narrower wings than this are dropped rather than drawn cramped.
     private var minimumWing: CGFloat = 44
     /// Fork: the room a sung line needs in a drawn camera's gap, which widens
-    /// to give it. A real camera hides its gap, so it never widens.
+    /// to give it. A real camera hides its gap, so it never widens, and
+    /// neither does a drawn one of a chosen width.
     var lyricRoom: CGFloat = 0
+    private var drawnCameraChosen = false
 
     init(screen: CGRect, safeAreaTop: CGFloat, cameraWidth: CGFloat, layout: NotchSize = .compact,
          menuBarHeight: CGFloat = 24, compactSideRoom: CGFloat? = nil,
          customWidth: Double = NotchSize.defaultWidth, customHeight: Double = NotchSize.defaultHeight,
          cameraFit: NotchCameraFit = .zero, silhouette: NotchSilhouette = .notch, capsuleFit: NotchCapsuleFit = .zero,
-         outline: Bool = false, barEdge: CGFloat = 0) {
+         outline: Bool = false, barEdge: CGFloat = 0, drawnCameraWidth: CGFloat = 0) {
         self.screen = screen
         self.layout = layout
         self.customWidth = NotchSize.clamped(customWidth, to: NotchSize.widthRange, fallback: NotchSize.defaultWidth)
@@ -1747,7 +1749,10 @@ struct NotchGeometry: Equatable {
         let profileHeight = gap.flatMap { gap in fullStrip.map { $0 - (gap - NotchLayout.capsuleMargin) * 2 } }
             ?? barHeight
         // A capsule's camera is only the room it keeps, on whole points.
-        let simulated = 180 * profileHeight / 32
+        // Fork: a hanging island may have its drawn camera's width chosen.
+        let chosen = !isNotched && gap == nil && drawnCameraWidth.isFinite && drawnCameraWidth > 0
+        drawnCameraChosen = chosen
+        let simulated = chosen ? drawnCameraWidth.rounded() : 180 * profileHeight / 32
         // A simulated cutout sits on the menu bar, where its outline already shows.
         let room = isNotched && outline ? NotchLayout.outlineWidth : 0
         outlineRoom = room
@@ -1890,7 +1895,7 @@ struct NotchGeometry: Equatable {
         max(compactMusicArtworkInset + compactMusicArtworkSide,
             compactMusicBarsInset + NotchLayout.compactMusicBarsWidth).rounded(.up)
     }
-    var musicCameraGap: CGFloat { isNotched ? cameraWidth : max(cameraWidth, lyricRoom) }  // Fork: lyricRoom
+    var musicCameraGap: CGFloat { isNotched || drawnCameraChosen ? cameraWidth : max(cameraWidth, lyricRoom) }  // Fork
     var compactMusicLabelInset: CGFloat {
         let height = compactActivityContentHeight
         let shoulder = NotchLayout.shoulder(height: height)
