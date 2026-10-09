@@ -55,14 +55,22 @@ struct NotchMusicStrip: View {
     /// A simulated camera has room for the track even when its wings disappear.
     private var fillsCameraGap: Bool { !geometry.isNotched && geometry.compactActivityCameraGap >= 56 }
     private var showsArtist: Bool { geometry.compactActivityContentHeight >= 28 }
+    @ObservedObject private var lyricsService = NotchLyricsService.shared  // Fork
+    /// Fork: the song's lines, once its notice has named it.
+    private var lyrics: NotchLyrics? { shown == nil ? service.compactLyrics : nil }
 
     var body: some View {
         Button { service.openActivity(.music) } label: {
             HStack(spacing: 0) {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     if geometry.compactActivityWingWidth > 0 {
                         // Circular corners, like the strip's, so the two stay parallel.
                         NotchMusicCover(artwork: artwork, side: artworkSide, radius: artworkRadius)
+                        // Fork: beside a camera, the line takes the rest of the wing.
+                        if geometry.isNotched, let lyrics, let playback = music.playback {
+                            NotchCompactLyricLine(lyrics: lyrics, playback: playback, size: 11, alignment: .leading)
+                                .padding(.trailing, NotchAgentSupport.stripCameraGap)
+                        }
                     }
                 }
                 .padding(.leading, artworkInset)
@@ -70,7 +78,10 @@ struct NotchMusicStrip: View {
                 .frame(width: geometry.compactActivityWingWidth, alignment: .leading)
                 .clipped()
                 Group {
-                    if fillsCameraGap { trackLabel } else { Color.clear }
+                    if fillsCameraGap, let lyrics, let playback = music.playback {  // Fork
+                        NotchCompactLyricLine(lyrics: lyrics, playback: playback, size: 11)
+                            .padding(.horizontal, geometry.compactMusicLabelInset)
+                    } else if fillsCameraGap { trackLabel } else { Color.clear }
                 }
                 .frame(width: geometry.compactActivityCameraGap, height: geometry.compactActivityContentHeight)
                 .clipped()

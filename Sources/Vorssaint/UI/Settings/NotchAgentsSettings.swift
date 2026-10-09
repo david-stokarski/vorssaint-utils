@@ -112,6 +112,8 @@ struct NotchAgentsSettingsControls: View {
                     }
                 }
                 .padding(.leading, settingsRowTextInset)
+                NotchAgentCostFlashSetting()  // Fork
+                    .padding(.leading, settingsRowTextInset)
             }
             switchRow("exclamationmark.triangle", text.limitAlert, isOn: $limitAlert)
             if limitAlert {

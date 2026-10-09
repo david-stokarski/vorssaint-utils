@@ -252,17 +252,22 @@ struct NotchCapsuleMusicStrip: View {
     private var artwork: NSImage? { shown == nil ? music.artwork : shown?.artwork }
     private var tint: NotchArtworkTint? { shown == nil ? music.artworkTint : shown?.tint }
     private var title: String { playback?.track.title ?? FeatureStrings.radialMenu(l10n.language).mediaNowPlaying }
+    @ObservedObject private var lyricsService = NotchLyricsService.shared  // Fork
 
     var body: some View {
         let side = CapsuleLayout.artworkSide(geometry)
         let named = service.capsuleMusicTitleShown
+        // Fork: once the notice has named the song, its lines take the middle.
+        let lyrics = shown == nil ? service.compactLyrics : nil
         NotchCapsuleRow(size: size ?? CapsuleLayout.musicSurface(title: named ? title : nil, geometry: geometry),
                         geometry: geometry, leading: CapsuleLayout.artworkInset(geometry)) {
             HStack(spacing: 0) {
                 NotchMusicCover(artwork: artwork, side: side, radius: side / 2)
                 // A song is named only as it starts; then the cover and bars say enough.
                 Group {
-                    if named { Text(title).capsuleTitle().truncationMode(.tail).transition(.opacity) }
+                    if let lyrics, let playback = music.playback {
+                        NotchCompactLyricLine(lyrics: lyrics, playback: playback).transition(.opacity)
+                    } else if named { Text(title).capsuleTitle().truncationMode(.tail).transition(.opacity) }
                     else { Color.clear }
                 }
                 .padding(.horizontal, CapsuleLayout.endPadding)
@@ -399,6 +404,7 @@ struct NotchCapsuleAgentStrip: View {
     var displayGeometry: NotchGeometry? = nil
     @ObservedObject private var usage = AgentUsageService.shared
     @ObservedObject private var music = NotchMusicService.shared  // Fork: paired with the song
+    @ObservedObject private var lyricsService = NotchLyricsService.shared  // Fork: and its lines
     @ObservedObject private var l10n = L10n.shared
     @AppStorage(DefaultsKey.notchAgentsReadout) private var readout = NotchAgentReadout.elapsed.rawValue
     @AppStorage(DefaultsKey.notchAgentsLimitDisplay) private var display = NotchAgentLimitDisplay.remaining.rawValue
@@ -435,6 +441,11 @@ struct NotchCapsuleAgentStrip: View {
                                            barWidth: NotchLayout.compactMusicBarWidth,
                                            height: CapsuleLayout.barsHeight(geometry),
                                            tint: music.artworkTint?.color ?? .white)
+                    if let lyrics = service.compactLyrics, let playback = music.playback {
+                        NotchCompactLyricLine(lyrics: lyrics, playback: playback, alignment: .leading)
+                            .frame(maxWidth: NotchCompactLyrics.width(lyrics, in: NotchCompactLyrics.capsuleWidthRange))
+                            .padding(.leading, CapsuleLayout.groupSpacing - CapsuleLayout.spacing)
+                    }
                 }
                 Spacer(minLength: CapsuleLayout.pairGap)
                 HStack(spacing: CapsuleLayout.spacing) {

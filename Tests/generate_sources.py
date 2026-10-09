@@ -659,6 +659,7 @@ def main():
               "    private func updateMissionControlTimer()", "    private func refreshMissionControlState("])
           + "}\n}\n")
     write("NotchHover.swift", "import AppKit\nextension NotchHoverTests {\nfinal class Service: State {\n"
+          + "var pendingCostFlash: (notice: NotchNotice, since: Date)?\nfunc flushCostFlash() {}\n"  # Fork
           + declaration(notch, "    func show(_ incoming:").replace("NotchSupport.routes(incoming.event)", "true")
             .replace("    func", "    @discardableResult\n    func", 1)
           + "".join(declaration(notch, prefix).replace("    private ", "    ", 1) for prefix in [
@@ -699,7 +700,12 @@ def main():
     music_visibility = music_visibility.replace("AppFeature.fanControl.isAvailable",
                                                 "AppFeature.fanControl.isAvailable(in: ReviewDefaults.current)")
     write("NotchMusicVisibility.swift", "import Foundation\nextension NotchMusicVisibilityTests {\n"
-          + "final class Service: State {\n" + music_visibility + "}\n}\n")
+          + "final class Service: State {\n" + music_visibility
+          # Fork: the closed island's lyrics and the waiting cost flash.
+          + "var compactLyrics: NotchLyrics? { nil }\n"
+          + "func lyricStripWing(_ lyrics: NotchLyrics, in geometry: NotchGeometry) -> CGFloat { 0 }\n"
+          + "var pendingCostFlash: (notice: NotchNotice, since: Date)?\nfunc flushCostFlash() {}\n"
+          + "}\n}\n")
     write("NotchScreenEdgeClicks.swift", "import AppKit\nextension NotchScreenEdgeClickTests {\nfinal class Service: State {\n"
           + "func open() { openings += 1; expanded = true; syncScreenEdgeClicks() }\n"
           + "".join(declaration(notch, prefix).replace("    private ", "    ", 1) for prefix in [

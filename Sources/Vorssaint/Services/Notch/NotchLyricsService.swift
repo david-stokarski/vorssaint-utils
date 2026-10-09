@@ -37,7 +37,8 @@ final class NotchLyricsService: ObservableObject {
     func update(playback: NotchPlayback?, visible: Bool) {
         guard NotchLyricsSupport.isEnabled() else { stop(); return }
         let next = playback.map(NotchMusicIdentity.init)
-        let wanted = visible && next != nil
+        // Fork: the closed island sings along, so the lines load unseen too.
+        let wanted = (visible || NotchCompactLyrics.isOn()) && next != nil
         let online = NotchLyricsSupport.onlineEnabled()
         let changedTrack = next != nil && next != track
         guard changedTrack || wanted != self.visible || online != self.online else { return }
@@ -75,10 +76,28 @@ final class NotchLyricsService: ObservableObject {
     func resetOffset() { memory.resetOffset() }
 
     func hide() {
+        // Fork: the closed island still sings the song's lines.
+        if NotchCompactLyrics.isOn(), track != nil {
+            importPanel?.cancel(nil)
+            importPanel = nil
+            return
+        }
         cancel()
         visible = false
         if !NotchLyricsSupport.isEnabled() { memory.clear() }
         state = lyrics == nil ? .idle : .ready
+    }
+
+    /// Fork: turning the closed island's lyrics on loads the playing song's.
+    func syncCompact(playback: NotchPlayback?) {
+        guard NotchCompactLyrics.isOn(), let playback else { return }
+        update(playback: playback, visible: visible)
+    }
+
+    /// Fork: the lines the closed island sings, if they are the playing song's.
+    func compactLyrics(for playback: NotchPlayback?) -> NotchLyrics? {
+        guard NotchCompactLyrics.isOn(), let playback, track == NotchMusicIdentity(playback) else { return nil }
+        return NotchCompactLyrics.singable(lyrics, playback: playback)
     }
 
     func stop() {

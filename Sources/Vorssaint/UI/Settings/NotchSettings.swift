@@ -401,6 +401,8 @@ struct NotchSettings: View {
                     .padding(.leading, settingsRowTextInset)
                 NotchLyricsTimingSetting()  // Fork
                     .padding(.leading, settingsRowTextInset)
+                NotchCompactLyricsSetting()  // Fork
+                    .padding(.leading, settingsRowTextInset)
             }
             switchRow("list.bullet", music.enableQueue, caption: music.queueDescription, isOn: $queueEnabled)
                 .disabled(!AppFeature.notchQueue.isAvailable)

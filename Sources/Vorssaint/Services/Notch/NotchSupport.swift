@@ -1847,6 +1847,16 @@ struct NotchGeometry: Equatable {
         compact.minimumWing = wing
         return compact
     }
+    /// Fork: a sung line takes the wing beside the cover, and both wings
+    /// grow to fit it; with too little room the line gets what there is.
+    func compactLyricMusicGeometry(wing: CGFloat) -> NotchGeometry {
+        var compact = compactMusicGeometry
+        let room = compactSideRoom ?? 0
+        let fitted = max(compact.minimumWing, wing.isFinite ? wing.rounded(.up) : 0)
+        compact.compactSideRoom = room.isFinite && room >= compact.minimumWing ? min(fitted, room) : 0
+        compact.minimumCompactWidth = cameraWidth + fitted * 2
+        return compact
+    }
     /// The Lock Screen keeps no menus beside the camera, so its island always
     /// takes the wings the music strip fits to the cover and the bars.
     var lockScreenMusicGeometry: NotchGeometry {
@@ -1946,10 +1956,11 @@ struct NotchGeometry: Equatable {
     /// A working agent keeps its mark and one reading beside the camera,
     /// never below it, like the timer. Both wings take the width the reading
     /// needs, so a short one leaves no band of empty black at the ends.
-    func compactAgentGeometry(wing: CGFloat) -> NotchGeometry {
+    func compactAgentGeometry(wing: CGFloat,
+                              widest: CGFloat = NotchAgentSupport.stripWingRange.upperBound) -> NotchGeometry {  // Fork: a sung line beside
         var compact = self
         let room = compactSideRoom ?? 0
-        let fitted = min(NotchAgentSupport.stripWingRange.upperBound,
+        let fitted = min(max(NotchAgentSupport.stripWingRange.upperBound, widest),
                          max(NotchAgentSupport.stripWingRange.lowerBound, wing.isFinite ? wing.rounded(.up) : 0))
         compact.compactSideRoom = room.isFinite && room >= NotchAgentSupport.stripWingRange.lowerBound ? min(fitted, room) : 0
         compact.minimumCompactWidth = cameraWidth + fitted * 2

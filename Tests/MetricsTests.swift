@@ -115,6 +115,7 @@ struct MetricsTests {
                 ClipboardCommandBarTests.run(suite)  // Fork
                 NotchLyricsTimingTests.run(suite)  // Fork
                 NotchLyricMarqueeTests.run(suite)  // Fork
+                NotchSingAlongTests.run(suite)  // Fork
                 NotchClaudeSwirlTests.run(suite)  // Fork
                 NotchLastPlayedTests.run(suite)  // Fork
                 NotchDisplayProfilesTests.run(suite)  // Fork

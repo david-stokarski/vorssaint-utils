@@ -1907,6 +1907,8 @@ enum Defaults {
         .merging(LiveWallpaperSupport.registeredDefaults) { current, _ in current }  // Fork
         .merging(TypingTestSupport.registeredDefaults) { current, _ in current }  // Fork
         .merging(NotchActivityPairing.registeredDefaults) { current, _ in current }
+        .merging(NotchCompactLyrics.registeredDefaults) { current, _ in current }  // Fork
+        .merging(NotchAgentCostFlash.registeredDefaults) { current, _ in current }  // Fork
         .merging(CommandBarAnimation.registeredDefaults) { current, _ in current }
         .merging(ClipboardCommandBar.registeredDefaults) { current, _ in current }
         .merging(NotchLyricsTiming.registeredDefaults) { current, _ in current }

@@ -180,6 +180,7 @@ struct NotchAgentMusicPair: View {
     let textInset: CGFloat
     let reading: (Date) -> String
     @ObservedObject private var music = NotchMusicService.shared
+    @ObservedObject private var lyricsService = NotchLyricsService.shared  // Fork
     @AppStorage(DefaultsKey.notchAgentsReadout) private var readout = NotchAgentReadout.elapsed.rawValue
 
     var body: some View {
@@ -189,11 +190,17 @@ struct NotchAgentMusicPair: View {
                 HStack(spacing: 6) {
                     NotchMusicCover(artwork: music.artwork, side: geometry.compactMusicArtworkSide,
                                     radius: geometry.compactMusicArtworkRadius)
-                    NotchLiveEqualizerBars(isPlaying: music.playback?.isPlaying == true,
-                                           bars: NotchLayout.compactMusicBarCount,
-                                           barWidth: NotchLayout.compactMusicBarWidth,
-                                           height: geometry.compactMusicBarHeight,
-                                           tint: music.artworkTint?.color ?? .white)
+                    // Fork: the line being sung, where the bars were.
+                    if let lyrics = service.compactLyrics, let playback = music.playback {
+                        NotchCompactLyricLine(lyrics: lyrics, playback: playback, size: 11, alignment: .leading)
+                            .padding(.trailing, NotchAgentSupport.stripCameraGap)
+                    } else {
+                        NotchLiveEqualizerBars(isPlaying: music.playback?.isPlaying == true,
+                                               bars: NotchLayout.compactMusicBarCount,
+                                               barWidth: NotchLayout.compactMusicBarWidth,
+                                               height: geometry.compactMusicBarHeight,
+                                               tint: music.artworkTint?.color ?? .white)
+                    }
                 }
                 .padding(.leading, geometry.compactMusicArtworkInset)
                 .frame(width: geometry.compactActivityWingWidth, height: geometry.compactActivityContentHeight,

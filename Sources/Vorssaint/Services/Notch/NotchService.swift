@@ -182,6 +182,8 @@ final class NotchService: ObservableObject {
     /// triggers, so the island eases to the new width rather than springing.
     private var noticeFitsInPlace = false
     private var noticeWork: DispatchWorkItem?
+    /// Fork: a finished run's cost that could not show yet, and since when.
+    private var pendingCostFlash: (notice: NotchNotice, since: Date)?
     private var departureWork: DispatchWorkItem?
     private var musicDepartureWork: DispatchWorkItem?
     private var presentedMusic: NotchCompactMusicSnapshot?
@@ -578,14 +580,23 @@ final class NotchService: ObservableObject {
             geometry.compactSideRoom = min(geometry.compactSideRoom ?? 0, room)
         }
         switch activity {
-        case .music: return geometry.compactMusicGeometry
+        case .music:
+            // Fork: beside a camera, a sung line widens the wings.
+            if geometry.isNotched, let lyrics = compactLyrics {
+                return geometry.compactLyricMusicGeometry(wing: lyricStripWing(lyrics, in: geometry))
+            }
+            return geometry.compactMusicGeometry
         case .timer:
             return geometry.compactTimerGeometry(showsDownloads: companion == .downloads,
                                                  wing: timerStripWing(for: companion, in: geometry))
         case .downloads:
             let name = NotchDownloadService.shared.items.first { $0.active && !$0.completed }?.name
             return geometry.compactDownloadGeometry(wing: NotchDownloadSupport.compactWing(for: name, in: geometry))
-        case .agents: return geometry.compactAgentGeometry(wing: agentStripWing(in: geometry, companion: companion))
+        case .agents:
+            let wing = agentStripWing(in: geometry, companion: companion)
+            // Fork: a sung line beside the agents may need more than a reading.
+            return geometry.compactAgentGeometry(wing: wing, widest: companion == .music && compactLyrics != nil
+                                                 ? wing : NotchAgentSupport.stripWingRange.upperBound)
         case .watch: return geometry.compactWatchGeometry(wing: watchStripWing(in: geometry))
         case .calendar:
             return geometry.compactCalendarGeometry(wing: calendarStripWing(for: companion, in: geometry),
@@ -594,6 +605,20 @@ final class NotchService: ObservableObject {
         case .keepAwake: return geometry.compactTimerGeometry(showsDownloads: false, wing: keepAwakeStripWing(in: geometry))
         default: return geometry
         }
+    }
+
+    /// Fork: the lines the closed island sings, while the playing song has
+    /// them and no new song waits for its notice.
+    var compactLyrics: NotchLyrics? {
+        guard heldMusic == nil, !awaitsTrackNotice else { return nil }
+        return NotchLyricsService.shared.compactLyrics(for: NotchMusicService.shared.playback)
+    }
+
+    /// Fork: the cover and the line at the wing's end, with air beside the camera.
+    private func lyricStripWing(_ lyrics: NotchLyrics, in geometry: NotchGeometry) -> CGFloat {
+        let music = geometry.compactMusicGeometry
+        return music.compactMusicArtworkInset + music.compactMusicArtworkSide + 6
+            + NotchCompactLyrics.width(lyrics, in: NotchCompactLyrics.wingWidthRange) + NotchAgentSupport.stripCameraGap
     }
 
     /// The wider side: the eye at the left end, or the reading, or the
@@ -724,7 +749,8 @@ final class NotchService: ObservableObject {
         if companion == .music {
             let right = reading + CGFloat(max(1, working)) * frame + 3
             let left = provisional.compactMusicArtworkInset + provisional.compactMusicArtworkSide
-                + 6 + NotchLayout.compactMusicBarsWidth
+                + 6 + (compactLyrics.map { NotchCompactLyrics.width($0, in: NotchCompactLyrics.wingWidthRange) }
+                       ?? NotchLayout.compactMusicBarsWidth)
             return max(right, left) + NotchAgentSupport.stripCameraGap
         }
         return max(reading, marks) + NotchAgentSupport.stripCameraGap
@@ -983,6 +1009,10 @@ final class NotchService: ObservableObject {
         let working = Set(AgentUsageService.shared.snapshot.live.map(\.provider)).count
         switch activity {
         case .music:
+            if let lyrics = compactLyrics {  // Fork
+                return layout.lyricMusicSurface(lineWidth: NotchCompactLyrics.width(lyrics, in: NotchCompactLyrics.capsuleWidthRange),
+                                                geometry: geometry)
+            }
             let playback = heldMusic?.playback ?? NotchMusicService.shared.playback
             return layout.musicSurface(title: capsuleMusicTitleShown
                                         ? playback?.track.title ?? FeatureStrings.radialMenu(language).mediaNowPlaying : nil,
@@ -1001,6 +1031,11 @@ final class NotchService: ObservableObject {
                                                          display: NotchAgentSupport.limitDisplay(),
                                                          focus: NotchAgentSupport.limitFocus(), now: Date())
             if companion == .music {  // Fork
+                if let lyrics = compactLyrics {
+                    return layout.agentLyricSurface(reading: reading, working: working,
+                                                    lineWidth: NotchCompactLyrics.width(lyrics, in: NotchCompactLyrics.capsuleWidthRange),
+                                                    geometry: geometry)
+                }
                 return layout.agentMusicSurface(reading: reading, working: working, geometry: geometry)
             }
             return layout.agentSurface(reading: reading, working: working, geometry: geometry)
@@ -1102,6 +1137,7 @@ final class NotchService: ObservableObject {
         NotchNotificationService.shared.syncWithPreferences()
         NotchAudioLevelService.shared.syncWithPreferences()
         AgentUsageService.shared.syncWithPreferences()
+        NotchLyricsService.shared.syncCompact(playback: NotchMusicService.shared.playback)  // Fork
         followsPointer = displayPreference == .pointer || displayPreference == .all
         showsOnAllDisplays = displayPreference == .all
         updateFullscreenDisplays()
@@ -1410,6 +1446,16 @@ final class NotchService: ObservableObject {
         removeEventMonitors()
         syncVisibleConsumers()
         closeCapture?()
+        if pendingCostFlash != nil { DispatchQueue.main.async { [weak self] in self?.flushCostFlash() } }  // Fork
+    }
+
+    /// Fork: the finished run's cost that waited, once the island can show it.
+    private func flushCostFlash() {
+        guard let pending = pendingCostFlash else { return }
+        guard Date().timeIntervalSince(pending.since) <= NotchAgentCostFlash.patience else { pendingCostFlash = nil; return }
+        guard noticeCanPresent, notice == nil else { return }
+        pendingCostFlash = nil
+        show(pending.notice)
     }
 
     func toggle() { expanded ? collapse() : open() }
@@ -2351,6 +2397,7 @@ final class NotchService: ObservableObject {
             noticeExpanded = false
         }
         if let mascotBack { bridgeMascotHome(from: mascotBack) }
+        if pendingCostFlash != nil { DispatchQueue.main.async { [weak self] in self?.flushCostFlash() } }  // Fork
         guard departingNotice != nil else { return }
         // Without motion the host hides the content at once; so does the view.
         guard windowHost?.departsContent == true else { endDeparture(); return }
@@ -3566,6 +3613,15 @@ final class NotchService: ObservableObject {
                 .sink { [weak self] in self?.nameCapsuleSong() }
                 .store(in: &subscriptions)
         }
+        if modules.contains(.music) {
+            // Fork: the strip makes room for a song's lines as they arrive.
+            NotchLyricsService.shared.$state.removeDuplicates().receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    guard let self, NotchCompactLyrics.isOn() else { return }
+                    self.objectWillChange.send()
+                    self.refreshPresentation()
+                }.store(in: &subscriptions)
+        }
         if NotchSupport.routes(.track) {
             // Received at once, on the main thread, while the strip still
             // shows the previous song.
@@ -3697,10 +3753,18 @@ final class NotchService: ObservableObject {
         }
         switch event {
         case .finished(let provider, let duration, let cost, _, _):
-            show(NotchNotice(event: .agents, title: text.finished(provider.displayName),
-                             detail: [AgentFormat.duration(duration, locale: locale), cost > 0 ? AgentFormat.cost(cost) : ""]
-                                .filter { !$0.isEmpty }.joined(separator: " · "),
-                             symbol: provider.symbol, agent: provider))
+            // Fork: the cost can lead, and a flash that cannot show yet waits.
+            let flashes = NotchAgentCostFlash.isOn()
+            let finished = NotchNotice(event: .agents, title: text.finished(provider.displayName),
+                                       detail: NotchAgentCostFlash.detail(duration: AgentFormat.duration(duration, locale: locale),
+                                                                          cost: cost, flashes: flashes),
+                                       symbol: provider.symbol, agent: provider)
+            if flashes, !noticeCanPresent || notice.map({ !NotchSupport.shouldReplace($0.event, with: .agents,
+                                                                                     held: noticeExpanded) }) == true {
+                pendingCostFlash = (finished, Date())
+            } else {
+                show(finished)
+            }
             // After the notice, the companion cheers the finished task.
             reactMascot(.celebrate)
         case .limitWarning(let provider, let limit):
