@@ -258,16 +258,46 @@ struct NotchCapsuleMusicStrip: View {
         let side = CapsuleLayout.artworkSide(geometry)
         let named = service.capsuleMusicTitleShown
         // Fork: once the notice has named the song, its lines take the middle.
-        let lyrics = shown == nil ? service.compactLyrics : nil
+        if shown == nil, size != nil, let lyrics = service.compactLyrics, let playback = music.playback {
+            lyricRow(lyrics, playback: playback, side: side)
+        } else {
+            plainRow(side: side, named: named)
+        }
+    }
+
+    /// Fork: the line in the capsule's middle, where a camera would be.
+    private func lyricRow(_ lyrics: NotchLyrics, playback: NotchPlayback, side: CGFloat) -> some View {
+        let wing = CapsuleLayout.lyricMusicWing(geometry: geometry)
+        return NotchCapsuleRow(size: size ?? .zero, geometry: geometry, leading: 0, trailing: 0) {
+            HStack(spacing: 0) {
+                NotchMusicCover(artwork: artwork, side: side, radius: side / 2)
+                    .padding(.leading, CapsuleLayout.artworkInset(geometry))
+                    .frame(width: wing, alignment: .leading)
+                NotchCompactLyricLine(lyrics: lyrics, playback: playback)
+                    .frame(maxWidth: NotchCompactLyrics.width(lyrics, in: NotchCompactLyrics.capsuleWidthRange))
+                NotchLiveEqualizerBars(isPlaying: playback.isPlaying,
+                                       bars: NotchLayout.compactMusicBarCount,
+                                       barWidth: NotchLayout.compactMusicBarWidth,
+                                       height: CapsuleLayout.barsHeight(geometry),
+                                       tint: tint?.color ?? .white)
+                    .padding(.trailing, CapsuleLayout.endPadding)
+                    .frame(width: wing, alignment: .trailing)
+            }
+            .modifier(NotchMusicSwipeFeedback())
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel([title, playback.track.artist].compactMap { $0 }.joined(separator: ", "))
+        .help(title)
+    }
+
+    private func plainRow(side: CGFloat, named: Bool) -> some View {
         NotchCapsuleRow(size: size ?? CapsuleLayout.musicSurface(title: named ? title : nil, geometry: geometry),
                         geometry: geometry, leading: CapsuleLayout.artworkInset(geometry)) {
             HStack(spacing: 0) {
                 NotchMusicCover(artwork: artwork, side: side, radius: side / 2)
                 // A song is named only as it starts; then the cover and bars say enough.
                 Group {
-                    if let lyrics, let playback = music.playback {
-                        NotchCompactLyricLine(lyrics: lyrics, playback: playback).transition(.opacity)
-                    } else if named { Text(title).capsuleTitle().truncationMode(.tail).transition(.opacity) }
+                    if named { Text(title).capsuleTitle().truncationMode(.tail).transition(.opacity) }
                     else { Color.clear }
                 }
                 .padding(.horizontal, CapsuleLayout.endPadding)
@@ -428,11 +458,54 @@ struct NotchCapsuleAgentStrip: View {
         }
     }
 
-    /// Fork: the song at the leading end, the agents at the trailing end.
+    /// Fork: the song at the leading end, the agents at the trailing end;
+    /// with a line being sung, the line in the middle and the agents just past it.
     @ViewBuilder private func pairedRow(live: [AgentLiveSession], working: [AgentProvider]) -> some View {
+        if let lyrics = service.compactLyrics, let playback = music.playback {
+            lyricRow(lyrics, playback: playback, live: live, working: working)
+        } else {
+            plainPairedRow(live: live, working: working)
+        }
+    }
+
+    private func lyricRow(_ lyrics: NotchLyrics, playback: NotchPlayback, live: [AgentLiveSession],
+                          working: [AgentProvider]) -> some View {
         let geometry = displayGeometry ?? service.geometry
         let side = CapsuleLayout.artworkSide(geometry)
-        NotchCapsuleRow(size: size, geometry: geometry, leading: CapsuleLayout.artworkInset(geometry)) {
+        let wing = CapsuleLayout.lyricAgentWing(reading: reading(at: Date(), live: live), working: working.count,
+                                                geometry: geometry)
+        return NotchCapsuleRow(size: size, geometry: geometry, leading: 0, trailing: 0) {
+            HStack(spacing: 0) {
+                HStack(spacing: CapsuleLayout.spacing) {
+                    NotchMusicCover(artwork: music.artwork, side: side, radius: side / 2)
+                    NotchLiveEqualizerBars(isPlaying: playback.isPlaying,
+                                           bars: NotchLayout.compactMusicBarCount,
+                                           barWidth: NotchLayout.compactMusicBarWidth,
+                                           height: CapsuleLayout.barsHeight(geometry),
+                                           tint: music.artworkTint?.color ?? .white)
+                }
+                .padding(.leading, CapsuleLayout.artworkInset(geometry))
+                .frame(width: wing, alignment: .leading)
+                NotchCompactLyricLine(lyrics: lyrics, playback: playback)
+                    .frame(maxWidth: NotchCompactLyrics.width(lyrics, in: NotchCompactLyrics.capsuleWidthRange))
+                HStack(spacing: CapsuleLayout.spacing) {
+                    NotchCapsuleAgentMarks(providers: working)
+                    readingText(live: live, working: working)
+                }
+                .padding(.leading, CapsuleLayout.lyricGap)
+                .frame(width: wing, alignment: .leading)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(([playback.track.title].compactMap { $0 } + working.map(\.displayName)).joined(separator: ", "))
+        .accessibilityValue(reading(at: Date(), live: live))
+        .accessibilityHint(FeatureStrings.notch(l10n.language).open)
+    }
+
+    private func plainPairedRow(live: [AgentLiveSession], working: [AgentProvider]) -> some View {
+        let geometry = displayGeometry ?? service.geometry
+        let side = CapsuleLayout.artworkSide(geometry)
+        return NotchCapsuleRow(size: size, geometry: geometry, leading: CapsuleLayout.artworkInset(geometry)) {
             HStack(spacing: 0) {
                 HStack(spacing: CapsuleLayout.spacing) {
                     NotchMusicCover(artwork: music.artwork, side: side, radius: side / 2)
@@ -441,11 +514,6 @@ struct NotchCapsuleAgentStrip: View {
                                            barWidth: NotchLayout.compactMusicBarWidth,
                                            height: CapsuleLayout.barsHeight(geometry),
                                            tint: music.artworkTint?.color ?? .white)
-                    if let lyrics = service.compactLyrics, let playback = music.playback {
-                        NotchCompactLyricLine(lyrics: lyrics, playback: playback, alignment: .leading)
-                            .frame(maxWidth: NotchCompactLyrics.width(lyrics, in: NotchCompactLyrics.capsuleWidthRange))
-                            .padding(.leading, CapsuleLayout.groupSpacing - CapsuleLayout.spacing)
-                    }
                 }
                 Spacer(minLength: CapsuleLayout.pairGap)
                 HStack(spacing: CapsuleLayout.spacing) {

@@ -574,29 +574,25 @@ final class NotchService: ObservableObject {
     private func compactGeometry(for activity: NotchCompactActivity?, companion: NotchCompactActivity? = nil,
                                  base: NotchGeometry? = nil) -> NotchGeometry {
         var geometry = base ?? self.geometry
+        // Fork: a drawn camera's gap widens for the line being sung.
+        if !geometry.isNotched, !geometry.floats, activity == .music || (activity == .agents && companion == .music),
+           let lyrics = compactLyrics {
+            geometry.lyricRoom = NotchCompactLyrics.gapRoom(lyrics)
+        }
         if base == nil, showsCompactActivityPicker {
             let room = max(0, (geometry.screen.width - 24 - NotchActivityPickerLayout.horizontalInset * 2
                                - geometry.cameraWidth) / 2)
             geometry.compactSideRoom = min(geometry.compactSideRoom ?? 0, room)
         }
         switch activity {
-        case .music:
-            // Fork: beside a camera, a sung line widens the wings.
-            if geometry.isNotched, let lyrics = compactLyrics {
-                return geometry.compactLyricMusicGeometry(wing: lyricStripWing(lyrics, in: geometry))
-            }
-            return geometry.compactMusicGeometry
+        case .music: return geometry.compactMusicGeometry
         case .timer:
             return geometry.compactTimerGeometry(showsDownloads: companion == .downloads,
                                                  wing: timerStripWing(for: companion, in: geometry))
         case .downloads:
             let name = NotchDownloadService.shared.items.first { $0.active && !$0.completed }?.name
             return geometry.compactDownloadGeometry(wing: NotchDownloadSupport.compactWing(for: name, in: geometry))
-        case .agents:
-            let wing = agentStripWing(in: geometry, companion: companion)
-            // Fork: a sung line beside the agents may need more than a reading.
-            return geometry.compactAgentGeometry(wing: wing, widest: companion == .music && compactLyrics != nil
-                                                 ? wing : NotchAgentSupport.stripWingRange.upperBound)
+        case .agents: return geometry.compactAgentGeometry(wing: agentStripWing(in: geometry, companion: companion))
         case .watch: return geometry.compactWatchGeometry(wing: watchStripWing(in: geometry))
         case .calendar:
             return geometry.compactCalendarGeometry(wing: calendarStripWing(for: companion, in: geometry),
@@ -612,13 +608,6 @@ final class NotchService: ObservableObject {
     var compactLyrics: NotchLyrics? {
         guard heldMusic == nil, !awaitsTrackNotice else { return nil }
         return NotchLyricsService.shared.compactLyrics(for: NotchMusicService.shared.playback)
-    }
-
-    /// Fork: the cover and the line at the wing's end, with air beside the camera.
-    private func lyricStripWing(_ lyrics: NotchLyrics, in geometry: NotchGeometry) -> CGFloat {
-        let music = geometry.compactMusicGeometry
-        return music.compactMusicArtworkInset + music.compactMusicArtworkSide + 6
-            + NotchCompactLyrics.width(lyrics, in: NotchCompactLyrics.wingWidthRange) + NotchAgentSupport.stripCameraGap
     }
 
     /// The wider side: the eye at the left end, or the reading, or the
@@ -749,8 +738,7 @@ final class NotchService: ObservableObject {
         if companion == .music {
             let right = reading + CGFloat(max(1, working)) * frame + 3
             let left = provisional.compactMusicArtworkInset + provisional.compactMusicArtworkSide
-                + 6 + (compactLyrics.map { NotchCompactLyrics.width($0, in: NotchCompactLyrics.wingWidthRange) }
-                       ?? NotchLayout.compactMusicBarsWidth)
+                + 6 + NotchLayout.compactMusicBarsWidth
             return max(right, left) + NotchAgentSupport.stripCameraGap
         }
         return max(reading, marks) + NotchAgentSupport.stripCameraGap

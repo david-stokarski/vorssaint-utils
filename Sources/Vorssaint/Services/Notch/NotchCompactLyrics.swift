@@ -3,10 +3,10 @@
 
 import AppKit
 
-// Fork: once a new song's notice has named it, the closed island sings
-// along. The line being sung takes the middle of the music strip, and keeps
-// its place beside working agents when the two share the island. A song
-// without synced lyrics keeps the strip as it was.
+// Fork: once a new song's notice has named it, the floating capsule sings
+// along. The line being sung takes the capsule's middle, alone or with
+// working agents just past it. A song without synced lyrics keeps the strip
+// as it was.
 
 extension DefaultsKey {
     static let notchCompactLyrics = "notchCompactLyrics"
@@ -21,7 +21,6 @@ enum NotchCompactLyrics {
     /// The line's room: as wide as the song's longest line, within these, so
     /// the island keeps one width for the whole song instead of one per line.
     static let capsuleWidthRange: ClosedRange<CGFloat> = 80...240
-    static let wingWidthRange: ClosedRange<CGFloat> = 60...190
 
     static func isOn(in defaults: UserDefaults = .standard) -> Bool {
         NotchLyricsSupport.isEnabled(in: defaults) && defaults.bool(forKey: DefaultsKey.notchCompactLyrics)
@@ -54,23 +53,47 @@ enum NotchCompactLyrics {
     static func width(_ lyrics: NotchLyrics, in range: ClosedRange<CGFloat>) -> CGFloat {
         min(range.upperBound, max(range.lowerBound, widestLine(lyrics)))
     }
+
+    /// Air between the line and the wings of a drawn camera's gap.
+    static let gapInset: CGFloat = 12
+
+    /// The room the line takes in a drawn camera's gap.
+    static func gapRoom(_ lyrics: NotchLyrics) -> CGFloat {
+        width(lyrics, in: capsuleWidthRange) + gapInset * 2
+    }
 }
 
 extension NotchCapsuleLayout {
-    /// The cover at the leading end, the line in the middle, the bars at the other end.
-    static func lyricMusicSurface(lineWidth: CGFloat, geometry: NotchGeometry) -> CGSize {
-        let content = artworkSide(geometry) + endPadding + lineWidth + endPadding + barsWidth
-        return surface(content: content, leading: artworkInset(geometry),
-                       maximum: Maximum.music + NotchCompactLyrics.capsuleWidthRange.upperBound, geometry: geometry)
+    // A floating capsule is laid out like the island around a camera: the
+    // line sits in the middle, where a camera would be, between two wings of
+    // one width, so it stays at the display's centre. A hanging island
+    // without a camera sings in its drawn camera's gap instead; beside a real
+    // camera the middle is hidden, so it shows no line.
+
+    /// Between the line's room and what stands beside it.
+    static let lyricGap: CGFloat = 10
+
+    /// The cover at the leading end, or the bars at the trailing end.
+    static func lyricMusicWing(geometry: NotchGeometry) -> CGFloat {
+        max(artworkInset(geometry) + artworkSide(geometry), barsWidth + endPadding) + lyricGap
     }
 
-    /// Working agents beside the song being sung: cover, bars and line at
-    /// the leading end, the agents' marks and reading at the trailing end.
-    static func agentLyricSurface(reading: String, working: Int, lineWidth: CGFloat, geometry: NotchGeometry) -> CGSize {
-        let music = artworkSide(geometry) + spacing + barsWidth + groupSpacing + lineWidth
+    /// The cover and bars at the leading end, or the agents just past the line.
+    static func lyricAgentWing(reading: String, working: Int, geometry: NotchGeometry) -> CGFloat {
+        let music = artworkInset(geometry) + artworkSide(geometry) + spacing + barsWidth
         let agents = agentMarksWidth(working: working) + spacing
-            + width(NotchAgentSupport.readingShape(reading), font: readingFont)
-        return surface(content: music + pairGap + agents, leading: artworkInset(geometry),
+            + width(NotchAgentSupport.readingShape(reading), font: readingFont) + endPadding
+        return max(music, agents) + lyricGap
+    }
+
+    static func lyricMusicSurface(lineWidth: CGFloat, geometry: NotchGeometry) -> CGSize {
+        surface(content: lyricMusicWing(geometry: geometry) * 2 + lineWidth, leading: 0, trailing: 0,
+                maximum: Maximum.music + NotchCompactLyrics.capsuleWidthRange.upperBound, geometry: geometry)
+    }
+
+    static func agentLyricSurface(reading: String, working: Int, lineWidth: CGFloat, geometry: NotchGeometry) -> CGSize {
+        let wing = lyricAgentWing(reading: reading, working: working, geometry: geometry)
+        return surface(content: wing * 2 + lineWidth, leading: 0, trailing: 0,
                        maximum: Maximum.activity + 60 + NotchCompactLyrics.capsuleWidthRange.upperBound,
                        geometry: geometry)
     }

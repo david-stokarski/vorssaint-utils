@@ -1711,6 +1711,9 @@ struct NotchGeometry: Equatable {
     private var minimumCompactWidth: CGFloat = 0
     /// Narrower wings than this are dropped rather than drawn cramped.
     private var minimumWing: CGFloat = 44
+    /// Fork: the room a sung line needs in a drawn camera's gap, which widens
+    /// to give it. A real camera hides its gap, so it never widens.
+    var lyricRoom: CGFloat = 0
 
     init(screen: CGRect, safeAreaTop: CGFloat, cameraWidth: CGFloat, layout: NotchSize = .compact,
          menuBarHeight: CGFloat = 24, compactSideRoom: CGFloat? = nil,
@@ -1847,16 +1850,6 @@ struct NotchGeometry: Equatable {
         compact.minimumWing = wing
         return compact
     }
-    /// Fork: a sung line takes the wing beside the cover, and both wings
-    /// grow to fit it; with too little room the line gets what there is.
-    func compactLyricMusicGeometry(wing: CGFloat) -> NotchGeometry {
-        var compact = compactMusicGeometry
-        let room = compactSideRoom ?? 0
-        let fitted = max(compact.minimumWing, wing.isFinite ? wing.rounded(.up) : 0)
-        compact.compactSideRoom = room.isFinite && room >= compact.minimumWing ? min(fitted, room) : 0
-        compact.minimumCompactWidth = cameraWidth + fitted * 2
-        return compact
-    }
     /// The Lock Screen keeps no menus beside the camera, so its island always
     /// takes the wings the music strip fits to the cover and the bars.
     var lockScreenMusicGeometry: NotchGeometry {
@@ -1897,7 +1890,7 @@ struct NotchGeometry: Equatable {
         max(compactMusicArtworkInset + compactMusicArtworkSide,
             compactMusicBarsInset + NotchLayout.compactMusicBarsWidth).rounded(.up)
     }
-    var musicCameraGap: CGFloat { cameraWidth }
+    var musicCameraGap: CGFloat { isNotched ? cameraWidth : max(cameraWidth, lyricRoom) }  // Fork: lyricRoom
     var compactMusicLabelInset: CGFloat {
         let height = compactActivityContentHeight
         let shoulder = NotchLayout.shoulder(height: height)
@@ -1956,11 +1949,10 @@ struct NotchGeometry: Equatable {
     /// A working agent keeps its mark and one reading beside the camera,
     /// never below it, like the timer. Both wings take the width the reading
     /// needs, so a short one leaves no band of empty black at the ends.
-    func compactAgentGeometry(wing: CGFloat,
-                              widest: CGFloat = NotchAgentSupport.stripWingRange.upperBound) -> NotchGeometry {  // Fork: a sung line beside
+    func compactAgentGeometry(wing: CGFloat) -> NotchGeometry {
         var compact = self
         let room = compactSideRoom ?? 0
-        let fitted = min(max(NotchAgentSupport.stripWingRange.upperBound, widest),
+        let fitted = min(NotchAgentSupport.stripWingRange.upperBound,
                          max(NotchAgentSupport.stripWingRange.lowerBound, wing.isFinite ? wing.rounded(.up) : 0))
         compact.compactSideRoom = room.isFinite && room >= NotchAgentSupport.stripWingRange.lowerBound ? min(fitted, room) : 0
         compact.minimumCompactWidth = cameraWidth + fitted * 2
@@ -1980,11 +1972,14 @@ struct NotchGeometry: Equatable {
         return compact
     }
     var musicStrip: CGSize {
-        let preferred = min(max(layout == .spacious ? 520 : 440, cameraWidth + 88, minimumCompactWidth), screen.width - 24)
+        // Fork: a gap widened for a sung line takes the camera's place.
+        let gap = musicCameraGap
+        let preferred = min(max(layout == .spacious ? 520 : 440, gap + 88, minimumCompactWidth + gap - cameraWidth),
+                            screen.width - 24)
         let measuredRoom = compactSideRoom ?? 0
         let room = measuredRoom.isFinite ? max(0, measuredRoom).rounded(.down) : 0
-        let wings = min(max(0, preferred - cameraWidth), room * 2)
-        return CGSize(width: cameraWidth + (wings >= minimumWing * 2 ? wings : 0), height: stripHeight)
+        let wings = min(max(0, preferred - gap), room * 2)
+        return CGSize(width: gap + (wings >= minimumWing * 2 ? wings : 0), height: stripHeight)
     }
     var musicWingWidth: CGFloat { max(0, (musicStrip.width - musicCameraGap) / 2) }
 

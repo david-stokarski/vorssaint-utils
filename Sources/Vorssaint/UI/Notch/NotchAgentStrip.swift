@@ -190,24 +190,27 @@ struct NotchAgentMusicPair: View {
                 HStack(spacing: 6) {
                     NotchMusicCover(artwork: music.artwork, side: geometry.compactMusicArtworkSide,
                                     radius: geometry.compactMusicArtworkRadius)
-                    // Fork: the line being sung, where the bars were.
-                    if let lyrics = service.compactLyrics, let playback = music.playback {
-                        NotchCompactLyricLine(lyrics: lyrics, playback: playback, size: 11, alignment: .leading)
-                            .padding(.trailing, NotchAgentSupport.stripCameraGap)
-                    } else {
-                        NotchLiveEqualizerBars(isPlaying: music.playback?.isPlaying == true,
-                                               bars: NotchLayout.compactMusicBarCount,
-                                               barWidth: NotchLayout.compactMusicBarWidth,
-                                               height: geometry.compactMusicBarHeight,
-                                               tint: music.artworkTint?.color ?? .white)
-                    }
+                    NotchLiveEqualizerBars(isPlaying: music.playback?.isPlaying == true,
+                                           bars: NotchLayout.compactMusicBarCount,
+                                           barWidth: NotchLayout.compactMusicBarWidth,
+                                           height: geometry.compactMusicBarHeight,
+                                           tint: music.artworkTint?.color ?? .white)
                 }
                 .padding(.leading, geometry.compactMusicArtworkInset)
                 .frame(width: geometry.compactActivityWingWidth, height: geometry.compactActivityContentHeight,
                        alignment: .leading)
                 .contentShape(Rectangle())
             }
-            Color.clear.frame(width: geometry.compactActivityCameraGap)
+            // Fork: a drawn camera's gap sings the song's line; a real one hides it.
+            Group {
+                if !geometry.isNotched, let lyrics = service.compactLyrics, let playback = music.playback {
+                    NotchCompactLyricLine(lyrics: lyrics, playback: playback)
+                        .padding(.horizontal, NotchCompactLyrics.gapInset)
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(width: geometry.compactActivityCameraGap, height: geometry.compactActivityContentHeight)
             Button { service.openActivity(.agents) } label: {
                 HStack(spacing: 3) {
                     HStack(spacing: 1) {
@@ -226,9 +229,11 @@ struct NotchAgentMusicPair: View {
                             }
                     }
                 }
+                // Fork: the agents sit just past the camera.
+                .padding(.leading, NotchAgentSupport.stripCameraGap)
                 .padding(.trailing, textInset)
                 .frame(width: geometry.compactActivityWingWidth, height: geometry.compactActivityContentHeight,
-                       alignment: .trailing)
+                       alignment: .leading)
                 .contentShape(Rectangle())
             }
         }

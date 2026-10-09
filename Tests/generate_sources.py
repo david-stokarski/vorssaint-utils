@@ -703,7 +703,6 @@ def main():
           + "final class Service: State {\n" + music_visibility
           # Fork: the closed island's lyrics and the waiting cost flash.
           + "var compactLyrics: NotchLyrics? { nil }\n"
-          + "func lyricStripWing(_ lyrics: NotchLyrics, in geometry: NotchGeometry) -> CGFloat { 0 }\n"
           + "var pendingCostFlash: (notice: NotchNotice, since: Date)?\nfunc flushCostFlash() {}\n"
           + "}\n}\n")
     write("NotchScreenEdgeClicks.swift", "import AppKit\nextension NotchScreenEdgeClickTests {\nfinal class Service: State {\n"
